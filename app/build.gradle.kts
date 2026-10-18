@@ -61,7 +61,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     
-    // Material Icons Extended (para los iconos de navegación)
+    // Material Icons Extended
     implementation("androidx.compose.material:material-icons-extended")
 
     // Navegacion Compose
@@ -73,8 +73,10 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
 
-    // WorkManager (para tareas en segundo plano)
+    // WorkManager & Hilt Work Integration
     implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation("androidx.hilt:hilt-work:1.2.0")
+    ksp("androidx.hilt:hilt-compiler:1.2.0")
 
     // Dagger Hilt
     implementation("com.google.dagger:hilt-android:2.51.1")
