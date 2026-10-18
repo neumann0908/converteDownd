@@ -12,5 +12,6 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "MusicDownloaderConverter"
+
+rootProject.name = "converteDownd"
 include(":app")
