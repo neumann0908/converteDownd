@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.musicdownloader.converter.player.AudioPlayerManager
+import com.musicdownloader.converter.util.AudioTrimmer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -89,6 +90,35 @@ class LibraryViewModel @Inject constructor(
                 file.delete()
             }
             loadDownloadedFiles()
+        }
+    }
+
+    fun trimAudio(audio: AudioFileItem, startSeconds: Int, endSeconds: Int, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val srcFile = File(audio.path)
+                if (!srcFile.exists() || startSeconds >= endSeconds) {
+                    onResult(false)
+                    return@launch
+                }
+                val downloadDir = srcFile.parentFile ?: File(context.getExternalFilesDir(null), "MusicDownloads")
+                val baseName = srcFile.nameWithoutExtension
+                val dstFile = File(downloadDir, "${baseName}_recortado.m4a")
+
+                val success = AudioTrimmer.trim(
+                    srcPath = audio.path,
+                    dstPath = dstFile.absolutePath,
+                    startMs = startSeconds * 1000L,
+                    endMs = endSeconds * 1000L
+                )
+                if (success) {
+                    loadDownloadedFiles()
+                }
+                onResult(success)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onResult(false)
+            }
         }
     }
 }

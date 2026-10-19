@@ -1,10 +1,12 @@
 package com.musicdownloader.converter.presentation.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
@@ -14,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,6 +32,11 @@ fun LibraryScreen(
 ) {
     val audioList by viewModel.audioList.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val context = LocalContext.current
+
+    var audioToTrim by remember { mutableStateOf<AudioFileItem?>(null) }
+    var startSecStr by remember { mutableStateOf("0") }
+    var endSecStr by remember { mutableStateOf("30") }
 
     LaunchedEffect(Unit) {
         viewModel.loadDownloadedFiles()
@@ -56,7 +64,6 @@ fun LibraryScreen(
             }
         }
 
-        // Barra de búsqueda
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { viewModel.onSearchQueryChanged(it) },
@@ -90,6 +97,11 @@ fun LibraryScreen(
                         onPlayClick = {
                             viewModel.playerManager.playFile(audio.path, audio.name)
                         },
+                        onTrimClick = {
+                            audioToTrim = audio
+                            startSecStr = "0"
+                            endSecStr = "30"
+                        },
                         onDeleteClick = {
                             viewModel.deleteAudio(audio.path)
                         }
@@ -98,12 +110,66 @@ fun LibraryScreen(
             }
         }
     }
+
+    // Diálogo para ingresar los segundos de recorte
+    if (audioToTrim != null) {
+        AlertDialog(
+            onDismissRequest = { audioToTrim = null },
+            title = { Text("Recortar Audio") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = audioToTrim!!.name,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    OutlinedTextField(
+                        value = startSecStr,
+                        onValueChange = { startSecStr = it },
+                        label = { Text("Segundo de inicio") },
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = endSecStr,
+                        onValueChange = { endSecStr = it },
+                        label = { Text("Segundo de fin") },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val start = startSecStr.toIntOrNull() ?: 0
+                    val end = endSecStr.toIntOrNull() ?: 30
+                    audioToTrim?.let { audio ->
+                        viewModel.trimAudio(audio, start, end) { success ->
+                            if (success) {
+                                Toast.makeText(context, "¡Audio recortado con éxito!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Error al recortar el audio", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                    audioToTrim = null
+                }) {
+                    Text("Recortar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { audioToTrim = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 }
 
 @Composable
 fun AudioItemRow(
     audio: AudioFileItem,
     onPlayClick: () -> Unit,
+    onTrimClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
     Card(
@@ -151,6 +217,15 @@ fun AudioItemRow(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Reproducir",
                     tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Botón Recortar
+            IconButton(onClick = onTrimClick) {
+                Icon(
+                    imageVector = Icons.Default.ContentCut,
+                    contentDescription = "Recortar",
+                    tint = MaterialTheme.colorScheme.secondary
                 )
             }
 
