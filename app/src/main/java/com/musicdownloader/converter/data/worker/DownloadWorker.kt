@@ -1,7 +1,6 @@
 package com.musicdownloader.converter.data.worker
 
 import android.content.Context
-import android.os.Environment
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -34,11 +33,8 @@ class DownloadWorker @AssistedInject constructor(
                     e.printStackTrace()
                 }
 
-                // Guardar directamente en la carpeta pública de Música del teléfono
-                val downloadDir = File(
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-                    "MusicDownloads"
-                )
+                // Usar almacenamiento privado externo de la app (seguro contra restricciones de Android 10+)
+                val downloadDir = File(applicationContext.getExternalFilesDir(null), "MusicDownloads")
                 if (!downloadDir.exists()) {
                     downloadDir.mkdirs()
                 }
