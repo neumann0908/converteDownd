@@ -1,7 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.google.devtools.ksp")
+    kotlin("kapt")
     id("com.google.dagger.hilt.android")
 }
 
@@ -67,21 +67,24 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
-    // Dagger Hilt con KSP
+    // Dagger & Hilt (con kapt y dependencias base explícitas)
+    implementation("javax.inject:javax.inject:1")
+    implementation("com.google.dagger:dagger:2.48")
+    kapt("com.google.dagger:dagger-compiler:2.48")
     implementation("com.google.dagger:hilt-android:2.48")
-    ksp("com.google.dagger:hilt-compiler:2.48")
+    kapt("com.google.dagger:hilt-compiler:2.48")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
     implementation("androidx.hilt:hilt-work:1.1.0")
-    ksp("androidx.hilt:hilt-compiler:1.1.0")
+    kapt("androidx.hilt:hilt-compiler:1.1.0")
 
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
-    // Room Database con KSP
+    // Room Database (con kapt)
     val roomVersion = "2.6.1"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
-    ksp("androidx.room:room-compiler:$roomVersion")
+    kapt("androidx.room:room-compiler:$roomVersion")
 
     // Media3
     val media3Version = "1.2.1"
