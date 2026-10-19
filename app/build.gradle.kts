@@ -41,9 +41,9 @@ android {
 }
 
 dependencies {
-    // Librerías de yt-dlp y FFmpeg desde JitPack
-    implementation("com.github.yausername.youtubedl-android:library:0.17.0")
-    implementation("com.github.yausername.youtubedl-android:ffmpeg:0.17.0")
+    // Librerías oficiales de yt-dlp y FFmpeg en MavenCentral
+    implementation("io.github.yausername.youtubedl-android:library:0.17.2")
+    implementation("io.github.yausername.youtubedl-android:ffmpeg:0.17.2")
 
     // Hilt y WorkManager
     implementation("com.google.dagger:hilt-android:2.48")
