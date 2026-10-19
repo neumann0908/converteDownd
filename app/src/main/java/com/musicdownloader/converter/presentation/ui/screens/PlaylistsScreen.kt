@@ -191,7 +191,7 @@ fun PlaylistCard(
                         .fillMaxWidth()
                         .padding(top = 12.dp)
                 ) {
-                    HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
+                    Divider(modifier = Modifier.padding(bottom = 8.dp))
                     if (songs.isEmpty()) {
                         Text(
                             text = "Esta lista está vacía.",

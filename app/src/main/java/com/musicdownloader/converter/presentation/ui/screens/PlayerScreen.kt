@@ -14,12 +14,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.musicdownloader.converter.player.AudioPlayerManager
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.musicdownloader.converter.presentation.viewmodel.PlayerViewModel
 
 @Composable
 fun PlayerScreen(
-    playerManager: AudioPlayerManager
+    viewModel: PlayerViewModel = hiltViewModel()
 ) {
+    val playerManager = viewModel.playerManager
     val isPlaying by playerManager.isPlaying.collectAsState()
     val currentTitle by playerManager.currentTrackTitle.collectAsState()
 
@@ -30,7 +32,7 @@ fun PlayerScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Icono o carátula decorativa central
+        // Icono / Carátula
         Card(
             modifier = Modifier.size(200.dp),
             shape = MaterialTheme.shapes.extraLarge,
@@ -51,7 +53,7 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Título de la canción en reproducción
+        // Título de la canción
         Text(
             text = currentTitle ?: "Ninguna canción seleccionada",
             fontSize = 20.sp,
@@ -64,7 +66,7 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // Controles de Reproducción
+        // Botón Play / Pausa
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
