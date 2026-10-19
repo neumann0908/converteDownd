@@ -33,20 +33,16 @@ class DownloadWorker @AssistedInject constructor(
             val request = YoutubeDLRequest(url)
             
             if (isAudioOnly) {
-                // Extraer audio en formato MP3 con la mejor calidad
                 request.addOption("-x")
                 request.addOption("--audio-format", "mp3")
                 request.addOption("--audio-quality", "0")
             } else {
-                // Descargar el mejor video disponible con audio integrado
                 request.addOption("-f", "bestvideo+bestaudio/best")
             }
             
             request.addOption("-o", "${downloadsDir.absolutePath}/%(title)s.%(ext)s")
 
-            YoutubeDL.getInstance().execute(request) { progress, etaInSeconds, line ->
-                // Progreso de descarga de yt-dlp
-            }
+            YoutubeDL.getInstance().execute(request) { _, _, _ -> }
 
             Result.success(workDataOf("FILE_URI" to downloadsDir.absolutePath))
         } catch (e: Exception) {

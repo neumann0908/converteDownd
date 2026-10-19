@@ -21,7 +21,6 @@ android {
             useSupportLibrary = true
         }
 
-        // Filtros de arquitectura requeridos por youtubedl-android y binarios nativos
         ndk {
             abiFilters.addAll(setOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64"))
         }
@@ -66,8 +65,6 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.navigation:navigation-compose:2.7.7")
-    
-    // Material Icons Extended (para iconos de descarga, reproducción, etc.)
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
     // Dagger Hilt
@@ -80,10 +77,22 @@ dependencies {
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
+    // Room Database
+    val roomVersion = "2.6.1"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
+
+    // Media3 (Para audio y reproductor)
+    val media3Version = "1.2.1"
+    implementation("androidx.media3:media3-exoplayer:$media3Version")
+    implementation("androidx.media3:media3-transformer:$media3Version")
+    implementation("androidx.media3:media3-common:$media3Version")
+
     // OkHttp para red
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    // Youtubedl-Android (Motor yt-dlp para YouTube y otras webs)
+    // Youtubedl-Android (yt-dlp + FFmpeg)
     implementation("com.github.yausername.youtubedl-android:library:0.15.0")
     implementation("com.github.yausername.youtubedl-android:ffmpeg:0.15.0")
 
