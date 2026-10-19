@@ -41,9 +41,9 @@ android {
 }
 
 dependencies {
-    // Librerías oficiales desde JitPack con el grupo correcto de yausername
-    implementation("com.github.yausername.youtubedl-android:library:0.17.2")
-    implementation("com.github.yausername.youtubedl-android:ffmpeg:0.17.2")
+    // Namespace correcto y oficial en Maven Central
+    implementation("io.github.junkfood02.youtubedl-android:library:0.17.2")
+    implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.17.2")
 
     // Hilt y WorkManager
     implementation("com.google.dagger:hilt-android:2.48")
