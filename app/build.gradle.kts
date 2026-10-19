@@ -20,11 +20,16 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // Filtros de arquitectura requeridos por youtubedl-android y binarios nativos
+        ndk {
+            abiFilters.addAll(setOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64"))
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = true
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -60,38 +65,28 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    
-    // Material Icons Extended
-    implementation("androidx.compose.material:material-icons-extended")
-
-    // Navegacion Compose
     implementation("androidx.navigation:navigation-compose:2.7.7")
-
-    // Room Database
-    val roomVersion = "2.6.1"
-    implementation("androidx.room:room-runtime:$roomVersion")
-    implementation("androidx.room:room-ktx:$roomVersion")
-    ksp("androidx.room:room-compiler:$roomVersion")
-
-    // WorkManager & Hilt Work Integration
-    implementation("androidx.work:work-runtime-ktx:2.9.0")
-    implementation("androidx.hilt:hilt-work:1.2.0")
-    ksp("androidx.hilt:hilt-compiler:1.2.0")
+    
+    // Material Icons Extended (para iconos de descarga, reproducción, etc.)
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
     // Dagger Hilt
-    implementation("com.google.dagger:hilt-android:2.51.1")
-    ksp("com.google.dagger:hilt-compiler:2.51.1")
-    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+    implementation("com.google.dagger:hilt-android:2.48")
+    ksp("com.google.dagger:hilt-compiler:2.48")
+    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+    implementation("androidx.hilt:hilt-work:1.1.0")
+    ksp("androidx.hilt:hilt-compiler:1.1.0")
 
-    // Media3 (Transformer / Player)
-    val media3Version = "1.3.0"
-    implementation("androidx.media3:media3-exoplayer:$media3Version")
-    implementation("androidx.media3:media3-transformer:$media3Version")
+    // WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 
-    // OkHttp Network
+    // OkHttp para red
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    // Testing
+    // Youtubedl-Android (Motor yt-dlp para YouTube y otras webs)
+    implementation("com.github.yausername.youtubedl-android:library:0.15.0")
+    implementation("com.github.yausername.youtubedl-android:ffmpeg:0.15.0")
+
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
