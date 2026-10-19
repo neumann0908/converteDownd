@@ -1,6 +1,7 @@
 package com.musicdownloader.converter.data.worker
 
 import android.content.Context
+import android.os.Environment
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -26,15 +27,21 @@ class DownloadWorker @AssistedInject constructor(
             )
 
             try {
-                // Actualizar binario de yt-dlp automáticamente si hay nueva versión
+                // Actualizar binario de yt-dlp automáticamente
                 try {
                     YoutubeDL.getInstance().updateYoutubeDL(applicationContext, YoutubeDL.UpdateChannel.STABLE)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
 
-                val downloadDir = File(applicationContext.getExternalFilesDir(null), "MusicDownloads")
-                if (!downloadDir.exists()) downloadDir.mkdirs()
+                // Guardar directamente en la carpeta pública de Música del teléfono
+                val downloadDir = File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                    "MusicDownloads"
+                )
+                if (!downloadDir.exists()) {
+                    downloadDir.mkdirs()
+                }
 
                 val request = YoutubeDLRequest(url).apply {
                     addOption("-o", "${downloadDir.absolutePath}/%(title)s.%(ext)s")
