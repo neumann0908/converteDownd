@@ -19,10 +19,9 @@ class ConverteDownApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         try {
-            // Inicializar tanto yt-dlp como FFmpeg de forma nativa
             YoutubeDL.getInstance().init(this)
             FFmpeg.getInstance().init(this)
-            Log.d("ConverteDownApp", "YoutubeDL y FFmpeg inicializados con éxito")
+            Log.d("ConverteDownApp", "YoutubeDL y FFmpeg inicializados correctamente")
         } catch (e: YoutubeDLException) {
             Log.e("ConverteDownApp", "Error al inicializar YoutubeDL o FFmpeg", e)
         } catch (e: Exception) {
