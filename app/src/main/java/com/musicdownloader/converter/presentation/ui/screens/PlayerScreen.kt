@@ -2,6 +2,8 @@ package com.musicdownloader.converter.presentation.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -16,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.musicdownloader.converter.presentation.viewmodel.PlayerViewModel
+import java.util.Locale
 
 @Composable
 fun PlayerScreen(
@@ -24,6 +27,8 @@ fun PlayerScreen(
     val playerManager = viewModel.playerManager
     val isPlaying by playerManager.isPlaying.collectAsState()
     val currentTitle by playerManager.currentTrackTitle.collectAsState()
+    val currentPosition by playerManager.currentPosition.collectAsState()
+    val duration by playerManager.duration.collectAsState()
 
     Column(
         modifier = Modifier
@@ -32,7 +37,7 @@ fun PlayerScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Icono / Carátula
+        // Carátula del reproductor
         Card(
             modifier = Modifier.size(200.dp),
             shape = MaterialTheme.shapes.extraLarge,
@@ -51,9 +56,9 @@ fun PlayerScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Título de la canción
+        // Título de la pista
         Text(
             text = currentTitle ?: "Ninguna canción seleccionada",
             fontSize = 20.sp,
@@ -64,14 +69,58 @@ fun PlayerScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Botón Play / Pausa
+        // Barra de Progreso (Slider) y Tiempos
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Slider(
+                value = if (duration > 0) currentPosition.toFloat() else 0f,
+                onValueChange = { newValue ->
+                    playerManager.seekTo(newValue.toLong())
+                },
+                valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = formatTime(currentPosition),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = formatTime(duration),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Controles de Reproducción (Rewind, Play/Pause, Forward)
         Row(
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
+            // Botón Retroceder 10s
+            IconButton(
+                onClick = { playerManager.seekRewind() },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FastRewind,
+                    contentDescription = "Retroceder 10s",
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Botón Principal Play / Pausa
             FilledIconButton(
                 onClick = { playerManager.togglePlayPause() },
                 modifier = Modifier.size(72.dp),
@@ -85,6 +134,27 @@ fun PlayerScreen(
                     modifier = Modifier.size(40.dp)
                 )
             }
+
+            // Botón Adelantar 10s
+            IconButton(
+                onClick = { playerManager.seekForward() },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FastForward,
+                    contentDescription = "Adelantar 10s",
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
+}
+
+// Función auxiliar para formatear milisegundos a formato MM:SS
+fun formatTime(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
 }

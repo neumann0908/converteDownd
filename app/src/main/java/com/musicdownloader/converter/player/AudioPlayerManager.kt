@@ -5,8 +5,13 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -16,6 +21,8 @@ class AudioPlayerManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private var exoPlayer: ExoPlayer? = null
+    private val scope = CoroutineScope(Dispatchers.Main)
+    private var progressJob: Job? = null
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying
@@ -23,14 +30,48 @@ class AudioPlayerManager @Inject constructor(
     private val _currentTrackTitle = MutableStateFlow<String?>("Ninguna canción seleccionada")
     val currentTrackTitle: StateFlow<String?> = _currentTrackTitle
 
+    private val _currentPosition = MutableStateFlow(0L)
+    val currentPosition: StateFlow<Long> = _currentPosition
+
+    private val _duration = MutableStateFlow(0L)
+    val duration: StateFlow<Long> = _duration
+
     init {
         exoPlayer = ExoPlayer.Builder(context).build().apply {
             addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(playing: Boolean) {
                     _isPlaying.value = playing
+                    if (playing) {
+                        startProgressTracking()
+                    } else {
+                        stopProgressTracking()
+                    }
+                }
+
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_READY) {
+                        _duration.value = duration.coerceAtLeast(0L)
+                    }
                 }
             })
         }
+    }
+
+    private fun startProgressTracking() {
+        progressJob?.cancel()
+        progressJob = scope.launch {
+            while (true) {
+                exoPlayer?.let { player ->
+                    _currentPosition.value = player.currentPosition
+                    _duration.value = player.duration.coerceAtLeast(0L)
+                }
+                delay(500L)
+            }
+        }
+    }
+
+    private fun stopProgressTracking() {
+        progressJob?.cancel()
     }
 
     fun playFile(path: String, title: String) {
@@ -42,6 +83,7 @@ class AudioPlayerManager @Inject constructor(
             player.prepare()
             player.play()
             _currentTrackTitle.value = title
+            _duration.value = player.duration.coerceAtLeast(0L)
         }
     }
 
@@ -53,7 +95,6 @@ class AudioPlayerManager @Inject constructor(
                 if (player.mediaItemCount > 0) {
                     player.play()
                 } else {
-                    // Si no hay canción cargada, buscar la primera disponible en la carpeta de descargas
                     try {
                         val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
                         if (downloadDir.exists() && downloadDir.isDirectory) {
@@ -76,7 +117,29 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
+    fun seekTo(positionMs: Long) {
+        exoPlayer?.seekTo(positionMs)
+        _currentPosition.value = positionMs
+    }
+
+    fun seekForward() {
+        exoPlayer?.let { player ->
+            val newPos = (player.currentPosition + 10000).coerceAtMost(player.duration)
+            player.seekTo(newPos)
+            _currentPosition.value = newPos
+        }
+    }
+
+    fun seekRewind() {
+        exoPlayer?.let { player ->
+            val newPos = (player.currentPosition - 10000).coerceAtLeast(0L)
+            player.seekTo(newPos)
+            _currentPosition.value = newPos
+        }
+    }
+
     fun release() {
+        stopProgressTracking()
         exoPlayer?.release()
         exoPlayer = null
     }
