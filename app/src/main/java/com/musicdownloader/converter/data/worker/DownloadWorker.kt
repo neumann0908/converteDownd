@@ -31,13 +31,15 @@ class DownloadWorker @AssistedInject constructor(
 
                 val request = YoutubeDLRequest(url).apply {
                     addOption("-o", "${downloadDir.absolutePath}/%(title)s.%(ext)s")
-                    addOption("-f", "bestaudio/best")
+                    addOption("-f", "ba/b")
                     addOption("--extract-audio")
                     addOption("--audio-format", "mp3")
-                    // Bypass del bloqueo HTTP 400 / Precondition check failed de YouTube
-                    addOption("--extractor-args", "youtube:player_client=android,web")
-                    addOption("--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    
+                    // Clientes de YouTube que no exigen PO Token ni provocan HTTP 400
+                    addOption("--extractor-args", "youtube:player_client=mweb,ios,android_creator")
+                    addOption("--user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1")
                     addOption("--no-check-certificate")
+                    addOption("--force-ipv4")
                 }
 
                 YoutubeDL.getInstance().execute(request)
