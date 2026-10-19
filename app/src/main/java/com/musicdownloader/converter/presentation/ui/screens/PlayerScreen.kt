@@ -2,20 +2,26 @@ package com.musicdownloader.converter.presentation.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PauseCircle
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.musicdownloader.converter.player.AudioPlayerManager
 
 @Composable
-fun PlayerScreen() {
-    var isPlaying by remember { mutableStateOf(false) }
-    var sliderPosition by remember { mutableStateOf(0.3f) }
+fun PlayerScreen(
+    playerManager: AudioPlayerManager
+) {
+    val isPlaying by playerManager.isPlaying.collectAsState()
+    val currentTitle by playerManager.currentTrackTitle.collectAsState()
 
     Column(
         modifier = Modifier
@@ -24,60 +30,58 @@ fun PlayerScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Surface(
+        // Icono o carátula decorativa central
+        Card(
             modifier = Modifier.size(200.dp),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.primaryContainer
+            shape = MaterialTheme.shapes.extraLarge,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text("🎵", style = MaterialTheme.typography.displayLarge)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MusicNote,
+                    contentDescription = null,
+                    modifier = Modifier.size(90.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Text("Pista Descargada 01", style = MaterialTheme.typography.headlineSmall)
-        Text("Álbum Desconocido", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Slider(
-            value = sliderPosition,
-            onValueChange = { sliderPosition = it },
+        // Título de la canción en reproducción
+        Text(
+            text = currentTitle ?: "Ninguna canción seleccionada",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth()
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("01:12", style = MaterialTheme.typography.bodySmall)
-            Text("03:45", style = MaterialTheme.typography.bodySmall)
-        }
+        Spacer(modifier = Modifier.height(48.dp))
 
-        Spacer(modifier = Modifier.height(16.dp))
-
+        // Controles de Reproducción
         Row(
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceEvenly,
             modifier = Modifier.fillMaxWidth()
         ) {
-            IconButton(onClick = {}, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Default.SkipPrevious, contentDescription = "Anterior", modifier = Modifier.size(36.dp))
-            }
-            IconButton(
-                onClick = { isPlaying = !isPlaying },
-                modifier = Modifier.size(64.dp)
+            FilledIconButton(
+                onClick = { playerManager.togglePlayPause() },
+                modifier = Modifier.size(72.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
             ) {
                 Icon(
-                    imageVector = if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
-                    contentDescription = "Play/Pausa",
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Pausar" else "Reproducir",
+                    modifier = Modifier.size(40.dp)
                 )
-            }
-            IconButton(onClick = {}, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Default.SkipNext, contentDescription = "Siguiente", modifier = Modifier.size(36.dp))
             }
         }
     }
