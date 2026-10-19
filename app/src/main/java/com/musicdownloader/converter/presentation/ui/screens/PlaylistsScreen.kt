@@ -1,17 +1,23 @@
 package com.musicdownloader.converter.presentation.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,60 +35,83 @@ fun PlaylistsScreen(
     var newPlaylistName by remember { mutableStateOf("") }
     var expandedPlaylistId by remember { mutableStateOf<Long?>(null) }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.fillMaxSize()
         ) {
+            // Título Centrado en el contenedor superior
             Text(
                 text = "Mis Listas",
                 fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
             )
-            Button(onClick = { showCreateDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Nueva Lista")
+
+            if (playlists.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No tienes listas creadas aún.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(bottom = 70.dp) // Espacio para el botón flotante inferior
+                ) {
+                    items(playlists) { playlist ->
+                        val isExpanded = expandedPlaylistId == playlist.id
+                        CustomPlaylistCard(
+                            playlist = playlist,
+                            isExpanded = isExpanded,
+                            viewModel = viewModel,
+                            onCardClick = {
+                                expandedPlaylistId = if (isExpanded) null else playlist.id
+                            },
+                            onDeletePlaylist = {
+                                viewModel.deletePlaylist(playlist.id)
+                                if (isExpanded) expandedPlaylistId = null
+                            }
+                        )
+                    }
+                }
             }
         }
 
-        if (playlists.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+        // Botón "Nueva Lista" en la parte inferior izquierda (arriba de Player)
+        FloatingActionButton(
+            onClick = { showCreateDialog = true },
+            containerColor = Color(0xFF1E88E5), // Azul moderno
+            contentColor = Color.White,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(bottom = 8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 16.dp)
             ) {
+                Icon(Icons.Default.Add, contentDescription = "Nueva Lista")
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "No tienes listas creadas aún.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Nueva Lista",
+                    fontWeight = FontWeight.Bold
                 )
-            }
-        } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(playlists) { playlist ->
-                    val isExpanded = expandedPlaylistId == playlist.id
-                    PlaylistCard(
-                        playlist = playlist,
-                        isExpanded = isExpanded,
-                        viewModel = viewModel,
-                        onCardClick = {
-                            expandedPlaylistId = if (isExpanded) null else playlist.id
-                        },
-                        onDeletePlaylist = {
-                            viewModel.deletePlaylist(playlist.id)
-                            if (isExpanded) expandedPlaylistId = null
-                        }
-                    )
-                }
             }
         }
     }
@@ -120,7 +149,7 @@ fun PlaylistsScreen(
 }
 
 @Composable
-fun PlaylistCard(
+fun CustomPlaylistCard(
     playlist: PlaylistEntity,
     isExpanded: Boolean,
     viewModel: PlaylistViewModel,
@@ -129,28 +158,37 @@ fun PlaylistCard(
 ) {
     val songs by viewModel.getSongsForPlaylist(playlist.id).collectAsState(initial = emptyList())
 
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+    // Definición de Colores para el Card Bicolor
+    val headerBlue = Color(0xFF1565C0) // Azul para la parte superior
+    val bodyGreen = Color(0xFF2E7D32)  // Verde para la parte inferior
+    val cardShape = RoundedCornerShape(16.dp)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(elevation = 8.dp, shape = cardShape)
+            .clickable { onCardClick() },
+        shape = cardShape,
+        border = BorderStroke(2.dp, Color.Black) // Borde negro sólido
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onCardClick() }
-                .padding(16.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // PARTE SUPERIOR (Encabezado - Color Azul)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(headerBlue)
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Icon(
                         imageVector = Icons.Default.QueueMusic,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = Color.White,
                         modifier = Modifier.size(32.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -159,13 +197,14 @@ fun PlaylistCard(
                             text = playlist.name,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
+                            color = Color.White,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "${songs.size} canciones",
                             fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color.White.copy(alpha = 0.8f)
                         )
                     }
                 }
@@ -175,28 +214,32 @@ fun PlaylistCard(
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Eliminar lista",
-                            tint = MaterialTheme.colorScheme.error
+                            tint = Color(0xFFFF8A80) // Rojo claro visible en fondo azul
                         )
                     }
                     Icon(
                         imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = "Expandir"
+                        contentDescription = "Expandir",
+                        tint = Color.White
                     )
                 }
             }
 
+            // PARTE INFERIOR (Cuerpo con Canciones - Color Verde)
             AnimatedVisibility(visible = isExpanded) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp)
+                        .background(bodyGreen)
+                        .padding(16.dp)
                 ) {
-                    Divider(modifier = Modifier.padding(bottom = 8.dp))
+                    Divider(color = Color.White.copy(alpha = 0.3f), modifier = Modifier.padding(bottom = 8.dp))
+
                     if (songs.isEmpty()) {
                         Text(
                             text = "Esta lista está vacía.",
                             fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = Color.White.copy(alpha = 0.8f),
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
                     } else {
@@ -204,7 +247,7 @@ fun PlaylistCard(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
+                                    .padding(vertical = 6.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -219,13 +262,14 @@ fun PlaylistCard(
                                     Icon(
                                         imageVector = Icons.Default.PlayArrow,
                                         contentDescription = "Reproducir",
-                                        tint = MaterialTheme.colorScheme.primary,
+                                        tint = Color.White,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = song.title,
                                         fontSize = 14.sp,
+                                        color = Color.White,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -238,7 +282,7 @@ fun PlaylistCard(
                                     Icon(
                                         imageVector = Icons.Default.Close,
                                         contentDescription = "Quitar canción",
-                                        tint = MaterialTheme.colorScheme.error
+                                        tint = Color(0xFFFF8A80)
                                     )
                                 }
                             }
