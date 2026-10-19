@@ -16,6 +16,6 @@ sealed class BottomNavItem(
     object Download : BottomNavItem("download", "Descargar", Icons.Default.Download)
     object Transform : BottomNavItem("convert", "Convertir", Icons.Default.Transform)
     object Library : BottomNavItem("library", "Biblioteca", Icons.Default.LibraryMusic)
-    object Player : BottomNavItem("player", "Reproductor", Icons.Default.PlayCircle)
+    object Player : BottomNavItem("player", "Player", Icons.Default.PlayCircle)
     object History : BottomNavItem("history", "Historial", Icons.Default.History)
 }
