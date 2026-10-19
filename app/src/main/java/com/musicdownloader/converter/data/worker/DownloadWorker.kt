@@ -19,7 +19,6 @@ import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
-import java.io.OutputStream
 
 @HiltWorker
 class DownloadWorker @AssistedInject constructor(
@@ -27,7 +26,7 @@ class DownloadWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters
 ) : CoroutineWorker(appContext, workerParams) {
 
-    override async fun doWork(): Result = withContext(Dispatchers.IO) {
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val url = inputData.getString("KEY_URL") ?: return@withContext Result.failure()
         val fileName = inputData.getString("KEY_FILE_NAME") ?: "audio_${System.currentTimeMillis()}.mp3"
 
