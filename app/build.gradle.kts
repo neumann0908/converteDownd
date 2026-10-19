@@ -41,7 +41,7 @@ android {
 }
 
 dependencies {
-    // Namespace correcto y oficial en Maven Central
+    // yt-dlp y FFmpeg
     implementation("io.github.junkfood02.youtubedl-android:library:0.17.2")
     implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.17.2")
 
@@ -51,6 +51,12 @@ dependencies {
     implementation("androidx.hilt:hilt-work:1.1.0")
     kapt("androidx.hilt:hilt-compiler:1.1.0")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    // Room (Soluciona el error NonExistentClass en entidades y DAOs)
+    val roomVersion = "2.6.1"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    kapt("androidx.room:room-compiler:$roomVersion")
     
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
