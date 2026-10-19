@@ -26,6 +26,13 @@ class DownloadWorker @AssistedInject constructor(
             )
 
             try {
+                // Actualizar binario de yt-dlp automáticamente si hay nueva versión
+                try {
+                    YoutubeDL.getInstance().updateYoutubeDL(applicationContext, YoutubeDL.UpdateChannel.STABLE)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
                 val downloadDir = File(applicationContext.getExternalFilesDir(null), "MusicDownloads")
                 if (!downloadDir.exists()) downloadDir.mkdirs()
 
@@ -34,9 +41,6 @@ class DownloadWorker @AssistedInject constructor(
                     addOption("-f", "ba/b")
                     addOption("--extract-audio")
                     addOption("--audio-format", "mp3")
-                    
-                    // Forzar el uso del cliente web para evitar errores de precondición en Android
-                    addOption("--extractor-args", "youtube:player_client=web")
                     addOption("--no-check-certificate")
                 }
 

@@ -49,9 +49,9 @@ android {
 }
 
 dependencies {
-    // yt-dlp y FFmpeg
-    implementation("io.github.junkfood02.youtubedl-android:library:0.17.5")
-    implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.17.5")
+    // yt-dlp y FFmpeg en version estable 0.17.2
+    implementation("io.github.junkfood02.youtubedl-android:library:0.17.2")
+    implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.17.2")
 
     // AndroidX Media3
     val media3Version = "1.2.1"
