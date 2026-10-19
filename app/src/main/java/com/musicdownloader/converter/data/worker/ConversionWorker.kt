@@ -1,25 +1,28 @@
 package com.musicdownloader.converter.data.worker
 
 import android.content.Context
+import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class ConversionWorker(
-    appContext: Context,
-    params: WorkerParameters
-) : CoroutineWorker(appContext, params) {
+@HiltWorker
+class ConversionWorker @AssistedInject constructor(
+    @Assisted appContext: Context,
+    @Assisted workerParams: WorkerParameters
+) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        val inputPath = inputData.getString("INPUT_PATH") ?: return@withContext Result.failure()
-        val outputPath = inputData.getString("OUTPUT_PATH") ?: return@withContext Result.failure()
-
-        try {
-            // Lógica de conversión de audio en segundo plano mediante Media3
-            Result.success()
-        } catch (e: Exception) {
-            Result.failure()
+        val inputPath = inputData.getString("KEY_INPUT") ?: ""
+        val outputPath = inputData.getString("KEY_OUTPUT") ?: ""
+        
+        if (inputPath.isEmpty() || outputPath.isEmpty()) {
+            return@withContext Result.failure()
         }
+        
+        Result.success()
     }
 }
