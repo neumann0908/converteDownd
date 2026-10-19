@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.MusicDownloaderConverter" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- El tema de la interfaz se gestiona dinámicamente con Jetpack Compose -->
+    </style>
+</resources>
