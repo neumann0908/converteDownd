@@ -11,7 +11,6 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ConvertScreen() {
     var selectedFormat by remember { mutableStateOf("MP3") }
-    var selectedBitrate by remember { mutableStateOf("320 kbps") }
     var expandedFormat by remember { mutableStateOf(false) }
 
     Column(
@@ -46,7 +45,6 @@ fun ConvertScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Selector de Formato
         ExposedDropdownMenuBox(
             expanded = expandedFormat,
             onExpandedChange = { expandedFormat = !expandedFormat },

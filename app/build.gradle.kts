@@ -67,7 +67,8 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
-    // Dagger Hilt
+    // Inyección de dependencias (Dagger Hilt + javax.inject)
+    implementation("javax.inject:javax.inject:1")
     implementation("com.google.dagger:hilt-android:2.48")
     ksp("com.google.dagger:hilt-compiler:2.48")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
@@ -83,16 +84,16 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
 
-    // Media3 (Para audio y reproductor)
+    // Media3
     val media3Version = "1.2.1"
     implementation("androidx.media3:media3-exoplayer:$media3Version")
     implementation("androidx.media3:media3-transformer:$media3Version")
     implementation("androidx.media3:media3-common:$media3Version")
 
-    // OkHttp para red
+    // OkHttp
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    // Youtubedl-Android (yt-dlp + FFmpeg)
+    // Youtubedl-Android (yt-dlp)
     implementation("com.github.yausername.youtubedl-android:library:0.15.0")
     implementation("com.github.yausername.youtubedl-android:ffmpeg:0.15.0")
 
