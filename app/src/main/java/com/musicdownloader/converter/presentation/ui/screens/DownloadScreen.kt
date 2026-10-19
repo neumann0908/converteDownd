@@ -7,7 +7,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadScreen() {
     var urlText by remember { mutableStateOf("") }
@@ -37,7 +36,7 @@ fun DownloadScreen() {
         )
 
         Button(
-            onClick = { /* Lógica de descarga */ },
+            onClick = { /* Acción de descarga */ },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
