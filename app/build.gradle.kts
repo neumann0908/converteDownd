@@ -41,9 +41,11 @@ android {
 }
 
 dependencies {
-    implementation("io.github.yausername.youtubedl-android:library:0.17.2")
-    implementation("io.github.yausername.youtubedl-android:ffmpeg:0.17.2")
+    // Librerías de yt-dlp y FFmpeg desde JitPack
+    implementation("com.github.yausername.youtubedl-android:library:0.17.0")
+    implementation("com.github.yausername.youtubedl-android:ffmpeg:0.17.0")
 
+    // Hilt y WorkManager
     implementation("com.google.dagger:hilt-android:2.48")
     kapt("com.google.dagger:hilt-compiler:2.48")
     implementation("androidx.hilt:hilt-work:1.1.0")
