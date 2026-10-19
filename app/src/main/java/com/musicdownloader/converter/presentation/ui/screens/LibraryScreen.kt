@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,11 +22,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.musicdownloader.converter.presentation.viewmodel.AudioFileItem
 import com.musicdownloader.converter.presentation.viewmodel.LibraryViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val audioList by viewModel.audioList.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadDownloadedFiles()
@@ -38,7 +42,7 @@ fun LibraryScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
+                .padding(bottom = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -52,13 +56,26 @@ fun LibraryScreen(
             }
         }
 
+        // Barra de búsqueda
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { viewModel.onSearchQueryChanged(it) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            placeholder = { Text("Buscar canción...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            singleLine = true,
+            shape = MaterialTheme.shapes.medium
+        )
+
         if (audioList.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No se encontraron descargas aún.",
+                    text = "No se encontraron canciones.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -72,6 +89,9 @@ fun LibraryScreen(
                         audio = audio,
                         onPlayClick = {
                             viewModel.playerManager.playFile(audio.path, audio.name)
+                        },
+                        onDeleteClick = {
+                            viewModel.deleteAudio(audio.path)
                         }
                     )
                 }
@@ -83,7 +103,8 @@ fun LibraryScreen(
 @Composable
 fun AudioItemRow(
     audio: AudioFileItem,
-    onPlayClick: () -> Unit
+    onPlayClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -124,11 +145,21 @@ fun AudioItemRow(
                 )
             }
 
+            // Botón Reproducir
             IconButton(onClick = onPlayClick) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Reproducir",
                     tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Botón Eliminar
+            IconButton(onClick = onDeleteClick) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Eliminar",
+                    tint = MaterialTheme.colorScheme.error
                 )
             }
         }

@@ -26,8 +26,13 @@ class LibraryViewModel @Inject constructor(
     val playerManager: AudioPlayerManager
 ) : ViewModel() {
 
+    private val _allAudioList = mutableListOf<AudioFileItem>()
+
     private val _audioList = MutableStateFlow<List<AudioFileItem>>(emptyList())
     val audioList: StateFlow<List<AudioFileItem>> = _audioList.asStateFlow()
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
     init {
         loadDownloadedFiles()
@@ -36,8 +41,8 @@ class LibraryViewModel @Inject constructor(
     fun loadDownloadedFiles() {
         viewModelScope.launch(Dispatchers.IO) {
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
-            if (downloadDir.exists() && downloadDir.isDirectory) {
-                val files = downloadDir.listFiles { file ->
+            val files = if (downloadDir.exists() && downloadDir.isDirectory) {
+                downloadDir.listFiles { file ->
                     file.isFile && (file.extension.equals("mp3", ignoreCase = true) ||
                             file.extension.equals("m4a", ignoreCase = true) ||
                             file.extension.equals("webm", ignoreCase = true) ||
@@ -50,11 +55,40 @@ class LibraryViewModel @Inject constructor(
                         sizeMb = sizeMb
                     )
                 }?.sortedBy { it.name } ?: emptyList()
-
-                _audioList.value = files
             } else {
-                _audioList.value = emptyList()
+                emptyList()
             }
+
+            _allAudioList.clear()
+            _allAudioList.addAll(files)
+            filterAudios(_searchQuery.value)
+        }
+    }
+
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
+        filterAudios(query)
+    }
+
+    private fun filterAudios(query: String) {
+        viewModelScope.launch(Dispatchers.Default) {
+            if (query.isBlank()) {
+                _audioList.value = _allAudioList.toList()
+            } else {
+                _audioList.value = _allAudioList.filter {
+                    it.name.contains(query, ignoreCase = true)
+                }
+            }
+        }
+    }
+
+    fun deleteAudio(path: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val file = File(path)
+            if (file.exists()) {
+                file.delete()
+            }
+            loadDownloadedFiles()
         }
     }
 }
