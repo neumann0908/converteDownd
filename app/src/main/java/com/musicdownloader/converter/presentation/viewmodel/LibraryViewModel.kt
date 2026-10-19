@@ -1,4 +1,4 @@
-package com.musicdownloader.converter.presentation.viewmodel
+Package com.musicdownloader.converter.presentation.viewmodel
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -106,7 +106,10 @@ class LibraryViewModel @Inject constructor(
             try {
                 val srcFile = File(audio.path)
                 if (!srcFile.exists() || startSeconds >= endSeconds) {
-                    onResult(false)
+                    withContext(Dispatchers.Main) {
+                        _errorMessage.value = "El archivo no existe o los tiempos de recorte no son válidos."
+                        onResult(false)
+                    }
                     return@launch
                 }
                 val downloadDir = srcFile.parentFile ?: File(context.getExternalFilesDir(null), "MusicDownloads")
@@ -119,13 +122,21 @@ class LibraryViewModel @Inject constructor(
                     startMs = startSeconds * 1000L,
                     endMs = endSeconds * 1000L
                 )
-                if (success) {
-                    loadDownloadedFiles()
+                
+                withContext(Dispatchers.Main) {
+                    if (success) {
+                        loadDownloadedFiles()
+                    } else {
+                        _errorMessage.value = "No se pudo completar el recorte del audio."
+                    }
+                    onResult(success)
                 }
-                onResult(success)
             } catch (e: Exception) {
                 e.printStackTrace()
-                onResult(false)
+                withContext(Dispatchers.Main) {
+                    _errorMessage.value = e.localizedMessage ?: e.toString()
+                    onResult(false)
+                }
             }
         }
     }
