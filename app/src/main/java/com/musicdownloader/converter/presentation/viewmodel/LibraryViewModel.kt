@@ -3,6 +3,7 @@ package com.musicdownloader.converter.presentation.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.musicdownloader.converter.player.AudioPlayerManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -21,14 +22,12 @@ data class AudioFileItem(
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    val playerManager: AudioPlayerManager
 ) : ViewModel() {
 
     private val _audioList = MutableStateFlow<List<AudioFileItem>>(emptyList())
     val audioList: StateFlow<List<AudioFileItem>> = _audioList.asStateFlow()
-
-    private val _currentlyPlayingPath = MutableStateFlow<String?>(null)
-    val currentlyPlayingPath: StateFlow<String?> = _currentlyPlayingPath.asStateFlow()
 
     init {
         loadDownloadedFiles()
@@ -57,9 +56,5 @@ class LibraryViewModel @Inject constructor(
                 _audioList.value = emptyList()
             }
         }
-    }
-
-    fun selectAudio(path: String) {
-        _currentlyPlayingPath.value = path
     }
 }

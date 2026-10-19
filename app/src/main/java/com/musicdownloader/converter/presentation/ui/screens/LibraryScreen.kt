@@ -17,14 +17,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.musicdownloader.converter.player.AudioPlayerManager
 import com.musicdownloader.converter.presentation.viewmodel.AudioFileItem
 import com.musicdownloader.converter.presentation.viewmodel.LibraryViewModel
 
 @Composable
 fun LibraryScreen(
-    viewModel: LibraryViewModel = hiltViewModel(),
-    playerManager: AudioPlayerManager
+    viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val audioList by viewModel.audioList.collectAsState()
 
@@ -73,7 +71,7 @@ fun LibraryScreen(
                     AudioItemRow(
                         audio = audio,
                         onPlayClick = {
-                            playerManager.playFile(audio.path, audio.name)
+                            viewModel.playerManager.playFile(audio.path, audio.name)
                         }
                     )
                 }
