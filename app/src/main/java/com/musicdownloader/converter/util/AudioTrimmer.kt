@@ -48,10 +48,11 @@ object AudioTrimmer {
                 bufferInfo.size = extractor.readSampleData(buffer, 0)
                 if (bufferInfo.size < 0) break
 
-                bufferInfo.presentationTimeUs = extractor.sampleTime
-                if (bufferInfo.presentationTimeUs > endTimeUs) break
+                val currentSampleTime = extractor.sampleTime
+                if (currentSampleTime > endTimeUs) break
 
-                if (bufferInfo.presentationTimeUs >= startTimeUs) {
+                if (currentSampleTime >= startTimeUs) {
+                    bufferInfo.presentationTimeUs = currentSampleTime - startTimeUs
                     bufferInfo.flags = extractor.sampleFlags
                     muxer.writeSampleData(destTrackIndex, buffer, bufferInfo)
                 }
