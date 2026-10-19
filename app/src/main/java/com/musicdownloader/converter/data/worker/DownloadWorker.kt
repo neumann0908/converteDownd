@@ -34,6 +34,10 @@ class DownloadWorker @AssistedInject constructor(
                     addOption("-f", "bestaudio/best")
                     addOption("--extract-audio")
                     addOption("--audio-format", "mp3")
+                    // Bypass del bloqueo HTTP 400 / Precondition check failed de YouTube
+                    addOption("--extractor-args", "youtube:player_client=android,web")
+                    addOption("--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    addOption("--no-check-certificate")
                 }
 
                 YoutubeDL.getInstance().execute(request)
