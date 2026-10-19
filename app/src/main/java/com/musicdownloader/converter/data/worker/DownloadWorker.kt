@@ -35,11 +35,9 @@ class DownloadWorker @AssistedInject constructor(
                     addOption("--extract-audio")
                     addOption("--audio-format", "mp3")
                     
-                    // Clientes de YouTube que no exigen PO Token ni provocan HTTP 400
-                    addOption("--extractor-args", "youtube:player_client=mweb,ios,android_creator")
-                    addOption("--user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1")
+                    // Forzar el uso del cliente web para evitar errores de precondición en Android
+                    addOption("--extractor-args", "youtube:player_client=web")
                     addOption("--no-check-certificate")
-                    addOption("--force-ipv4")
                 }
 
                 YoutubeDL.getInstance().execute(request)
