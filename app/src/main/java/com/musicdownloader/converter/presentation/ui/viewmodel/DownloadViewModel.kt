@@ -2,12 +2,14 @@ package com.musicdownloader.converter.presentation.ui.viewmodel
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.work.*
 import com.musicdownloader.converter.data.worker.DownloadWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed class DownloadState {
@@ -35,7 +37,7 @@ class DownloadViewModel @Inject constructor(
 
         val workData = workDataOf(
             "KEY_URL" to url,
-            "KEY_FILE_NAME" to "downloaded_audio_${System.currentTimeMillis()}.mp3"
+            "KEY_FILE_NAME" to "audio_${System.currentTimeMillis()}.mp3"
         )
 
         val downloadRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
@@ -47,23 +49,31 @@ class DownloadViewModel @Inject constructor(
             )
             .build()
 
-        WorkManager.getInstance(context).enqueue(downloadRequest)
+        val workManager = WorkManager.getInstance(context)
+        workManager.enqueueUniqueWork(
+            "download_work_${System.currentTimeMillis()}",
+            ExistingWorkPolicy.REPLACE,
+            downloadRequest
+        )
 
-        WorkManager.getInstance(context)
-            .getWorkInfoByIdLiveData(downloadRequest.id)
-            .observeForever { workInfo ->
+        viewModelScope.launch {
+            workManager.getWorkInfoByIdFlow(downloadRequest.id).collect { workInfo ->
                 if (workInfo != null) {
                     when (workInfo.state) {
                         WorkInfo.State.SUCCEEDED -> {
-                            _downloadState.value = DownloadState.Success("¡Audio descargado en la carpeta Downloads!")
+                            _downloadState.value = DownloadState.Success("¡Audio descargado con éxito en Downloads!")
                         }
                         WorkInfo.State.FAILED -> {
                             val errorMsg = workInfo.outputData.getString("ERROR_MSG") ?: "Fallo la descarga"
                             _downloadState.value = DownloadState.Error(errorMsg)
                         }
+                        WorkInfo.State.CANCELLED -> {
+                            _downloadState.value = DownloadState.Error("Descarga cancelada")
+                        }
                         else -> {}
                     }
                 }
             }
+        }
     }
 }
