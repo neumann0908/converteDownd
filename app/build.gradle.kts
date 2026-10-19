@@ -45,6 +45,12 @@ dependencies {
     implementation("io.github.junkfood02.youtubedl-android:library:0.17.2")
     implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.17.2")
 
+    // AndroidX Media3 (Resuelve media3 y MediaItem en Media3AudioConverterEngine)
+    val media3Version = "1.2.1"
+    implementation("androidx.media3:media3-exoplayer:$media3Version")
+    implementation("androidx.media3:media3-session:$media3Version")
+    implementation("androidx.media3:media3-common:$media3Version")
+
     // Hilt y WorkManager
     implementation("com.google.dagger:hilt-android:2.48")
     kapt("com.google.dagger:hilt-compiler:2.48")
@@ -52,7 +58,7 @@ dependencies {
     kapt("androidx.hilt:hilt-compiler:1.1.0")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
-    // Hilt Navigation Compose (Resuelve hiltViewModel)
+    // Hilt Navigation Compose
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 
     // Room (Base de datos local)
@@ -61,14 +67,14 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     kapt("androidx.room:room-compiler:$roomVersion")
 
-    // Navigation Compose y Runtime (Resuelve NavHost, composable, rememberNavController, navigation, etc.)
+    // Navigation Compose y Runtime
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.navigation:navigation-runtime-ktx:2.7.7")
 
-    // Material Icons Extended (Resuelve LibraryMusic, History, Download, PlayCircle, PauseCircle, SkipNext, SkipPrevious, Transform, etc.)
+    // Material Icons Extended
     implementation("androidx.compose.material:material-icons-extended")
 
-    // OkHttp (Resuelve OkHttpClient)
+    // OkHttp
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     
     implementation("androidx.core:core-ktx:1.12.0")
