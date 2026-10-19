@@ -32,6 +32,7 @@ fun LibraryScreen(
 ) {
     val audioList by viewModel.audioList.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val context = LocalContext.current
 
     var audioToTrim by remember { mutableStateOf<AudioFileItem?>(null) }
@@ -112,6 +113,19 @@ fun LibraryScreen(
     }
 
     // Diálogo para ingresar los segundos de recorte
+    if (errorMessage != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearError() },
+            title = { Text("Error al Recortar") },
+            text = { Text(errorMessage ?: "") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearError() }) {
+                    Text("Aceptar")
+                }
+            }
+        )
+    }
+
     if (audioToTrim != null) {
         AlertDialog(
             onDismissRequest = { audioToTrim = null },
