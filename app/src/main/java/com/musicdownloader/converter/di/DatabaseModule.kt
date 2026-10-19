@@ -1,11 +1,8 @@
 package com.musicdownloader.converter.di
 
 import android.content.Context
-import androidx.room.Room
-import com.musicdownloader.converter.data.database.AppDatabase
-import com.musicdownloader.converter.data.database.dao.ConversionDao
-import com.musicdownloader.converter.data.database.dao.DownloadDao
-import com.musicdownloader.converter.data.database.dao.TrackDao
+import com.musicdownloader.converter.data.local.AppDatabase
+import com.musicdownloader.converter.data.local.PlaylistDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -17,22 +14,14 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
-    @Provides
     @Singleton
+    @Provides
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
-        return Room.databaseBuilder(
-            context,
-            AppDatabase::class.java,
-            "converter_downd_db"
-        ).build()
+        return AppDatabase.getDatabase(context)
     }
 
     @Provides
-    fun provideDownloadDao(database: AppDatabase): DownloadDao = database.downloadDao()
-
-    @Provides
-    fun provideConversionDao(database: AppDatabase): ConversionDao = database.conversionDao()
-
-    @Provides
-    fun provideTrackDao(database: AppDatabase): TrackDao = database.trackDao()
+    fun providePlaylistDao(database: AppDatabase): PlaylistDao {
+        return database.playlistDao()
+    }
 }
