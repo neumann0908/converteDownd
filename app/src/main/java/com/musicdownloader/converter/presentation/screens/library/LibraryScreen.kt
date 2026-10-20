@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,10 +37,37 @@ fun LibraryScreen(
         contentAlignment = Alignment.Center
     ) {
         // Contenido principal de tu biblioteca
-        Text(
-            text = "Biblioteca Musical",
-            style = MaterialTheme.typography.titleLarge
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = "Biblioteca Musical",
+                style = MaterialTheme.typography.titleLarge
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Ejemplo de integración del botón de Previsualización para tus diálogos de recorte:
+            // (Puedes usar esto dentro del diálogo o vista donde gestiones los segundos startSeconds / endSeconds)
+            /*
+            Button(
+                onClick = { 
+                    // Ejemplo: audioItem seleccionado, desde el segundo 5 al 15
+                    // viewModel.previewAudioSegment(audioItem, startSeconds = 5, endSeconds = 15) 
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Text(
+                    text = "▶ Previsualizar Fragmento",
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+            */
+        }
 
         // --- DIÁLOGO DE CARGA DURANTE EL RECORTE ---
         if (isTrimming) {
