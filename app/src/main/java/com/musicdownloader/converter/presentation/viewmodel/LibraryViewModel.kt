@@ -8,6 +8,8 @@ import com.musicdownloader.converter.util.AudioTrimmer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,9 +41,12 @@ class LibraryViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    // --- NUEVO ESTADO PARA EL INDICADOR DE CARGA ---
+    // --- ESTADO PARA EL INDICADOR DE CARGA ---
     private val _isTrimming = MutableStateFlow(false)
     val isTrimming: StateFlow<Boolean> = _isTrimming.asStateFlow()
+
+    // --- CONTROLADOR DE PREVISUALIZACIÓN ---
+    private var previewJob: Job? = null
 
     fun clearError() {
         _errorMessage.value = null
@@ -105,15 +110,40 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
+    // --- FUNCIONES DE PREVISUALIZACIÓN ---
+    fun previewAudioSegment(audio: AudioFileItem, startSeconds: Int, endSeconds: Int) {
+        previewJob?.cancel()
+
+        if (startSeconds >= endSeconds) {
+            _errorMessage.value = "El segundo de inicio debe ser menor al segundo de fin."
+            return
+        }
+
+        val startMs = startSeconds * 1000L
+        val durationMs = (endSeconds - startSeconds) * 1000L
+
+        playerManager.play(audio.path)
+        playerManager.seekTo(startMs.toInt())
+
+        previewJob = viewModelScope.launch(Dispatchers.Main) {
+            delay(durationMs)
+            playerManager.pause()
+        }
+    }
+
+    fun stopPreview() {
+        previewJob?.cancel()
+        playerManager.pause()
+    }
+
     fun trimAudio(audio: AudioFileItem, startSeconds: Int, endSeconds: Int, onResult: (Boolean) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
-            // Activamos el indicador visual de carga al inicio del proceso
             _isTrimming.value = true
             try {
                 val srcFile = File(audio.path)
                 if (!srcFile.exists() || startSeconds >= endSeconds) {
                     withContext(Dispatchers.Main) {
-                        _isTrimming.value = false // Ocultar indicador si falla la validación
+                        _isTrimming.value = false
                         _errorMessage.value = "El archivo no existe o los tiempos de recorte no son válidos."
                         onResult(false)
                     }
@@ -133,14 +163,14 @@ class LibraryViewModel @Inject constructor(
                 )
                 
                 withContext(Dispatchers.Main) {
-                    _isTrimming.value = false // Desactivar indicador al terminar con éxito
+                    _isTrimming.value = false
                     loadDownloadedFiles()
                     onResult(true)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    _isTrimming.value = false // Desactivar indicador si ocurre una excepción
+                    _isTrimming.value = false
                     _errorMessage.value = "Detalle: ${e.localizedMessage ?: e.toString()}"
                     onResult(false)
                 }
