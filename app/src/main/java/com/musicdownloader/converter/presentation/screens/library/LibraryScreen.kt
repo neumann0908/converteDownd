@@ -50,14 +50,10 @@ fun LibraryScreen(
             
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- BOTÓN DE PREVISUALIZACIÓN FUNCIONAL ---
+            // Botón de prueba/ejemplo de previsualización
             Button(
                 onClick = { 
-                    // Aquí puedes probar la previsualización llamando a una canción de ejemplo de tu lista 
-                    // o conectarlo directamente cuando el usuario abra los inputs de segundo de inicio y fin.
-                    // Ejemplo de uso:
-                    // val sampleAudio = AudioFileItem("MiAudio.mp3", "/path/to/audio.mp3", "3.0 MB")
-                    // viewModel.previewAudioSegment(sampleAudio, startSeconds = 0, endSeconds = 30)
+                    // Ejemplo de invocación si deseas probar la previsualización aquí
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer
@@ -65,7 +61,7 @@ fun LibraryScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "▶ Previsualizar Fragmento (Prueba)",
+                    text = "▶ Previsualizar Fragmento",
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
@@ -74,7 +70,7 @@ fun LibraryScreen(
         // --- DIÁLOGO DE CARGA DURANTE EL RECORTE ---
         if (isTrimming) {
             Dialog(
-                onDismissRequest = { /* Bloquea clics fuera del diálogo */ },
+                onDismissRequest = { /* Bloquea clics fuera del diálogo para evitar interrupciones */ },
                 properties = DialogProperties(
                     dismissOnBackPress = false,
                     dismissOnClickOutside = false
