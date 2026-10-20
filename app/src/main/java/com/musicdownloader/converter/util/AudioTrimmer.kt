@@ -7,8 +7,8 @@ import java.io.File
 import java.nio.ByteBuffer
 
 object AudioTrimmer {
-    fun trim(srcPath: String, dstPath: String, startMs: Long, endMs: Long): Boolean {
-        var extractor = MediaExtractor()
+    fun trim(srcPath: String, dstPath: String, startMs: Long, endMs: Long) {
+        val extractor = MediaExtractor()
         var muxer: MediaMuxer? = null
         try {
             extractor.setDataSource(srcPath)
@@ -26,7 +26,7 @@ object AudioTrimmer {
                 }
             }
 
-            if (audioTrackIndex == -1 || format == null) return false
+            require(audioTrackIndex != -1 && format != null) { "No se encontró una pista de audio válida en el archivo." }
 
             extractor.selectTrack(audioTrackIndex)
             
@@ -63,12 +63,10 @@ object AudioTrimmer {
             muxer.stop()
             muxer.release()
             extractor.release()
-            return true
         } catch (e: Exception) {
-            e.printStackTrace()
             try { muxer?.stop(); muxer?.release() } catch (_: Exception) {}
             try { extractor.release() } catch (_: Exception) {}
-            return false
+            throw e
         }
     }
 }

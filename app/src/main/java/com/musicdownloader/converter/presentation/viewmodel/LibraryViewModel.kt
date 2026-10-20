@@ -116,7 +116,7 @@ class LibraryViewModel @Inject constructor(
                 val baseName = srcFile.nameWithoutExtension
                 val dstFile = File(downloadDir, "${baseName}_recortado.m4a")
 
-                val success = AudioTrimmer.trim(
+                AudioTrimmer.trim(
                     srcPath = audio.path,
                     dstPath = dstFile.absolutePath,
                     startMs = startSeconds * 1000L,
@@ -124,17 +124,13 @@ class LibraryViewModel @Inject constructor(
                 )
                 
                 withContext(Dispatchers.Main) {
-                    if (success) {
-                        loadDownloadedFiles()
-                    } else {
-                        _errorMessage.value = "No se pudo completar el recorte del audio."
-                    }
-                    onResult(success)
+                    loadDownloadedFiles()
+                    onResult(true)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    _errorMessage.value = e.localizedMessage ?: e.toString()
+                    _errorMessage.value = "Detalle: ${e.localizedMessage ?: e.toString()}"
                     onResult(false)
                 }
             }
