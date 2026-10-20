@@ -110,7 +110,7 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    // --- FUNCIONES DE PREVISUALIZACIÓN ---
+    // --- FUNCIONES DE PREVISUALIZACIÓN CORREGIDAS ---
     fun previewAudioSegment(audio: AudioFileItem, startSeconds: Int, endSeconds: Int) {
         previewJob?.cancel()
 
@@ -122,19 +122,19 @@ class LibraryViewModel @Inject constructor(
         val startMs = startSeconds * 1000L
         val durationMs = (endSeconds - startSeconds) * 1000L
 
-        // Iniciar reproducción y posicionar el tiempo (esperando Long)
-        playerManager.playAudio(audio.path)
+        // Usamos los nombres de métodos originales: play y pause
+        playerManager.play(audio.path)
         playerManager.seekTo(startMs)
 
         previewJob = viewModelScope.launch(Dispatchers.Main) {
             delay(durationMs)
-            playerManager.pauseAudio()
+            playerManager.pause()
         }
     }
 
     fun stopPreview() {
         previewJob?.cancel()
-        playerManager.pauseAudio()
+        playerManager.pause()
     }
 
     fun trimAudio(audio: AudioFileItem, startSeconds: Int, endSeconds: Int, onResult: (Boolean) -> Unit) {
