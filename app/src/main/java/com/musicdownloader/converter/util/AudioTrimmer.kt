@@ -35,11 +35,8 @@ object AudioTrimmer {
 
             extractor.seekTo(startTimeUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
 
-            // Usar formato MPEG_4 por defecto y asegurar que el formato tenga los parámetros limpios
             muxer = MediaMuxer(dstPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
             
-            // Nota: MediaMuxer requiere un formato de salida configurado específicamente. 
-            // Si falla al añadir la pista original directamente, clonamos el formato esencial (MIME y SampleRate/ChannelCount)
             val cleanFormat = MediaFormat().apply {
                 setString(MediaFormat.KEY_MIME, format.getString(MediaFormat.KEY_MIME))
                 if (format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
@@ -48,8 +45,8 @@ object AudioTrimmer {
                 if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
                     setInteger(MediaFormat.KEY_CHANNEL_COUNT, format.getInteger(MediaFormat.KEY_CHANNEL_COUNT))
                 }
-                if (format.containsKey(MediaFormat.KEY_CSD_0)) {
-                    setByteBuffer(MediaFormat.KEY_CSD_0, format.getByteBuffer(MediaFormat.KEY_CSD_0))
+                if (format.containsKey("csd-0")) {
+                    setByteBuffer("csd-0", format.getByteBuffer("csd-0"))
                 }
             }
 
@@ -59,7 +56,7 @@ object AudioTrimmer {
             val maxBufferSize = if (format.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)) {
                 format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE)
             } else {
-                1024 * 1024
+                64 * 1024
             }
             
             val buffer = ByteBuffer.allocate(maxBufferSize)
