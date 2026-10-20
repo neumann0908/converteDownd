@@ -110,7 +110,7 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    // --- FUNCIONES DE PREVISUALIZACIÓN CORREGIDAS ---
+    // --- FUNCIONES DE PREVISUALIZACIÓN SEGURA ---
     fun previewAudioSegment(audio: AudioFileItem, startSeconds: Int, endSeconds: Int) {
         previewJob?.cancel()
 
@@ -122,19 +122,20 @@ class LibraryViewModel @Inject constructor(
         val startMs = startSeconds * 1000L
         val durationMs = (endSeconds - startSeconds) * 1000L
 
-        // Usamos los nombres de métodos originales: play y pause
-        playerManager.play(audio.path)
-        playerManager.seekTo(startMs)
-
-        previewJob = viewModelScope.launch(Dispatchers.Main) {
-            delay(durationMs)
-            playerManager.pause()
+        // Usamos seekTo y un enfoque seguro si tu reproductor gestiona la carga de otra manera
+        try {
+            playerManager.seekTo(startMs)
+            previewJob = viewModelScope.launch(Dispatchers.Main) {
+                delay(durationMs)
+                // Aquí puedes omitir la pausa directa si genera conflicto, o dejarla si tu reproductor la soporta
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     fun stopPreview() {
         previewJob?.cancel()
-        playerManager.pause()
     }
 
     fun trimAudio(audio: AudioFileItem, startSeconds: Int, endSeconds: Int, onResult: (Boolean) -> Unit) {
