@@ -95,5 +95,5 @@ dependencies {
     implementation("androidx.compose.material3:material3")
 
     //fff
-    implementation("com.arthenica:ffmpeg-kit-full:6.0-2")
+    
 }
