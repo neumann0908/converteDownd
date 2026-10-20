@@ -112,7 +112,7 @@ fun LibraryScreen(
         }
     }
 
-    // Diálogo para ingresar los segundos de recorte
+    // Diálogo de error
     if (errorMessage != null) {
         AlertDialog(
             onDismissRequest = { viewModel.clearError() },
@@ -126,9 +126,13 @@ fun LibraryScreen(
         )
     }
 
+    // Diálogo para ingresar los segundos de recorte y previsualizar
     if (audioToTrim != null) {
         AlertDialog(
-            onDismissRequest = { audioToTrim = null },
+            onDismissRequest = { 
+                viewModel.stopPreview()
+                audioToTrim = null 
+            },
             title = { Text("Recortar Audio") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -150,12 +154,35 @@ fun LibraryScreen(
                         label = { Text("Segundo de fin") },
                         singleLine = true
                     )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // --- BOTÓN DE PREVISUALIZACIÓN INTEGRADO ---
+                    Button(
+                        onClick = {
+                            val start = startSecStr.toIntOrNull() ?: 0
+                            val end = endSecStr.toIntOrNull() ?: 30
+                            audioToTrim?.let { audio ->
+                                viewModel.previewAudioSegment(audio, start, end)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "▶ Previsualizar Fragmento",
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
                     val start = startSecStr.toIntOrNull() ?: 0
                     val end = endSecStr.toIntOrNull() ?: 30
+                    viewModel.stopPreview() // Detenemos la preescucha al confirmar
                     audioToTrim?.let { audio ->
                         viewModel.trimAudio(audio, start, end) { success ->
                             if (success) {
@@ -171,7 +198,10 @@ fun LibraryScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { audioToTrim = null }) {
+                TextButton(onClick = { 
+                    viewModel.stopPreview()
+                    audioToTrim = null 
+                }) {
                     Text("Cancelar")
                 }
             }
