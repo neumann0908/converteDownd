@@ -3,6 +3,7 @@ package com.musicdownloader.converter.util
 import android.media.MediaExtractor
 import android.media.MediaMuxer
 import android.media.MediaFormat
+import android.os.Build
 import java.io.File
 import java.nio.ByteBuffer
 
@@ -15,13 +16,15 @@ object AudioTrimmer {
             val trackCount = extractor.trackCount
             var audioTrackIndex = -1
             var format: MediaFormat? = null
+            var mime = ""
 
             for (i in 0 until trackCount) {
                 val f = extractor.getTrackFormat(i)
-                val mime = f.getString(MediaFormat.KEY_MIME) ?: ""
-                if (mime.startsWith("audio/")) {
+                val m = f.getString(MediaFormat.KEY_MIME) ?: ""
+                if (m.startsWith("audio/")) {
                     audioTrackIndex = i
                     format = f
+                    mime = m
                     break
                 }
             }
@@ -35,7 +38,14 @@ object AudioTrimmer {
 
             extractor.seekTo(startTimeUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
 
-            muxer = MediaMuxer(dstPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            // Seleccionar dinámicamente el formato de salida según el códec (AAC o WebM/Opus)
+            val muxerFormat = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && mime.contains("opus")) {
+                MediaMuxer.OutputFormat.MUXER_OUTPUT_WEBM
+            } else {
+                MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
+            }
+
+            muxer = MediaMuxer(dstPath, muxerFormat)
             val destTrackIndex = muxer.addTrack(format)
             muxer.start()
 

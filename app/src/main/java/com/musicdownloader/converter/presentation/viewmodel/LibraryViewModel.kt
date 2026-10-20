@@ -114,7 +114,9 @@ class LibraryViewModel @Inject constructor(
                 }
                 val downloadDir = srcFile.parentFile ?: File(context.getExternalFilesDir(null), "MusicDownloads")
                 val baseName = srcFile.nameWithoutExtension
-                val dstFile = File(downloadDir, "${baseName}_recortado.m4a")
+                
+                val extension = if (audio.path.endsWith(".webm", ignoreCase = true)) "webm" else "m4a"
+                val dstFile = File(downloadDir, "${baseName}_recortado.$extension")
 
                 AudioTrimmer.trim(
                     srcPath = audio.path,
