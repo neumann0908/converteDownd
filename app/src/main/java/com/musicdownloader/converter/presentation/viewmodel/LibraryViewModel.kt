@@ -39,6 +39,10 @@ class LibraryViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    // --- NUEVO ESTADO PARA EL INDICADOR DE CARGA ---
+    private val _isTrimming = MutableStateFlow(false)
+    val isTrimming: StateFlow<Boolean> = _isTrimming.asStateFlow()
+
     fun clearError() {
         _errorMessage.value = null
     }
@@ -103,10 +107,13 @@ class LibraryViewModel @Inject constructor(
 
     fun trimAudio(audio: AudioFileItem, startSeconds: Int, endSeconds: Int, onResult: (Boolean) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
+            // Activamos el indicador visual de carga al inicio del proceso
+            _isTrimming.value = true
             try {
                 val srcFile = File(audio.path)
                 if (!srcFile.exists() || startSeconds >= endSeconds) {
                     withContext(Dispatchers.Main) {
+                        _isTrimming.value = false // Ocultar indicador si falla la validación
                         _errorMessage.value = "El archivo no existe o los tiempos de recorte no son válidos."
                         onResult(false)
                     }
@@ -126,12 +133,14 @@ class LibraryViewModel @Inject constructor(
                 )
                 
                 withContext(Dispatchers.Main) {
+                    _isTrimming.value = false // Desactivar indicador al terminar con éxito
                     loadDownloadedFiles()
                     onResult(true)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
+                    _isTrimming.value = false // Desactivar indicador si ocurre una excepción
                     _errorMessage.value = "Detalle: ${e.localizedMessage ?: e.toString()}"
                     onResult(false)
                 }
