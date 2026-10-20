@@ -122,18 +122,19 @@ class LibraryViewModel @Inject constructor(
         val startMs = startSeconds * 1000L
         val durationMs = (endSeconds - startSeconds) * 1000L
 
-        playerManager.play(audio.path)
-        playerManager.seekTo(startMs.toInt())
+        // Iniciar reproducción y posicionar el tiempo (esperando Long)
+        playerManager.playAudio(audio.path)
+        playerManager.seekTo(startMs)
 
         previewJob = viewModelScope.launch(Dispatchers.Main) {
             delay(durationMs)
-            playerManager.pause()
+            playerManager.pauseAudio()
         }
     }
 
     fun stopPreview() {
         previewJob?.cancel()
-        playerManager.pause()
+        playerManager.pauseAudio()
     }
 
     fun trimAudio(audio: AudioFileItem, startSeconds: Int, endSeconds: Int, onResult: (Boolean) -> Unit) {
