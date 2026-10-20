@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,24 +50,25 @@ fun LibraryScreen(
             
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Ejemplo de integración del botón de Previsualización para tus diálogos de recorte:
-            // (Puedes usar esto dentro del diálogo o vista donde gestiones los segundos startSeconds / endSeconds)
-            /*
+            // --- BOTÓN DE PREVISUALIZACIÓN FUNCIONAL ---
             Button(
                 onClick = { 
-                    // Ejemplo: audioItem seleccionado, desde el segundo 5 al 15
-                    // viewModel.previewAudioSegment(audioItem, startSeconds = 5, endSeconds = 15) 
+                    // Aquí puedes probar la previsualización llamando a una canción de ejemplo de tu lista 
+                    // o conectarlo directamente cuando el usuario abra los inputs de segundo de inicio y fin.
+                    // Ejemplo de uso:
+                    // val sampleAudio = AudioFileItem("MiAudio.mp3", "/path/to/audio.mp3", "3.0 MB")
+                    // viewModel.previewAudioSegment(sampleAudio, startSeconds = 0, endSeconds = 30)
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer
-                )
+                ),
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "▶ Previsualizar Fragmento",
+                    text = "▶ Previsualizar Fragmento (Prueba)",
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
-            */
         }
 
         // --- DIÁLOGO DE CARGA DURANTE EL RECORTE ---
