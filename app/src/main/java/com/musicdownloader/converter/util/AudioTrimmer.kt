@@ -3,7 +3,6 @@ package com.musicdownloader.converter.util
 import android.media.MediaExtractor
 import android.media.MediaMuxer
 import android.media.MediaFormat
-import android.os.Build
 import java.io.File
 import java.nio.ByteBuffer
 
@@ -16,15 +15,13 @@ object AudioTrimmer {
             val trackCount = extractor.trackCount
             var audioTrackIndex = -1
             var format: MediaFormat? = null
-            var mime = ""
 
             for (i in 0 until trackCount) {
                 val f = extractor.getTrackFormat(i)
-                val m = f.getString(MediaFormat.KEY_MIME) ?: ""
-                if (m.startsWith("audio/")) {
+                val mime = f.getString(MediaFormat.KEY_MIME) ?: ""
+                if (mime.startsWith("audio/")) {
                     audioTrackIndex = i
                     format = f
-                    mime = m
                     break
                 }
             }
@@ -38,18 +35,33 @@ object AudioTrimmer {
 
             extractor.seekTo(startTimeUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
 
-            // Seleccionar dinámicamente el formato de salida según el códec (AAC o WebM/Opus)
-            val muxerFormat = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && mime.contains("opus")) {
-                MediaMuxer.OutputFormat.MUXER_OUTPUT_WEBM
-            } else {
-                MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
+            // Usar formato MPEG_4 por defecto y asegurar que el formato tenga los parámetros limpios
+            muxer = MediaMuxer(dstPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            
+            // Nota: MediaMuxer requiere un formato de salida configurado específicamente. 
+            // Si falla al añadir la pista original directamente, clonamos el formato esencial (MIME y SampleRate/ChannelCount)
+            val cleanFormat = MediaFormat().apply {
+                setString(MediaFormat.KEY_MIME, format.getString(MediaFormat.KEY_MIME))
+                if (format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
+                    setInteger(MediaFormat.KEY_SAMPLE_RATE, format.getInteger(MediaFormat.KEY_SAMPLE_RATE))
+                }
+                if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
+                    setInteger(MediaFormat.KEY_CHANNEL_COUNT, format.getInteger(MediaFormat.KEY_CHANNEL_COUNT))
+                }
+                if (format.containsKey(MediaFormat.KEY_CSD_0)) {
+                    setByteBuffer(MediaFormat.KEY_CSD_0, format.getByteBuffer(MediaFormat.KEY_CSD_0))
+                }
             }
 
-            muxer = MediaMuxer(dstPath, muxerFormat)
-            val destTrackIndex = muxer.addTrack(format)
+            val destTrackIndex = muxer.addTrack(cleanFormat)
             muxer.start()
 
-            val maxBufferSize = format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 64 * 1024)
+            val maxBufferSize = if (format.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)) {
+                format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE)
+            } else {
+                1024 * 1024
+            }
+            
             val buffer = ByteBuffer.allocate(maxBufferSize)
             val bufferInfo = android.media.MediaCodec.BufferInfo()
 
