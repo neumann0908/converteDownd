@@ -2,19 +2,17 @@ package com.musicdownloader.converter.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.musicdownloader.converter.data.local.PlaylistDao
-import com.musicdownloader.converter.data.local.PlaylistEntity
-import com.musicdownloader.converter.data.local.PlaylistSongEntity
-import com.musicdownloader.converter.player.AudioPlayerManager
+import com.musicdownloader.converter.data.database.PlaylistDao
+import com.musicdownloader.converter.data.database.PlaylistEntity
+import com.musicdownloader.converter.data.database.PlaylistSongEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class PlaylistViewModel @Inject constructor(
-    private val playlistDao: PlaylistDao,
-    val playerManager: AudioPlayerManager
+class PlaylistsViewModel @Inject constructor(
+    val playlistDao: PlaylistDao
 ) : ViewModel() {
 
     val playlists: StateFlow<List<PlaylistEntity>> = playlistDao.getAllPlaylists()
@@ -37,17 +35,17 @@ class PlaylistViewModel @Inject constructor(
         return playlistDao.getSongsForPlaylist(playlistId)
     }
 
-    fun addSongToPlaylist(playlistId: Long, title: String, path: String, sizeMb: String) {
+    fun addSongToPlaylist(playlistId: Long, songPath: String, songName: String) {
         viewModelScope.launch {
-            playlistDao.insertSongToPlaylist(
-                PlaylistSongEntity(playlistId = playlistId, title = title, path = path, sizeMb = sizeMb)
+            playlistDao.addSongToPlaylist(
+                PlaylistSongEntity(playlistId = playlistId, songPath = songPath, songName = songName)
             )
         }
     }
 
-    fun removeSongFromPlaylist(songId: Long) {
+    fun removeSongFromPlaylist(playlistId: Long, songPath: String) {
         viewModelScope.launch {
-            playlistDao.deleteSongFromPlaylist(songId)
+            playlistDao.removeSongFromPlaylist(playlistId, songPath)
         }
     }
 }
