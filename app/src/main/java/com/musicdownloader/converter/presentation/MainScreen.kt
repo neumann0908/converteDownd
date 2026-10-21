@@ -15,7 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.musicdownloader.converter.presentation.ui.screens.DownloadScreen
-import com.musicdownloader.converter.presentation.ui.screens.LibraryScreen
+import com.musicdownloader.converter.presentation.screens.library.LibraryScreen // <-- ¡Ruta corregida aquí!
 import com.musicdownloader.converter.presentation.ui.screens.PlayerScreen
 import com.musicdownloader.converter.presentation.ui.screens.PlaylistsScreen
 
