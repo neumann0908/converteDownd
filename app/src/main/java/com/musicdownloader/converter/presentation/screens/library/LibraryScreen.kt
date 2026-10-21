@@ -1,4 +1,4 @@
-package com.musicdownloader.converter.presentation.ui.screens
+package com.musicdownloader.converter.presentation.screens.library
 
 import android.widget.Toast
 import androidx.compose.foundation.clickable
