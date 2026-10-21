@@ -197,7 +197,6 @@ fun LibraryScreen(
                         val end = endSecStr.toIntOrNull() ?: 30
                         viewModel.stopPreview()
                         audioToTrim?.let { audio ->
-                            // Se pasa 'customNameStr' a la llamada de trimAudio
                             viewModel.trimAudio(audio, start, end, customNameStr) { success ->
                                 if (success) {
                                     Toast.makeText(context, "¡Audio recortado con éxito!", Toast.LENGTH_SHORT).show()
