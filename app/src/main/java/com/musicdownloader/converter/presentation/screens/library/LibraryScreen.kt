@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -27,6 +28,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.musicdownloader.converter.presentation.viewmodel.AudioFileItem
 import com.musicdownloader.converter.presentation.viewmodel.LibraryViewModel
+import com.musicdownloader.converter.presentation.viewmodel.PlaylistsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +45,11 @@ fun LibraryScreen(
     var startSecStr by remember { mutableStateOf("0") }
     var endSecStr by remember { mutableStateOf("30") }
     var customNameStr by remember { mutableStateOf("") }
+
+    // Estados para la funcionalidad de agregar a playlist
+    var showPlaylistDialog by remember { mutableStateOf(false) }
+    var songNameToAdd by remember { mutableStateOf("") }
+    var songPathToAdd by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         viewModel.loadDownloadedFiles()
@@ -110,6 +117,11 @@ fun LibraryScreen(
                                 endSecStr = "30"
                                 customNameStr = audio.name.substringBeforeLast(".")
                             },
+                            onAddToPlaylistClick = {
+                                songNameToAdd = audio.name
+                                songPathToAdd = audio.path
+                                showPlaylistDialog = true
+                            },
                             onDeleteClick = {
                                 viewModel.deleteAudio(audio.path)
                             }
@@ -117,6 +129,15 @@ fun LibraryScreen(
                     }
                 }
             }
+        }
+
+        // Diálogo para seleccionar la playlist destino
+        if (showPlaylistDialog) {
+            AddSongToPlaylistDialog(
+                songName = songNameToAdd,
+                songPath = songPathToAdd,
+                onDismiss = { showPlaylistDialog = false }
+            )
         }
 
         if (errorMessage != null) {
@@ -267,6 +288,7 @@ fun AudioItemRow(
     audio: AudioFileItem,
     onPlayClick: () -> Unit,
     onTrimClick: () -> Unit,
+    onAddToPlaylistClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
     Card(
@@ -324,6 +346,14 @@ fun AudioItemRow(
                 )
             }
 
+            IconButton(onClick = onAddToPlaylistClick) {
+                Icon(
+                    imageVector = Icons.Default.PlaylistAdd,
+                    contentDescription = "Añadir a lista",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
             IconButton(onClick = onDeleteClick) {
                 Icon(
                     imageVector = Icons.Default.Delete,
@@ -333,4 +363,60 @@ fun AudioItemRow(
             }
         }
     }
+}
+
+@Composable
+fun AddSongToPlaylistDialog(
+    songName: String,
+    songPath: String,
+    viewModel: PlaylistsViewModel = hiltViewModel(),
+    onDismiss: () -> Unit
+) {
+    val playlists by viewModel.playlists.collectAsState()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Añadir a una lista") },
+        text = {
+            if (playlists.isEmpty()) {
+                Text("No tienes listas creadas. ¡Crea una primero en la pestaña Listas!")
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(playlists) { playlist ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.addSongToPlaylist(
+                                        playlistId = playlist.id,
+                                        songPath = songPath,
+                                        songName = songName
+                                    )
+                                    onDismiss()
+                                },
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Text(
+                                text = playlist.name,
+                                modifier = Modifier.padding(16.dp),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
