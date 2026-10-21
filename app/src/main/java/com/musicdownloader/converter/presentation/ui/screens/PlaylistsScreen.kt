@@ -25,7 +25,7 @@ fun PlaylistsScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
     
-    // Estados para controlar la expansión de tarjetas y el diálogo de agregar canciones
+    // Estados para expansión y gestión de canciones
     var expandedPlaylistId by remember { mutableStateOf<Long?>(null) }
     var showAddSongDialog by remember { mutableStateOf(false) }
     var targetPlaylistIdForSong by remember { mutableStateOf<Long?>(null) }
@@ -73,7 +73,6 @@ fun PlaylistsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    // Al tocar la tarjeta, se expande o colapsa para mostrar las canciones
                                     expandedPlaylistId = if (isExpanded) null else playlist.id
                                 },
                             colors = CardDefaults.cardColors(
@@ -104,7 +103,6 @@ fun PlaylistsScreen(
                                                 fontWeight = FontWeight.SemiBold,
                                                 fontSize = 16.sp
                                             )
-                                            // Contador dinámico de canciones
                                             Text(
                                                 text = "${songs.size} canciones",
                                                 fontSize = 12.sp,
@@ -114,7 +112,7 @@ fun PlaylistsScreen(
                                     }
 
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        // Botón rápido para agregar canciones a esta lista
+                                        // Botón para añadir canción a esta lista específica
                                         IconButton(onClick = {
                                             targetPlaylistIdForSong = playlist.id
                                             songNameInput = ""
@@ -126,7 +124,7 @@ fun PlaylistsScreen(
                                                 tint = MaterialTheme.colorScheme.primary
                                             )
                                         }
-                                        // Botón para eliminar la lista completa
+                                        // Botón para eliminar la lista
                                         IconButton(onClick = { viewModel.deletePlaylist(playlist.id) }) {
                                             Icon(
                                                 imageVector = Icons.Default.Delete,
@@ -137,7 +135,7 @@ fun PlaylistsScreen(
                                     }
                                 }
 
-                                // Sección desplegable con el listado de canciones
+                                // Contenido expandido con la lista de canciones
                                 AnimatedVisibility(visible = isExpanded) {
                                     Column(
                                         modifier = Modifier
@@ -177,7 +175,6 @@ fun PlaylistsScreen(
                                                             fontSize = 14.sp
                                                         )
                                                     }
-                                                    // Botón para eliminar una canción individual de la lista
                                                     IconButton(
                                                         onClick = {
                                                             viewModel.removeSongFromPlaylist(playlist.id, song.songPath)
@@ -248,7 +245,7 @@ fun PlaylistsScreen(
         )
     }
 
-    // Diálogo para añadir canción a una lista específica
+    // Diálogo para añadir una canción
     if (showAddSongDialog) {
         AlertDialog(
             onDismissRequest = { showAddSongDialog = false },
@@ -270,9 +267,9 @@ fun PlaylistsScreen(
                             songPath = "path_${System.currentTimeMillis()}",
                             songName = songNameInput
                         )
+                        showAddSongDialog = false
+                        songNameInput = ""
                     }
-                    showAddSongDialog = false
-                    songNameInput = ""
                 }) {
                     Text("Añadir")
                 }
