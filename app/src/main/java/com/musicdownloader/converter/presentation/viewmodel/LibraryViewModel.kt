@@ -110,7 +110,7 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    // --- FUNCIONES DE PREVISUALIZACIÓN ACTUALIZADAS ---
+    // --- FUNCIONES DE PREVISUALIZACIÓN ---
     fun previewAudioSegment(audio: AudioFileItem, startSeconds: Int, endSeconds: Int) {
         previewJob?.cancel()
 
@@ -123,13 +123,9 @@ class LibraryViewModel @Inject constructor(
         val durationMs = (endSeconds - startSeconds) * 1000L
 
         try {
-            // 1. Inicia la reproducción del archivo de audio
             playerManager.playFile(audio.path, audio.name)
-            
-            // 2. Salta al segundo de inicio seleccionado
             playerManager.seekTo(startMs)
 
-            // 3. Temporizador para detener la previsualización al cumplirse el rango
             previewJob = viewModelScope.launch(Dispatchers.Main) {
                 delay(durationMs)
                 stopPreview()
@@ -143,14 +139,14 @@ class LibraryViewModel @Inject constructor(
     fun stopPreview() {
         previewJob?.cancel()
         try {
-            // Regresa la posición del reproductor al inicio o maneja el cierre de la muestra
             playerManager.seekTo(0L)
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    fun trimAudio(audio: AudioFileItem, startSeconds: Int, endSeconds: Int, onResult: (Boolean) -> Unit) {
+    // --- FUNCIÓN DE RECORTE CON SOPORTE DE NOMBRE PERSONALIZADO ---
+    fun trimAudio(audio: AudioFileItem, startSeconds: Int, endSeconds: Int, customName: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             _isTrimming.value = true
             try {
@@ -164,10 +160,19 @@ class LibraryViewModel @Inject constructor(
                     return@launch
                 }
                 val downloadDir = srcFile.parentFile ?: File(context.getExternalFilesDir(null), "MusicDownloads")
-                val baseName = srcFile.nameWithoutExtension
                 
-                val extension = if (audio.path.endsWith(".webm", ignoreCase = true)) "webm" else "m4a"
-                val dstFile = File(downloadDir, "${baseName}_recortado.$extension")
+                // Determinamos el nombre del archivo de salida según lo ingresado por el usuario
+                val trimmedFileName = if (customName.isNotBlank()) {
+                    val cleanName = customName.trim().removeSuffix(".mp3").removeSuffix(".m4a").removeSuffix(".webm")
+                    val extension = if (audio.path.endsWith(".webm", ignoreCase = true)) "webm" else "m4a"
+                    "$cleanName.$extension"
+                } else {
+                    val baseName = srcFile.nameWithoutExtension
+                    val extension = if (audio.path.endsWith(".webm", ignoreCase = true)) "webm" else "m4a"
+                    "${baseName}_recortado.$extension"
+                }
+
+                val dstFile = File(downloadDir, trimmedFileName)
 
                 AudioTrimmer.trim(
                     srcPath = audio.path,
