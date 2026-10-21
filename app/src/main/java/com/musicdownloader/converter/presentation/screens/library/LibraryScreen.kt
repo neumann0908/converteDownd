@@ -1,4 +1,4 @@
-package com.musicdownloader.converter.presentation.screens.library
+package com.musicdownloader.converter.presentation.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.clickable
@@ -39,11 +39,10 @@ fun LibraryScreen(
     val isTrimming by viewModel.isTrimming.collectAsState()
     val context = LocalContext.current
 
-    // --- ESTADOS LOCALES PARA EL DIÁLOGO DE RECORTE ---
     var audioToTrim by remember { mutableStateOf<AudioFileItem?>(null) }
     var startSecStr by remember { mutableStateOf("0") }
     var endSecStr by remember { mutableStateOf("30") }
-    var customNameStr by remember { mutableStateOf("") } // Nombre personalizado
+    var customNameStr by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         viewModel.loadDownloadedFiles()
@@ -55,7 +54,6 @@ fun LibraryScreen(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            // Cabecera con título y botón de actualizar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -73,7 +71,6 @@ fun LibraryScreen(
                 }
             }
 
-            // Campo de búsqueda
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
@@ -86,7 +83,6 @@ fun LibraryScreen(
                 shape = MaterialTheme.shapes.medium
             )
 
-            // Lista de canciones
             if (audioList.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -112,7 +108,6 @@ fun LibraryScreen(
                                 audioToTrim = audio
                                 startSecStr = "0"
                                 endSecStr = "30"
-                                // Nombre por defecto sugiriendo el actual sin extensión
                                 customNameStr = audio.name.substringBeforeLast(".")
                             },
                             onDeleteClick = {
@@ -124,11 +119,10 @@ fun LibraryScreen(
             }
         }
 
-        // --- DIÁLOGO DE ERROR ---
         if (errorMessage != null) {
             AlertDialog(
                 onDismissRequest = { viewModel.clearError() },
-                title = { Text("Error") },
+                title = { Text("Error al Recortar") },
                 text = { Text(errorMessage ?: "") },
                 confirmButton = {
                     TextButton(onClick = { viewModel.clearError() }) {
@@ -138,7 +132,6 @@ fun LibraryScreen(
             )
         }
 
-        // --- DIÁLOGO PARA CONFIGURAR Y RECORTAR EL AUDIO ---
         if (audioToTrim != null) {
             AlertDialog(
                 onDismissRequest = { 
@@ -154,8 +147,6 @@ fun LibraryScreen(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-
-                        // Campo para el nombre personalizado
                         OutlinedTextField(
                             value = customNameStr,
                             onValueChange = { customNameStr = it },
@@ -163,8 +154,6 @@ fun LibraryScreen(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
-
-                        // Segundo de Inicio
                         OutlinedTextField(
                             value = startSecStr,
                             onValueChange = { startSecStr = it },
@@ -172,8 +161,6 @@ fun LibraryScreen(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
-
-                        // Segundo de Fin
                         OutlinedTextField(
                             value = endSecStr,
                             onValueChange = { endSecStr = it },
@@ -184,7 +171,6 @@ fun LibraryScreen(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        // Botón de Previsualización
                         Button(
                             onClick = {
                                 val start = startSecStr.toIntOrNull() ?: 0
@@ -210,9 +196,8 @@ fun LibraryScreen(
                         val start = startSecStr.toIntOrNull() ?: 0
                         val end = endSecStr.toIntOrNull() ?: 30
                         viewModel.stopPreview()
-                        
                         audioToTrim?.let { audio ->
-                            // Invocación pasando el nombre personalizado customNameStr
+                            // Se pasa 'customNameStr' a la llamada de trimAudio
                             viewModel.trimAudio(audio, start, end, customNameStr) { success ->
                                 if (success) {
                                     Toast.makeText(context, "¡Audio recortado con éxito!", Toast.LENGTH_SHORT).show()
@@ -237,10 +222,9 @@ fun LibraryScreen(
             )
         }
 
-        // --- DIÁLOGO DE CARGA DURANTE EL RECORTE ---
         if (isTrimming) {
             Dialog(
-                onDismissRequest = { /* Bloquea interacciones externas */ },
+                onDismissRequest = { },
                 properties = DialogProperties(
                     dismissOnBackPress = false,
                     dismissOnClickOutside = false
@@ -325,7 +309,6 @@ fun AudioItemRow(
                 )
             }
 
-            // Botón Reproducir
             IconButton(onClick = onPlayClick) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
@@ -334,7 +317,6 @@ fun AudioItemRow(
                 )
             }
 
-            // Botón Recortar
             IconButton(onClick = onTrimClick) {
                 Icon(
                     imageVector = Icons.Default.ContentCut,
@@ -343,7 +325,6 @@ fun AudioItemRow(
                 )
             }
 
-            // Botón Eliminar
             IconButton(onClick = onDeleteClick) {
                 Icon(
                     imageVector = Icons.Default.Delete,
