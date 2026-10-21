@@ -145,7 +145,7 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    // --- FUNCIÓN DE RECORTE CON SOPORTE DE NOMBRE PERSONALIZADO ---
+    // --- FUNCIÓN DE RECORTE CON LIMPIEZA DE ARCHIVOS TEMPORALES ANTE FALLOS ---
     fun trimAudio(
         audio: AudioFileItem, 
         startSeconds: Int, 
@@ -155,6 +155,7 @@ class LibraryViewModel @Inject constructor(
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             _isTrimming.value = true
+            var dstFile: File? = null // Referencia para controlar el archivo de salida
             try {
                 val srcFile = File(audio.path)
                 if (!srcFile.exists() || startSeconds >= endSeconds) {
@@ -178,7 +179,7 @@ class LibraryViewModel @Inject constructor(
                     "${baseName}_recortado.$extension"
                 }
 
-                val dstFile = File(downloadDir, trimmedFileName)
+                dstFile = File(downloadDir, trimmedFileName)
 
                 AudioTrimmer.trim(
                     srcPath = audio.path,
@@ -194,6 +195,16 @@ class LibraryViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                
+                // --- LIMPIEZA AUTOMÁTICA DE ARCHIVOS PARCIALES SI OCURRE UN ERROR ---
+                if (dstFile != null && dstFile.exists()) {
+                    try {
+                        dstFile.delete()
+                    } catch (deleteEx: Exception) {
+                        deleteEx.printStackTrace()
+                    }
+                }
+
                 withContext(Dispatchers.Main) {
                     _isTrimming.value = false
                     _errorMessage.value = "Detalle: ${e.localizedMessage ?: e.toString()}"
