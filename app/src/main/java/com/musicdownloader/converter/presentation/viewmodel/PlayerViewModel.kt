@@ -10,13 +10,13 @@ class PlayerViewModel @Inject constructor(
     val playerManager: AudioPlayerManager
 ) : ViewModel() {
 
-    // Exponemos el estado de la canción actual desde el manager
-    val currentSong = playerManager.currentSong
+    // Exponemos el título de la pista actual
+    val currentTrackTitle = playerManager.currentTrackTitle
 
-    // Exponemos el estado de reproducción (si está sonando o pausado)
+    // Exponemos el estado de reproducción
     val isPlaying = playerManager.isPlaying
 
-    // Función para alternar entre reproducir y pausar
+    // Función para alternar reproducción y pausa
     fun togglePlayPause() {
         playerManager.togglePlayPause()
     }
