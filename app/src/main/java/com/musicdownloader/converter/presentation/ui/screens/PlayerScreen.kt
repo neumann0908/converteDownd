@@ -7,6 +7,9 @@ import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.*
@@ -19,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.media3.common.Player
 import com.musicdownloader.converter.presentation.viewmodel.PlayerViewModel
 import java.util.Locale
 
@@ -31,6 +35,10 @@ fun PlayerScreen(
     val currentTitle by playerManager.currentTrackTitle.collectAsState()
     val currentPosition by playerManager.currentPosition.collectAsState()
     val duration by playerManager.duration.collectAsState()
+    
+    // Recolectamos los estados de Shuffle y Repeat desde el ViewModel
+    val isShuffleEnabled by viewModel.isShuffleEnabled.collectAsState()
+    val repeatMode by viewModel.repeatMode.collectAsState()
 
     Column(
         modifier = Modifier
@@ -101,9 +109,41 @@ fun PlayerScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        // Controles de Reproducción (Anterior, Retroceder 10s, Play/Pause, Adelantar 10s, Siguiente)
+        // NUEVO: Fila de controles secundarios (Shuffle y Repeat)
+        Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Botón Aleatorio (Shuffle)
+            IconButton(onClick = { viewModel.toggleShuffle() }) {
+                Icon(
+                    imageVector = Icons.Default.Shuffle,
+                    contentDescription = "Modo aleatorio",
+                    tint = if (isShuffleEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+
+            // Botón Repetir (Loop: Off -> All -> One)
+            IconButton(onClick = { viewModel.cycleRepeatMode() }) {
+                val (icon, tint) = when (repeatMode) {
+                    Player.REPEAT_MODE_ONE -> Pair(Icons.Default.RepeatOne, MaterialTheme.colorScheme.primary)
+                    Player.REPEAT_MODE_ALL -> Pair(Icons.Default.Repeat, MaterialTheme.colorScheme.primary)
+                    else -> Pair(Icons.Default.Repeat, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                }
+                Icon(
+                    imageVector = icon,
+                    contentDescription = "Modo repetición",
+                    tint = tint
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Controles Principales de Reproducción
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
