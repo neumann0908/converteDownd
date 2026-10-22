@@ -36,6 +36,13 @@ class AudioPlayerManager @Inject constructor(
     private val _duration = MutableStateFlow(0L)
     val duration: StateFlow<Long> = _duration
 
+    // NUEVO: Estados para Shuffle y Repeat
+    private val _isShuffleEnabled = MutableStateFlow(false)
+    val isShuffleEnabled: StateFlow<Boolean> = _isShuffleEnabled
+
+    private val _repeatMode = MutableStateFlow(Player.REPEAT_MODE_OFF)
+    val repeatMode: StateFlow<Int> = _repeatMode
+
     init {
         exoPlayer = ExoPlayer.Builder(context).build().apply {
             addListener(object : Player.Listener {
@@ -118,7 +125,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // CORREGIDO: Carga toda la playlist y se posiciona en el archivo que el usuario seleccionó
+    // Carga toda la playlist y se posiciona en el archivo que el usuario seleccionó
     fun playFile(path: String, title: String) {
         try {
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
@@ -210,12 +217,32 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
+    // NUEVO: Funciones de Shuffle y Loop
+    fun toggleShuffle() {
+        exoPlayer?.let { player ->
+            val newState = !player.shuffleModeEnabled
+            player.shuffleModeEnabled = newState
+            _isShuffleEnabled.value = newState
+        }
+    }
+
+    fun cycleRepeatMode() {
+        exoPlayer?.let { player ->
+            val nextMode = when (player.repeatMode) {
+                Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                else -> Player.REPEAT_MODE_OFF
+            }
+            player.repeatMode = nextMode
+            _repeatMode.value = nextMode
+        }
+    }
+
     fun seekTo(positionMs: Long) {
         exoPlayer?.seekTo(positionMs)
         _currentPosition.value = positionMs
     }
 
-    // CORREGIDO: Se eliminó la duplicidad y quedó limpia una sola función
     fun seekForward() {
         exoPlayer?.let { player ->
             val newPos = (player.currentPosition + 10000).coerceAtMost(player.duration)
