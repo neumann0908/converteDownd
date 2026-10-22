@@ -25,7 +25,6 @@ fun PlaylistsScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
     
-    // Estados para expansión y gestión de canciones
     var expandedPlaylistId by remember { mutableStateOf<Long?>(null) }
     var showAddSongDialog by remember { mutableStateOf(false) }
     var targetPlaylistIdForSong by remember { mutableStateOf<Long?>(null) }
@@ -112,7 +111,6 @@ fun PlaylistsScreen(
                                     }
 
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        // Botón para añadir canción a esta lista específica
                                         IconButton(onClick = {
                                             targetPlaylistIdForSong = playlist.id
                                             songNameInput = ""
@@ -124,7 +122,6 @@ fun PlaylistsScreen(
                                                 tint = MaterialTheme.colorScheme.primary
                                             )
                                         }
-                                        // Botón para eliminar la lista
                                         IconButton(onClick = { viewModel.deletePlaylist(playlist.id) }) {
                                             Icon(
                                                 imageVector = Icons.Default.Delete,
@@ -135,14 +132,15 @@ fun PlaylistsScreen(
                                     }
                                 }
 
-                                // Contenido expandido con la lista de canciones
                                 AnimatedVisibility(visible = isExpanded) {
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(horizontal = 16.dp, vertical = 8.dp)
                                     ) {
-                                        HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
+                                        // Sustituido por Divider compatible
+                                        Divider(modifier = Modifier.padding(bottom = 8.dp))
+                                        
                                         if (songs.isEmpty()) {
                                             Text(
                                                 text = "Esta lista está vacía.",
@@ -199,7 +197,6 @@ fun PlaylistsScreen(
             }
         }
 
-        // Botón flotante para Nueva Lista
         Button(
             onClick = { 
                 newPlaylistName = ""
@@ -213,7 +210,6 @@ fun PlaylistsScreen(
         }
     }
 
-    // Diálogo para crear nueva lista
     if (showCreateDialog) {
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
@@ -245,7 +241,6 @@ fun PlaylistsScreen(
         )
     }
 
-    // Diálogo para añadir una canción
     if (showAddSongDialog) {
         AlertDialog(
             onDismissRequest = { showAddSongDialog = false },
@@ -267,9 +262,9 @@ fun PlaylistsScreen(
                             songPath = "path_${System.currentTimeMillis()}",
                             songName = songNameInput
                         )
-                        showAddSongDialog = false
-                        songNameInput = ""
                     }
+                    showAddSongDialog = false
+                    songNameInput = ""
                 }) {
                     Text("Añadir")
                 }
