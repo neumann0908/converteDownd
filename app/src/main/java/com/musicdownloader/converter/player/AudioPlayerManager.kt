@@ -54,7 +54,7 @@ class AudioPlayerManager @Inject constructor(
                     }
                 }
 
-                // NUEVO: Detecta automáticamente el cambio de pista en la cola secuencial
+                // Detecta automáticamente el cambio de pista en la cola secuencial
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     mediaItem?.let { item ->
                         val title = item.mediaId.ifEmpty { item.localConfiguration?.uri?.lastPathSegment ?: "Pista desconocida" }
@@ -82,7 +82,7 @@ class AudioPlayerManager @Inject constructor(
         progressJob?.cancel()
     }
 
-    // NUEVO: Carga toda la lista de la carpeta de descargas como una playlist en ExoPlayer
+    // Carga toda la lista de la carpeta de descargas como una playlist en ExoPlayer
     fun loadAndPlayPlaylist() {
         try {
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
@@ -118,7 +118,50 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
+    // CORREGIDO: Carga toda la playlist y se posiciona en el archivo que el usuario seleccionó
     fun playFile(path: String, title: String) {
+        try {
+            val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
+            if (downloadDir.exists() && downloadDir.isDirectory) {
+                val audioFiles = downloadDir.listFiles { file ->
+                    file.isFile && (file.extension.equals("mp3", ignoreCase = true) ||
+                            file.extension.equals("m4a", ignoreCase = true) ||
+                            file.extension.equals("webm", ignoreCase = true) ||
+                            file.extension.equals("wav", ignoreCase = true))
+                }?.sortedBy { it.name }
+
+                if (!audioFiles.isNullOrEmpty()) {
+                    exoPlayer?.let { player ->
+                        player.stop()
+                        player.clearMediaItems()
+
+                        val mediaItems = audioFiles.map { file ->
+                            MediaItem.Builder()
+                                .setUri(file.absolutePath)
+                                .setMediaId(file.name)
+                                .build()
+                        }
+
+                        player.setMediaItems(mediaItems)
+                        player.prepare()
+
+                        // Buscar el índice exacto de la canción seleccionada en la lista
+                        val targetIndex = audioFiles.indexOfFirst { it.absolutePath == path }
+                        if (targetIndex != -1) {
+                            player.seekTo(targetIndex, 0L)
+                        }
+
+                        player.play()
+                        _currentTrackTitle.value = title
+                    }
+                    return
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // Fallback por si la carpeta no está disponible
         exoPlayer?.let { player ->
             player.stop()
             player.clearMediaItems()
@@ -142,14 +185,13 @@ class AudioPlayerManager @Inject constructor(
                 if (player.mediaItemCount > 0) {
                     player.play()
                 } else {
-                    // Si no hay nada en cola, carga la playlist automáticamente
                     loadAndPlayPlaylist()
                 }
             }
         }
     }
 
-    // NUEVO: Funciones para saltar entre pistas manualmente
+    // Funciones para saltar entre pistas manualmente
     fun skipToNext() {
         exoPlayer?.let { player ->
             if (player.hasNextMediaItem()) {
@@ -173,10 +215,7 @@ class AudioPlayerManager @Inject constructor(
         _currentPosition.value = positionMs
     }
 
-    fun skipForward() {
-        seekForward()
-    }
-
+    // CORREGIDO: Se eliminó la duplicidad y quedó limpia una sola función
     fun seekForward() {
         exoPlayer?.let { player ->
             val newPos = (player.currentPosition + 10000).coerceAtMost(player.duration)
