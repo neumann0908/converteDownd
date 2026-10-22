@@ -53,6 +53,14 @@ class AudioPlayerManager @Inject constructor(
                         _duration.value = duration.coerceAtLeast(0L)
                     }
                 }
+
+                // NUEVO: Detecta automáticamente el cambio de pista en la cola secuencial
+                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    mediaItem?.let { item ->
+                        val title = item.mediaId.ifEmpty { item.localConfiguration?.uri?.lastPathSegment ?: "Pista desconocida" }
+                        _currentTrackTitle.value = title
+                    }
+                }
             })
         }
     }
@@ -74,11 +82,50 @@ class AudioPlayerManager @Inject constructor(
         progressJob?.cancel()
     }
 
+    // NUEVO: Carga toda la lista de la carpeta de descargas como una playlist en ExoPlayer
+    fun loadAndPlayPlaylist() {
+        try {
+            val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
+            if (downloadDir.exists() && downloadDir.isDirectory) {
+                val audioFiles = downloadDir.listFiles { file ->
+                    file.isFile && (file.extension.equals("mp3", ignoreCase = true) ||
+                            file.extension.equals("m4a", ignoreCase = true) ||
+                            file.extension.equals("webm", ignoreCase = true) ||
+                            file.extension.equals("wav", ignoreCase = true))
+                }?.sortedBy { it.name }
+
+                if (!audioFiles.isNullOrEmpty()) {
+                    exoPlayer?.let { player ->
+                        player.stop()
+                        player.clearMediaItems()
+
+                        val mediaItems = audioFiles.map { file ->
+                            MediaItem.Builder()
+                                .setUri(file.absolutePath)
+                                .setMediaId(file.name)
+                                .build()
+                        }
+
+                        player.setMediaItems(mediaItems)
+                        player.prepare()
+                        player.play()
+                        _currentTrackTitle.value = audioFiles.first().name
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     fun playFile(path: String, title: String) {
         exoPlayer?.let { player ->
             player.stop()
             player.clearMediaItems()
-            val mediaItem = MediaItem.fromUri(path)
+            val mediaItem = MediaItem.Builder()
+                .setUri(path)
+                .setMediaId(title)
+                .build()
             player.setMediaItem(mediaItem)
             player.prepare()
             player.play()
@@ -95,24 +142,28 @@ class AudioPlayerManager @Inject constructor(
                 if (player.mediaItemCount > 0) {
                     player.play()
                 } else {
-                    try {
-                        val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
-                        if (downloadDir.exists() && downloadDir.isDirectory) {
-                            val firstFile = downloadDir.listFiles { file ->
-                                file.isFile && (file.extension.equals("mp3", ignoreCase = true) ||
-                                        file.extension.equals("m4a", ignoreCase = true) ||
-                                        file.extension.equals("webm", ignoreCase = true) ||
-                                        file.extension.equals("wav", ignoreCase = true))
-                            }?.sortedBy { it.name }?.firstOrNull()
-
-                            if (firstFile != null) {
-                                playFile(firstFile.absolutePath, firstFile.name)
-                            }
-                        }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
+                    // Si no hay nada en cola, carga la playlist automáticamente
+                    loadAndPlayPlaylist()
                 }
+            }
+        }
+    }
+
+    // NUEVO: Funciones para saltar entre pistas manualmente
+    fun skipToNext() {
+        exoPlayer?.let { player ->
+            if (player.hasNextMediaItem()) {
+                player.seekToNextMediaItem()
+                player.play()
+            }
+        }
+    }
+
+    fun skipToPrevious() {
+        exoPlayer?.let { player ->
+            if (player.hasPreviousMediaItem()) {
+                player.seekToPreviousMediaItem()
+                player.play()
             }
         }
     }
@@ -120,6 +171,10 @@ class AudioPlayerManager @Inject constructor(
     fun seekTo(positionMs: Long) {
         exoPlayer?.seekTo(positionMs)
         _currentPosition.value = positionMs
+    }
+
+    fun skipForward() {
+        seekForward()
     }
 
     fun seekForward() {
