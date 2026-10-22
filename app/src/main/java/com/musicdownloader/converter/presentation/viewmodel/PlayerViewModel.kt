@@ -20,4 +20,14 @@ class PlayerViewModel @Inject constructor(
     fun togglePlayPause() {
         playerManager.togglePlayPause()
     }
+
+    // NUEVO: Función para saltar a la siguiente canción en la cola
+    fun skipToNext() {
+        playerManager.skipToNext()
+    }
+
+    // NUEVO: Función para regresar a la canción anterior en la cola
+    fun skipToPrevious() {
+        playerManager.skipToPrevious()
+    }
 }
