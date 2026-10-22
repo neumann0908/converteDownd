@@ -7,6 +7,8 @@ import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -101,21 +103,34 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Controles de Reproducción (Rewind, Play/Pause, Forward)
+        // Controles de Reproducción (Anterior, Retroceder 10s, Play/Pause, Adelantar 10s, Siguiente)
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
+            // Botón Pista Anterior
+            IconButton(
+                onClick = { viewModel.skipToPrevious() },
+                modifier = Modifier.size(44.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SkipPrevious,
+                    contentDescription = "Pista anterior",
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
             // Botón Retroceder 10s
             IconButton(
                 onClick = { playerManager.seekRewind() },
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(44.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.FastRewind,
                     contentDescription = "Retroceder 10s",
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(24.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
@@ -123,7 +138,7 @@ fun PlayerScreen(
             // Botón Principal Play / Pausa
             FilledIconButton(
                 onClick = { playerManager.togglePlayPause() },
-                modifier = Modifier.size(72.dp),
+                modifier = Modifier.size(64.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
@@ -131,19 +146,32 @@ fun PlayerScreen(
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "Pausar" else "Reproducir",
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(36.dp)
                 )
             }
 
             // Botón Adelantar 10s
             IconButton(
                 onClick = { playerManager.seekForward() },
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(44.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.FastForward,
                     contentDescription = "Adelantar 10s",
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Botón Pista Siguiente
+            IconButton(
+                onClick = { viewModel.skipToNext() },
+                modifier = Modifier.size(44.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SkipNext,
+                    contentDescription = "Pista siguiente",
+                    modifier = Modifier.size(28.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
