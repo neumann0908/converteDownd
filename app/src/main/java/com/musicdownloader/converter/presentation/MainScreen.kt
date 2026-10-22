@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -19,7 +20,8 @@ import com.musicdownloader.converter.presentation.ui.screens.DownloadScreen
 import com.musicdownloader.converter.presentation.screens.library.LibraryScreen
 import com.musicdownloader.converter.presentation.ui.screens.PlayerScreen
 import com.musicdownloader.converter.presentation.ui.screens.PlaylistsScreen
-import com.musicdownloader.converter.presentation.ui.MiniPlayerBar // <-- Importamos nuestro nuevo componente
+import com.musicdownloader.converter.presentation.ui.MiniPlayerBar
+import com.musicdownloader.converter.presentation.viewmodel.PlayerViewModel
 
 sealed class Screen(val route: String, val title: String, val icon: @Composable () -> Unit) {
     object Download : Screen("download", "Descargar", { Icon(Icons.Default.Download, contentDescription = null) })
@@ -30,16 +32,13 @@ sealed class Screen(val route: String, val title: String, val icon: @Composable 
 
 @Composable
 fun MainScreen(
-    // Si manejas tu reproductor mediante un ViewModel o gestor inyectado/pasado aquí, 
-    // puedes recibirlo o instanciarlo. Por ejemplo: playerViewModel: PlayerViewModel = hiltViewModel()
+    playerViewModel: PlayerViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
     
-    // TODO: Reemplaza estas variables de prueba con los estados reales de tu PlayerViewModel o PlayerManager
-    // Ejemplo: val currentSong = playerViewModel.currentSong.collectAsState().value
-    //          val isPlaying = playerViewModel.isPlaying.collectAsState().value
-    val currentSongName: String? = null // Se ocultará automáticamente si es nulo o vacío
-    val isPlaying = false
+    // Recolectamos los estados reales adaptados a AudioPlayerManager
+    val currentTrackTitle by playerViewModel.currentTrackTitle.collectAsState()
+    val isPlaying by playerViewModel.isPlaying.collectAsState()
 
     val items = listOf(
         Screen.Download,
@@ -51,16 +50,14 @@ fun MainScreen(
     Scaffold(
         bottomBar = {
             Column {
-                // 1. El Mini-Player flotando de forma persistente sobre la barra de navegación
+                // Mini-Player conectado al título real y estado de reproducción
                 MiniPlayerBar(
-                    currentSongName = currentSongName,
+                    currentSongName = currentTrackTitle, 
                     isPlaying = isPlaying,
                     onPlayPauseClick = {
-                        // TODO: Llama aquí a la función de play/pausa de tu reproductor
-                        // playerViewModel.togglePlayPause()
+                        playerViewModel.togglePlayPause()
                     },
                     onBarClick = {
-                        // Al hacer clic en la barra, navega a la pantalla completa del Player
                         navController.navigate(Screen.Player.route) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
@@ -71,7 +68,6 @@ fun MainScreen(
                     }
                 )
 
-                // 2. Tu barra de navegación inferior de siempre
                 NavigationBar {
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentRoute = navBackStackEntry?.destination?.route
