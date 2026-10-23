@@ -37,7 +37,6 @@ fun PlayerScreen(
     val currentPosition by playerManager.currentPosition.collectAsState()
     val duration by playerManager.duration.collectAsState()
     
-    // Estados de Shuffle, Repeat y Carátula
     val isShuffleEnabled by viewModel.isShuffleEnabled.collectAsState()
     val repeatMode by viewModel.repeatMode.collectAsState()
     val currentArtwork by viewModel.currentArtwork.collectAsState()
@@ -49,21 +48,33 @@ fun PlayerScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Vinilo envuelto en un Box interactivo con soporte para gestos táctiles de Scratch en tiempo real
+        // Caja mágica del vinilo con los gestos de DJ profesionales
         Box(
             modifier = Modifier
                 .size(220.dp)
                 .pointerInput(Unit) {
-                    detectDragGestures { change, dragAmount ->
-                        change.consume()
-                        // Sensibilidad del rasguño (scratch) basada en el arrastre horizontal del dedo
-                        val sensitivity = 50L 
-                        val currentPos = playerManager.currentPosition.value
-                        val newPosition = currentPos + (dragAmount.x * sensitivity).toLong()
-                        
-                        // Ejecutamos el scratch en tiempo real mediante el playerManager
-                        playerManager.scratchTo(newPosition)
-                    }
+                    detectDragGestures(
+                        onStart = { _ ->
+                            // 1. Al apoyar el dedo: pausamos música y suena el rasguño
+                            playerManager.startScratch()
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            val sensitivity = 50L 
+                            val currentPos = playerManager.currentPosition.value
+                            val newPosition = currentPos + (dragAmount.x * sensitivity).toLong()
+                            
+                            // 2. Al mover el dedo: actualizamos la canción al vuelo
+                            playerManager.scratchTo(newPosition)
+                        },
+                        onDragEnd = {
+                            // 3. Al levantar el dedo: la música vuelve a sonar de inmediato
+                            playerManager.endScratch()
+                        },
+                        onDragCancel = {
+                            playerManager.endScratch()
+                        }
+                    )
                 },
             contentAlignment = Alignment.Center
         ) {
@@ -76,7 +87,6 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Título de la pista
         Text(
             text = currentTitle ?: "Ninguna canción seleccionada",
             fontSize = 20.sp,
@@ -89,7 +99,6 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Barra de Progreso (Slider) y Tiempos
         Column(modifier = Modifier.fillMaxWidth()) {
             Slider(
                 value = if (duration > 0) currentPosition.toFloat() else 0f,
@@ -119,13 +128,11 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Fila de controles secundarios (Shuffle y Repeat)
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Botón Aleatorio (Shuffle)
             IconButton(onClick = { viewModel.toggleShuffle() }) {
                 Icon(
                     imageVector = Icons.Default.Shuffle,
@@ -134,100 +141,54 @@ fun PlayerScreen(
                 )
             }
 
-            // Botón Repetir (Loop: Off -> All -> One)
             IconButton(onClick = { viewModel.cycleRepeatMode() }) {
                 val (icon, tint) = when (repeatMode) {
                     Player.REPEAT_MODE_ONE -> Pair(Icons.Default.RepeatOne, MaterialTheme.colorScheme.primary)
                     Player.REPEAT_MODE_ALL -> Pair(Icons.Default.Repeat, MaterialTheme.colorScheme.primary)
                     else -> Pair(Icons.Default.Repeat, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                 }
-                Icon(
-                    imageVector = icon,
-                    contentDescription = "Modo repetición",
-                    tint = tint
-                )
+                Icon(imageVector = icon, contentDescription = "Modo repetición", tint = tint)
             }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Controles Principales de Reproducción
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Botón Pista Anterior
-            IconButton(
-                onClick = { viewModel.skipToPrevious() },
-                modifier = Modifier.size(44.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SkipPrevious,
-                    contentDescription = "Pista anterior",
-                    modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            IconButton(onClick = { viewModel.skipToPrevious() }, modifier = Modifier.size(44.dp)) {
+                Icon(imageVector = Icons.Default.SkipPrevious, contentDescription = "Anterior", modifier = Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
             }
 
-            // Botón Retroceder 10s
-            IconButton(
-                onClick = { playerManager.seekRewind() },
-                modifier = Modifier.size(44.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.FastRewind,
-                    contentDescription = "Retroceder 10s",
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            IconButton(onClick = { playerManager.seekRewind() }, modifier = Modifier.size(44.dp)) {
+                Icon(imageVector = Icons.Default.FastRewind, contentDescription = "Retroceder", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
             }
 
-            // Botón Principal Play / Pausa
             FilledIconButton(
                 onClick = { playerManager.togglePlayPause() },
                 modifier = Modifier.size(64.dp),
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
+                colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pausar" else "Reproducir",
+                    contentDescription = "Play/Pausa",
                     modifier = Modifier.size(36.dp)
                 )
             }
 
-            // Botón Adelantar 10s
-            IconButton(
-                onClick = { playerManager.seekForward() },
-                modifier = Modifier.size(44.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.FastForward,
-                    contentDescription = "Adelantar 10s",
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            IconButton(onClick = { playerManager.seekForward() }, modifier = Modifier.size(44.dp)) {
+                Icon(imageVector = Icons.Default.FastForward, contentDescription = "Adelantar", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
             }
 
-            // Botón Pista Siguiente
-            IconButton(
-                onClick = { viewModel.skipToNext() },
-                modifier = Modifier.size(44.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SkipNext,
-                    contentDescription = "Pista siguiente",
-                    modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            IconButton(onClick = { viewModel.skipToNext() }, modifier = Modifier.size(44.dp)) {
+                Icon(imageVector = Icons.Default.SkipNext, contentDescription = "Siguiente", modifier = Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
             }
         }
     }
 }
 
-// Función auxiliar para formatear milisegundos a formato MM:SS
 fun formatTime(ms: Long): String {
     val totalSeconds = ms / 1000
     val minutes = totalSeconds / 60
