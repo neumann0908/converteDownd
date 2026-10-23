@@ -269,7 +269,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    fn skipToNext() {
+    fun skipToNext() {
         exoPlayer?.let { if (it.hasNextMediaItem()) { it.seekToNextMediaItem(); it.play() } }
     }
 
