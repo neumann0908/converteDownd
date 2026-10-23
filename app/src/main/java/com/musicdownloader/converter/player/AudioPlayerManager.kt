@@ -46,7 +46,7 @@ class AudioPlayerManager @Inject constructor(
     private val _repeatMode = MutableStateFlow(Player.REPEAT_MODE_OFF)
     val repeatMode: StateFlow<Int> = _repeatMode
 
-    // NUEVO: Estado para la carátula actual (Album Art)
+    // Estado para la carátula actual (Album Art)
     private val _currentArtwork = MutableStateFlow<Bitmap?>(null)
     val currentArtwork: StateFlow<Bitmap?> = _currentArtwork
 
@@ -73,7 +73,10 @@ class AudioPlayerManager @Inject constructor(
                     mediaItem?.let { item ->
                         val title = item.mediaId.ifEmpty { item.localConfiguration?.uri?.lastPathSegment ?: "Pista desconocida" }
                         _currentTrackTitle.value = title
-                        extractAlbumArt(item)
+                        
+                        // Extraemos la carátula usando la ruta del archivo
+                        val filePath = item.localConfiguration?.uri?.path
+                        extractAlbumArt(filePath)
                     }
                 }
             })
@@ -97,12 +100,18 @@ class AudioPlayerManager @Inject constructor(
         progressJob?.cancel()
     }
 
-    // Función auxiliar para extraer la carátula del archivo de audio
-    private fun extractAlbumArt(mediaItem: MediaItem?) {
-        mediaItem?.localConfiguration?.uri?.let { uri ->
-            val retriever = MediaMetadataRetriever()
-            try {
-                retriever.setDataSource(context, uri)
+    // CORREGIDO: Función para extraer la carátula usando la ruta de archivo absoluto
+    private fun extractAlbumArt(filePath: String?) {
+        if (filePath.isNullOrEmpty()) {
+            _currentArtwork.value = null
+            return
+        }
+
+        val retriever = MediaMetadataRetriever()
+        try {
+            val file = File(filePath)
+            if (file.exists()) {
+                retriever.setDataSource(file.absolutePath)
                 val artBytes = retriever.embeddedPicture
                 if (artBytes != null) {
                     val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
@@ -110,15 +119,16 @@ class AudioPlayerManager @Inject constructor(
                 } else {
                     _currentArtwork.value = null
                 }
-            } catch (e: Exception) {
+            } else {
                 _currentArtwork.value = null
-            } finally {
-                try {
-                    retriever.release()
-                } catch (ignored: Exception) {}
             }
-        } ?: run {
+        } catch (e: Exception) {
+            e.printStackTrace()
             _currentArtwork.value = null
+        } finally {
+            try {
+                retriever.release()
+            } catch (ignored: Exception) {}
         }
     }
 
@@ -150,7 +160,7 @@ class AudioPlayerManager @Inject constructor(
                         player.prepare()
                         player.play()
                         _currentTrackTitle.value = audioFiles.first().name
-                        extractAlbumArt(player.currentMediaItem)
+                        extractAlbumArt(audioFiles.first().absolutePath)
                     }
                 }
             }
@@ -194,7 +204,7 @@ class AudioPlayerManager @Inject constructor(
 
                         player.play()
                         _currentTrackTitle.value = title
-                        extractAlbumArt(player.currentMediaItem)
+                        extractAlbumArt(path)
                     }
                     return
                 }
@@ -216,7 +226,7 @@ class AudioPlayerManager @Inject constructor(
             player.play()
             _currentTrackTitle.value = title
             _duration.value = player.duration.coerceAtLeast(0L)
-            extractAlbumArt(mediaItem)
+            extractAlbumArt(path)
         }
     }
 
