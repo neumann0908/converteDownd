@@ -269,29 +269,11 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // EFECTO DSP: Frenado de plato de vinilo (Turntable Stop) blindado y seguro
+    // Control de reproducción robusto y 100% seguro para evitar bloqueos de audio
     fun togglePlayPause() {
         exoPlayer?.let { player ->
             if (player.isPlaying) {
-                scope.launch {
-                    try {
-                        var currentSpeed = 1.0f
-                        while (currentSpeed > 0.2f && player.isPlaying) {
-                            currentSpeed -= 0.25f
-                            player.playbackParameters = PlaybackParameters(currentSpeed)
-                            delay(35L)
-                        }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    } finally {
-                        try {
-                            player.pause()
-                            player.playbackParameters = PlaybackParameters(1.0f)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
-                }
+                player.pause()
             } else {
                 player.playbackParameters = PlaybackParameters(1.0f)
                 if (player.mediaItemCount > 0) {
@@ -303,7 +285,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // Funciones para saltar entre pistas manualmente con velocidad reseteada
+    // Funciones para saltar entre pistas manualmente
     fun skipToNext() {
         exoPlayer?.let { player ->
             player.playbackParameters = PlaybackParameters(1.0f)
