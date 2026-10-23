@@ -33,6 +33,7 @@ fun PlayerScreen(
 ) {
     val playerManager = viewModel.playerManager
     val isPlaying by playerManager.isPlaying.collectAsState()
+    val isScratching by playerManager.isScratching.collectAsState() // <--- NUEVO: Colectamos el estado de scratch
     val currentTitle by playerManager.currentTrackTitle.collectAsState()
     val currentPosition by playerManager.currentPosition.collectAsState()
     val duration by playerManager.duration.collectAsState()
@@ -78,10 +79,11 @@ fun PlayerScreen(
                 },
             contentAlignment = Alignment.Center
         ) {
-            // El disco de vinilo giratorio
+            // El disco de vinilo giratorio con efectos de scratch visuales
             VinylRecord(
                 artwork = currentArtwork,
                 isPlaying = isPlaying,
+                isScratching = isScratching, // <--- NUEVO: Pasamos el estado de scratch
                 size = 220.dp
             )
 
