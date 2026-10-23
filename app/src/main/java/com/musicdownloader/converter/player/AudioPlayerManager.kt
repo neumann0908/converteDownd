@@ -195,6 +195,7 @@ class AudioPlayerManager @Inject constructor(
                                 .build()
                         }
 
+                        player.playbackParameters = PlaybackParameters(1.0f)
                         player.setMediaItems(mediaItems, 0, 0L)
                         player.prepare()
                         player.play()
@@ -235,6 +236,7 @@ class AudioPlayerManager @Inject constructor(
                         val targetIndex = audioFiles.indexOfFirst { it.absolutePath == path }
                         val startIndex = if (targetIndex != -1) targetIndex else 0
 
+                        player.playbackParameters = PlaybackParameters(1.0f)
                         player.setMediaItems(mediaItems, startIndex, 0L)
                         player.prepare()
                         player.play()
@@ -257,6 +259,7 @@ class AudioPlayerManager @Inject constructor(
                 .setUri(path)
                 .setMediaId(title)
                 .build()
+            player.playbackParameters = PlaybackParameters(1.0f)
             player.setMediaItem(mediaItem)
             player.prepare()
             player.play()
@@ -266,7 +269,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // EFECTO DSP: Frenado de plato de vinilo (Turntable Stop) blindado contra cierres
+    // EFECTO DSP: Frenado de plato de vinilo (Turntable Stop) blindado y seguro
     fun togglePlayPause() {
         exoPlayer?.let { player ->
             if (player.isPlaying) {
@@ -290,6 +293,7 @@ class AudioPlayerManager @Inject constructor(
                     }
                 }
             } else {
+                player.playbackParameters = PlaybackParameters(1.0f)
                 if (player.mediaItemCount > 0) {
                     player.play()
                 } else {
@@ -299,9 +303,10 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // Funciones para saltar entre pistas manualmente
+    // Funciones para saltar entre pistas manualmente con velocidad reseteada
     fun skipToNext() {
         exoPlayer?.let { player ->
+            player.playbackParameters = PlaybackParameters(1.0f)
             if (player.hasNextMediaItem()) {
                 player.seekToNextMediaItem()
                 player.play()
@@ -311,6 +316,7 @@ class AudioPlayerManager @Inject constructor(
 
     fun skipToPrevious() {
         exoPlayer?.let { player ->
+            player.playbackParameters = PlaybackParameters(1.0f)
             if (player.hasPreviousMediaItem()) {
                 player.seekToPreviousMediaItem()
                 player.play()
