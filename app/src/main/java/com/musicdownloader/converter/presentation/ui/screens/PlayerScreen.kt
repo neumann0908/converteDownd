@@ -49,24 +49,30 @@ fun PlayerScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Vinilo Animado Interactivo con soporte para gestos táctiles de Scratch en tiempo real
-        VinylRecord(
-            artwork = currentArtwork,
-            isPlaying = isPlaying,
-            size = 220.dp,
-            modifier = Modifier.pointerInput(Unit) {
-                detectDragGestures { change, dragAmount ->
-                    change.consume()
-                    // Sensibilidad del rasguño (scratch) basada en el arrastre horizontal del dedo
-                    val sensitivity = 50L 
-                    val currentPos = playerManager.currentPosition.value
-                    val newPosition = currentPos + (dragAmount.x * sensitivity).toLong()
-                    
-                    // Ejecutamos el scratch en tiempo real mediante el playerManager
-                    playerManager.scratchTo(newPosition)
-                }
-            }
-        )
+        // Vinilo envuelto en un Box interactivo con soporte para gestos táctiles de Scratch en tiempo real
+        Box(
+            modifier = Modifier
+                .size(220.dp)
+                .pointerInput(Unit) {
+                    detectDragGestures { change, dragAmount ->
+                        change.consume()
+                        // Sensibilidad del rasguño (scratch) basada en el arrastre horizontal del dedo
+                        val sensitivity = 50L 
+                        val currentPos = playerManager.currentPosition.value
+                        val newPosition = currentPos + (dragAmount.x * sensitivity).toLong()
+                        
+                        // Ejecutamos el scratch en tiempo real mediante el playerManager
+                        playerManager.scratchTo(newPosition)
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            VinylRecord(
+                artwork = currentArtwork,
+                isPlaying = isPlaying,
+                size = 220.dp
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
