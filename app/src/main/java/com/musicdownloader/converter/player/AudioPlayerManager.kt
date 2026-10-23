@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -234,7 +235,6 @@ class AudioPlayerManager @Inject constructor(
                         val targetIndex = audioFiles.indexOfFirst { it.absolutePath == path }
                         val startIndex = if (targetIndex != -1) targetIndex else 0
 
-                        // Solución: Cargamos la playlist indicando el índice inicial de forma nativa
                         player.setMediaItems(mediaItems, startIndex, 0L)
                         player.prepare()
                         player.play()
@@ -266,10 +266,21 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
+    // EFECTO DSP: Frenado de plato de vinilo (Turntable Stop) al pausar
     fun togglePlayPause() {
         exoPlayer?.let { player ->
             if (player.isPlaying) {
-                player.pause()
+                scope.launch {
+                    var currentSpeed = 1.0f
+                    while (currentSpeed > 0.1f) {
+                        currentSpeed -= 0.15f
+                        player.playbackParameters = PlaybackParameters(currentSpeed)
+                        delay(40L)
+                    }
+                    player.pause()
+                    // Restauramos la velocidad normal para la próxima reproducción
+                    player.playbackParameters = PlaybackParameters(1.0f)
+                }
             } else {
                 if (player.mediaItemCount > 0) {
                     player.play()
