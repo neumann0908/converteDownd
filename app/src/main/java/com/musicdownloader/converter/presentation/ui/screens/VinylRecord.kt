@@ -32,11 +32,10 @@ import kotlinx.coroutines.CancellationException
 fun VinylRecord(
     artwork: Bitmap?,
     isPlaying: Boolean,
-    isScratching: Boolean = false, // Valor por defecto para evitar errores de parámetros
+    isScratching: Boolean = false, // Valor por defecto para evitar errores
     size: Dp = 220.dp
 ) {
-    // Leemos el color primario AQUÍ dentro del contexto @Composable (fuera del Canvas)
-    const val primaryColor = MaterialTheme.colorScheme.primaryContainer // o MaterialTheme.colorScheme.primary
+    // Obtenemos el color primario de forma segura dentro del contexto Composable (sin 'const')
     val resolvedPrimaryColor = MaterialTheme.colorScheme.primary
 
     // Estado animado para la rotación fluida y precisa
@@ -112,7 +111,7 @@ fun VinylRecord(
                         center = center
                     )
 
-                    // ⚡ EFECTO VISUAL DE SCRATCH: Usamos la variable de color obtenida de forma segura
+                    // ⚡ EFECTO VISUAL DE SCRATCH: Anillos de fricción brillantes
                     if (isScratching) {
                         drawCircle(
                             color = Color.White.copy(alpha = scratchAlpha),
