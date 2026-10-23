@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -31,6 +32,7 @@ import kotlinx.coroutines.CancellationException
 fun VinylRecord(
     artwork: Bitmap?,
     isPlaying: Boolean,
+    isScratching: Boolean, // <--- Nuevo parámetro para activar el efecto visual de scratch
     size: Dp = 220.dp
 ) {
     // Estado animado para la rotación fluida y precisa
@@ -52,6 +54,18 @@ fun VinylRecord(
         }
     }
 
+    // Animación de brillo rápido para el efecto visual de rasguño DJ
+    val scratchTransition = rememberInfiniteTransition(label = "ScratchEffect")
+    val scratchAlpha by scratchTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.9f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(120, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "ScratchAlpha"
+    )
+
     Box(
         modifier = Modifier.size(size),
         contentAlignment = Alignment.Center
@@ -69,11 +83,12 @@ fun VinylRecord(
                 modifier = Modifier.size(size),
                 contentAlignment = Alignment.Center
             ) {
-                // Dibujo de surcos concéntricos con Canvas
+                // Dibujo de surcos concéntricos y efectos con Canvas
                 Canvas(modifier = Modifier.size(size)) {
-                    val center = androidx.compose.ui.geometry.Offset(size.toPx() / 2f, size.toPx() / 2f)
+                    val center = Offset(size.toPx() / 2f, size.toPx() / 2f)
                     val maxRadius = size.toPx() / 2f
 
+                    // Surcos del vinilo
                     for (i in 5..15) {
                         val radius = maxRadius * (i / 15f)
                         drawCircle(
@@ -94,6 +109,22 @@ fun VinylRecord(
                         radius = maxRadius,
                         center = center
                     )
+
+                    // ⚡ EFECTO VISUAL DE SCRATCH: Anillos de fricción brillantes si se está rascando
+                    if (isScratching) {
+                        drawCircle(
+                            color = Color.White.copy(alpha = scratchAlpha),
+                            radius = maxRadius * 0.72f,
+                            center = center,
+                            style = Stroke(width = 6f)
+                        )
+                        drawCircle(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = scratchAlpha),
+                            radius = maxRadius * 0.48f,
+                            center = center,
+                            style = Stroke(width = 4f)
+                        )
+                    }
                 }
 
                 // Etiqueta central del vinilo (Carátula del álbum)
