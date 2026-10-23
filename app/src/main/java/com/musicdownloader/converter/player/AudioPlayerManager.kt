@@ -129,7 +129,7 @@ class AudioPlayerManager @Inject constructor(
 
     // --- SUPERPODERES DE DJ ---
     
-    // 1. Al tocar el disco: Pausamos la música y suena el rasguño
+    // 1. Al tocar el disco: Pausamos la música y disparamos el rasguño
     fun startScratch() {
         exoPlayer?.pause()
         playScratchSound()
@@ -144,8 +144,10 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // 3. Al soltar el dedo: La música vuelve a sonar solita
+    // 3. Al soltar el dedo: Detenemos el scratch al instante y reanudamos la música
     fun endScratch() {
+        scratchPlayer?.pause()
+        scratchPlayer?.seekTo(0L)
         exoPlayer?.play()
     }
 
@@ -267,7 +269,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    fun skipToNext() {
+    fn skipToNext() {
         exoPlayer?.let { if (it.hasNextMediaItem()) { it.seekToNextMediaItem(); it.play() } }
     }
 
