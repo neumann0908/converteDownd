@@ -1,5 +1,6 @@
 package com.musicdownloader.converter.presentation.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FastForward
@@ -16,6 +17,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,9 +40,10 @@ fun PlayerScreen(
     val currentPosition by playerManager.currentPosition.collectAsState()
     val duration by playerManager.duration.collectAsState()
     
-    // Recolectamos los estados de Shuffle y Repeat desde el ViewModel
+    // Estados de Shuffle, Repeat y Carátula
     val isShuffleEnabled by viewModel.isShuffleEnabled.collectAsState()
     val repeatMode by viewModel.repeatMode.collectAsState()
+    val currentArtwork by viewModel.currentArtwork.collectAsState()
 
     Column(
         modifier = Modifier
@@ -47,7 +52,7 @@ fun PlayerScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Carátula del reproductor
+        // Carátula del reproductor (Muestra la imagen real si existe o el icono por defecto)
         Card(
             modifier = Modifier.size(200.dp),
             shape = MaterialTheme.shapes.extraLarge,
@@ -57,12 +62,23 @@ fun PlayerScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    modifier = Modifier.size(90.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+                if (currentArtwork != null) {
+                    Image(
+                        bitmap = currentArtwork!!.asImageBitmap(),
+                        contentDescription = "Carátula del álbum",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(MaterialTheme.shapes.extraLarge),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        modifier = Modifier.size(90.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
 
@@ -111,7 +127,7 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // NUEVO: Fila de controles secundarios (Shuffle y Repeat)
+        // Fila de controles secundarios (Shuffle y Repeat)
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
