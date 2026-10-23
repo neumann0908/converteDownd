@@ -1,6 +1,9 @@
 package com.musicdownloader.converter.player
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -36,12 +39,16 @@ class AudioPlayerManager @Inject constructor(
     private val _duration = MutableStateFlow(0L)
     val duration: StateFlow<Long> = _duration
 
-    // NUEVO: Estados para Shuffle y Repeat
+    // Estados para Shuffle y Repeat
     private val _isShuffleEnabled = MutableStateFlow(false)
     val isShuffleEnabled: StateFlow<Boolean> = _isShuffleEnabled
 
     private val _repeatMode = MutableStateFlow(Player.REPEAT_MODE_OFF)
     val repeatMode: StateFlow<Int> = _repeatMode
+
+    // NUEVO: Estado para la carátula actual (Album Art)
+    private val _currentArtwork = MutableStateFlow<Bitmap?>(null)
+    val currentArtwork: StateFlow<Bitmap?> = _currentArtwork
 
     init {
         exoPlayer = ExoPlayer.Builder(context).build().apply {
@@ -66,6 +73,7 @@ class AudioPlayerManager @Inject constructor(
                     mediaItem?.let { item ->
                         val title = item.mediaId.ifEmpty { item.localConfiguration?.uri?.lastPathSegment ?: "Pista desconocida" }
                         _currentTrackTitle.value = title
+                        extractAlbumArt(item)
                     }
                 }
             })
@@ -87,6 +95,31 @@ class AudioPlayerManager @Inject constructor(
 
     private fun stopProgressTracking() {
         progressJob?.cancel()
+    }
+
+    // Función auxiliar para extraer la carátula del archivo de audio
+    private fun extractAlbumArt(mediaItem: MediaItem?) {
+        mediaItem?.localConfiguration?.uri?.let { uri ->
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(context, uri)
+                val artBytes = retriever.embeddedPicture
+                if (artBytes != null) {
+                    val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
+                    _currentArtwork.value = bitmap
+                } else {
+                    _currentArtwork.value = null
+                }
+            } catch (e: Exception) {
+                _currentArtwork.value = null
+            } finally {
+                try {
+                    retriever.release()
+                } catch (ignored: Exception) {}
+            }
+        } ?: run {
+            _currentArtwork.value = null
+        }
     }
 
     // Carga toda la lista de la carpeta de descargas como una playlist en ExoPlayer
@@ -117,6 +150,7 @@ class AudioPlayerManager @Inject constructor(
                         player.prepare()
                         player.play()
                         _currentTrackTitle.value = audioFiles.first().name
+                        extractAlbumArt(player.currentMediaItem)
                     }
                 }
             }
@@ -160,6 +194,7 @@ class AudioPlayerManager @Inject constructor(
 
                         player.play()
                         _currentTrackTitle.value = title
+                        extractAlbumArt(player.currentMediaItem)
                     }
                     return
                 }
@@ -181,6 +216,7 @@ class AudioPlayerManager @Inject constructor(
             player.play()
             _currentTrackTitle.value = title
             _duration.value = player.duration.coerceAtLeast(0L)
+            extractAlbumArt(mediaItem)
         }
     }
 
@@ -217,7 +253,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // NUEVO: Funciones de Shuffle y Loop
+    // Funciones de Shuffle y Loop
     fun toggleShuffle() {
         exoPlayer?.let { player ->
             val newState = !player.shuffleModeEnabled
