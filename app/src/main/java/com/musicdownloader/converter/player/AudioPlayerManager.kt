@@ -350,6 +350,15 @@ class AudioPlayerManager @Inject constructor(
         _currentPosition.value = positionMs
     }
 
+    // Función optimizada para gestos táctiles de Scratch en tiempo real
+    fun scratchTo(positionMs: Long) {
+        exoPlayer?.let { player ->
+            val targetPos = positionMs.coerceIn(0L, player.duration.coerceAtLeast(0L))
+            player.seekTo(targetPos)
+            _currentPosition.value = targetPos
+        }
+    }
+
     fun seekForward() {
         exoPlayer?.let { player ->
             val newPos = (player.currentPosition + 10000).coerceAtMost(player.duration)
