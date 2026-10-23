@@ -266,20 +266,28 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // EFECTO DSP: Frenado de plato de vinilo (Turntable Stop) al pausar
+    // EFECTO DSP: Frenado de plato de vinilo (Turntable Stop) blindado contra cierres
     fun togglePlayPause() {
         exoPlayer?.let { player ->
             if (player.isPlaying) {
                 scope.launch {
-                    var currentSpeed = 1.0f
-                    while (currentSpeed > 0.1f) {
-                        currentSpeed -= 0.15f
-                        player.playbackParameters = PlaybackParameters(currentSpeed)
-                        delay(40L)
+                    try {
+                        var currentSpeed = 1.0f
+                        while (currentSpeed > 0.2f && player.isPlaying) {
+                            currentSpeed -= 0.25f
+                            player.playbackParameters = PlaybackParameters(currentSpeed)
+                            delay(35L)
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    } finally {
+                        try {
+                            player.pause()
+                            player.playbackParameters = PlaybackParameters(1.0f)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                     }
-                    player.pause()
-                    // Restauramos la velocidad normal para la próxima reproducción
-                    player.playbackParameters = PlaybackParameters(1.0f)
                 }
             } else {
                 if (player.mediaItemCount > 0) {
