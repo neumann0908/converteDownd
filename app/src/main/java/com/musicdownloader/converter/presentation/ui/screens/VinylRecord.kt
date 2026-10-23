@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 
 @Composable
 fun VinylRecord(
@@ -32,34 +33,34 @@ fun VinylRecord(
     isPlaying: Boolean,
     size: Dp = 220.dp
 ) {
-    // Control de la rotación infinita basada en el estado de reproducción
-    val infiniteTransition = rememberInfiniteTransition(label = "VinylRotation")
-    
-    val currentRotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "RotationAngle"
-    )
+    // Estado animado para la rotación fluida y precisa
+    val rotationState = remember { Animatable(0f) }
 
-    // Estado acumulado para evitar saltos bruscos al pausar y reanudar
-    var accumulatedRotation by remember { mutableStateOf(0f) }
-    if (isPlaying) {
-        accumulatedRotation = currentRotation
+    // Controlamos la rotación continua solo cuando está reproduciendo
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            try {
+                while (true) {
+                    rotationState.animateTo(
+                        targetValue = rotationState.value + 360f,
+                        animationSpec = tween(durationMillis = 4000, easing = LinearEasing) // 4 segundos por vuelta
+                    )
+                }
+            } catch (e: CancellationException) {
+                // Se cancela de forma limpia al pausar o hacer scratch
+            }
+        }
     }
 
     Box(
         modifier = Modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
-        // Cuerpo principal del vinilo (disco negro con rotación)
+        // Cuerpo principal del vinilo (disco negro con rotación aplicada)
         Card(
             modifier = Modifier
                 .size(size)
-                .rotate(if (isPlaying) currentRotation else accumulatedRotation),
+                .rotate(rotationState.value),
             shape = CircleShape,
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFF111111))
@@ -134,4 +135,3 @@ fun VinylRecord(
         }
     }
 }
-
