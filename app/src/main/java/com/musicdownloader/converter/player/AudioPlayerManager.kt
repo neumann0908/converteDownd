@@ -74,7 +74,6 @@ class AudioPlayerManager @Inject constructor(
                         val title = item.mediaId.ifEmpty { item.localConfiguration?.uri?.lastPathSegment ?: "Pista desconocida" }
                         _currentTrackTitle.value = title
                         
-                        // Extraemos la carátula usando la ruta del archivo
                         val filePath = item.localConfiguration?.uri?.path
                         extractAlbumArt(filePath)
                     }
@@ -100,7 +99,7 @@ class AudioPlayerManager @Inject constructor(
         progressJob?.cancel()
     }
 
-    // CORREGIDO: Función para extraer la carátula usando la ruta de archivo absoluto
+    // Extracción inteligente de carátula (ID3 incrustado + Fallback de imágenes locales)
     private fun extractAlbumArt(filePath: String?) {
         if (filePath.isNullOrEmpty()) {
             _currentArtwork.value = null
@@ -116,20 +115,59 @@ class AudioPlayerManager @Inject constructor(
                 if (artBytes != null) {
                     val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
                     _currentArtwork.value = bitmap
-                } else {
-                    _currentArtwork.value = null
+                    retriever.release()
+                    return
                 }
-            } else {
-                _currentArtwork.value = null
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            _currentArtwork.value = null
         } finally {
             try {
                 retriever.release()
             } catch (ignored: Exception) {}
         }
+
+        // FALLBACK: Si no hay carátula incrustada, buscamos una imagen en la carpeta MusicDownloads
+        try {
+            val audioFile = File(filePath)
+            val parentDir = audioFile.parentFile
+            if (parentDir != null && parentDir.exists()) {
+                val baseName = audioFile.nameWithoutExtension
+                
+                val matchingImage = parentDir.listFiles { f ->
+                    f.isFile && (f.name.equals("$baseName.jpg", true) ||
+                            f.name.equals("$baseName.png", true) ||
+                            f.name.equals("$baseName.jpeg", true))
+                }?.firstOrNull()
+
+                if (matchingImage != null && matchingImage.exists()) {
+                    val bitmap = BitmapFactory.decodeFile(matchingImage.absolutePath)
+                    if (bitmap != null) {
+                        _currentArtwork.value = bitmap
+                        return
+                    }
+                }
+
+                val genericCover = parentDir.listFiles { f ->
+                    f.isFile && (f.name.equals("cover.jpg", true) ||
+                            f.name.equals("folder.jpg", true) ||
+                            f.name.equals("album.jpg", true) ||
+                            f.name.equals("artwork.jpg", true))
+                }?.firstOrNull()
+
+                if (genericCover != null && genericCover.exists()) {
+                    val bitmap = BitmapFactory.decodeFile(genericCover.absolutePath)
+                    if (bitmap != null) {
+                        _currentArtwork.value = bitmap
+                        return
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        _currentArtwork.value = null
     }
 
     // Carga toda la lista de la carpeta de descargas como una playlist en ExoPlayer
@@ -156,7 +194,7 @@ class AudioPlayerManager @Inject constructor(
                                 .build()
                         }
 
-                        player.setMediaItems(mediaItems)
+                        player.setMediaItems(mediaItems, 0, 0L)
                         player.prepare()
                         player.play()
                         _currentTrackTitle.value = audioFiles.first().name
@@ -169,7 +207,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // Carga toda la playlist y se posiciona en el archivo que el usuario seleccionó
+    // Carga toda la playlist y se posiciona en el archivo seleccionado de forma atómica
     fun playFile(path: String, title: String) {
         try {
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
@@ -193,16 +231,14 @@ class AudioPlayerManager @Inject constructor(
                                 .build()
                         }
 
-                        player.setMediaItems(mediaItems)
-                        player.prepare()
-
-                        // Buscar el índice exacto de la canción seleccionada en la lista
                         val targetIndex = audioFiles.indexOfFirst { it.absolutePath == path }
-                        if (targetIndex != -1) {
-                            player.seekTo(targetIndex, 0L)
-                        }
+                        val startIndex = if (targetIndex != -1) targetIndex else 0
 
+                        // Solución: Cargamos la playlist indicando el índice inicial de forma nativa
+                        player.setMediaItems(mediaItems, startIndex, 0L)
+                        player.prepare()
                         player.play()
+
                         _currentTrackTitle.value = title
                         extractAlbumArt(path)
                     }
