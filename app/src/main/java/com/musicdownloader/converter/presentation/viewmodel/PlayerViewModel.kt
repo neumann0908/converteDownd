@@ -16,9 +16,12 @@ class PlayerViewModel @Inject constructor(
     // Exponemos el estado de reproducción
     val isPlaying = playerManager.isPlaying
 
-    // NUEVO: Exponemos los estados de Shuffle y Repeat
+    // Exponemos los estados de Shuffle y Repeat
     val isShuffleEnabled = playerManager.isShuffleEnabled
     val repeatMode = playerManager.repeatMode
+
+    // NUEVO: Exponemos la carátula (Album Art) de la pista actual
+    val currentArtwork = playerManager.currentArtwork
 
     // Función para alternar reproducción y pausa
     fun togglePlayPause() {
@@ -35,12 +38,12 @@ class PlayerViewModel @Inject constructor(
         playerManager.skipToPrevious()
     }
 
-    // NUEVO: Función para alternar el modo aleatorio
+    // Función para alternar el modo aleatorio
     fun toggleShuffle() {
         playerManager.toggleShuffle()
     }
 
-    // NUEVO: Función para cambiar el modo de repetición (Off -> All -> One)
+    // Función para cambiar el modo de repetición (Off -> All -> One)
     fun cycleRepeatMode() {
         playerManager.cycleRepeatMode()
     }
