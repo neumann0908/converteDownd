@@ -48,13 +48,13 @@ fun PlayerScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Caja mágica del vinilo con los gestos de DJ profesionales
+        // Caja mágica del vinilo con los gestos de DJ profesionales corregidos
         Box(
             modifier = Modifier
                 .size(220.dp)
                 .pointerInput(Unit) {
                     detectDragGestures(
-                        onStart = { _ ->
+                        onDragStart = { offset ->
                             // 1. Al apoyar el dedo: pausamos música y suena el rasguño
                             playerManager.startScratch()
                         },
