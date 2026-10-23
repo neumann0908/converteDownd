@@ -48,7 +48,7 @@ fun PlayerScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Caja mágica del vinilo con los gestos de DJ profesionales corregidos
+        // Caja mágica del vinilo con los gestos de DJ y el brazo de la aguja integrado
         Box(
             modifier = Modifier
                 .size(220.dp)
@@ -78,8 +78,15 @@ fun PlayerScreen(
                 },
             contentAlignment = Alignment.Center
         ) {
+            // El disco de vinilo giratorio
             VinylRecord(
                 artwork = currentArtwork,
+                isPlaying = isPlaying,
+                size = 220.dp
+            )
+
+            // El brazo de la aguja (Tonearm) que reacciona al estado de reproducción
+            VinylTonearm(
                 isPlaying = isPlaying,
                 size = 220.dp
             )
