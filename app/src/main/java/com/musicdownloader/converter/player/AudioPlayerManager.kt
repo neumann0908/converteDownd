@@ -4,8 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
+import android.net.Uri
 import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -25,6 +25,7 @@ class AudioPlayerManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private var exoPlayer: ExoPlayer? = null
+    private var cracklePlayer: ExoPlayer? = null // Reproductor secundario para el chisporroteo del vinilo
     private val scope = CoroutineScope(Dispatchers.Main)
     private var progressJob: Job? = null
 
@@ -52,14 +53,17 @@ class AudioPlayerManager @Inject constructor(
     val currentArtwork: StateFlow<Bitmap?> = _currentArtwork
 
     init {
+        // Inicializador del reproductor principal de música
         exoPlayer = ExoPlayer.Builder(context).build().apply {
             addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(playing: Boolean) {
                     _isPlaying.value = playing
                     if (playing) {
                         startProgressTracking()
+                        startCrackle() // Inicia el chisporroteo de vinilo
                     } else {
                         stopProgressTracking()
+                        stopCrackle() // Detiene el chisporroteo
                     }
                 }
 
@@ -69,7 +73,6 @@ class AudioPlayerManager @Inject constructor(
                     }
                 }
 
-                // Detecta automáticamente el cambio de pista en la cola secuencial
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     mediaItem?.let { item ->
                         val title = item.mediaId.ifEmpty { item.localConfiguration?.uri?.lastPathSegment ?: "Pista desconocida" }
@@ -80,6 +83,34 @@ class AudioPlayerManager @Inject constructor(
                     }
                 }
             })
+        }
+
+        // Inicializador del reproductor de ambiente (Chisporroteo en bucle al 20% de volumen)
+        cracklePlayer = ExoPlayer.Builder(context).build().apply {
+            repeatMode = Player.REPEAT_MODE_ONE
+            volume = 0.2f 
+        }
+    }
+
+    private fun startCrackle() {
+        try {
+            if (cracklePlayer?.mediaItemCount == 0) {
+                val uri = Uri.parse("android.resource://${context.packageName}/raw/crackle")
+                val mediaItem = MediaItem.fromUri(uri)
+                cracklePlayer?.setMediaItem(mediaItem)
+                cracklePlayer?.prepare()
+            }
+            cracklePlayer?.play()
+        } catch (e: Exception) {
+            e.printStackTrace() // Escudo de seguridad por si el archivo físico aún no ha sido colocado
+        }
+    }
+
+    private fun stopCrackle() {
+        try {
+            cracklePlayer?.pause()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -100,7 +131,7 @@ class AudioPlayerManager @Inject constructor(
         progressJob?.cancel()
     }
 
-    // Extracción inteligente de carátula (ID3 incrustado + Fallback de imágenes locales)
+    // Extracción inteligente de carátula
     private fun extractAlbumArt(filePath: String?) {
         if (filePath.isNullOrEmpty()) {
             _currentArtwork.value = null
@@ -128,7 +159,6 @@ class AudioPlayerManager @Inject constructor(
             } catch (ignored: Exception) {}
         }
 
-        // FALLBACK: Si no hay carátula incrustada, buscamos una imagen en la carpeta MusicDownloads
         try {
             val audioFile = File(filePath)
             val parentDir = audioFile.parentFile
@@ -171,7 +201,6 @@ class AudioPlayerManager @Inject constructor(
         _currentArtwork.value = null
     }
 
-    // Carga toda la lista de la carpeta de descargas como una playlist en ExoPlayer
     fun loadAndPlayPlaylist() {
         try {
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
@@ -195,7 +224,6 @@ class AudioPlayerManager @Inject constructor(
                                 .build()
                         }
 
-                        player.playbackParameters = PlaybackParameters(1.0f)
                         player.setMediaItems(mediaItems, 0, 0L)
                         player.prepare()
                         player.play()
@@ -209,7 +237,6 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // Carga toda la playlist y se posiciona en el archivo seleccionado de forma atómica
     fun playFile(path: String, title: String) {
         try {
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
@@ -236,7 +263,6 @@ class AudioPlayerManager @Inject constructor(
                         val targetIndex = audioFiles.indexOfFirst { it.absolutePath == path }
                         val startIndex = if (targetIndex != -1) targetIndex else 0
 
-                        player.playbackParameters = PlaybackParameters(1.0f)
                         player.setMediaItems(mediaItems, startIndex, 0L)
                         player.prepare()
                         player.play()
@@ -251,7 +277,6 @@ class AudioPlayerManager @Inject constructor(
             e.printStackTrace()
         }
 
-        // Fallback por si la carpeta no está disponible
         exoPlayer?.let { player ->
             player.stop()
             player.clearMediaItems()
@@ -259,7 +284,6 @@ class AudioPlayerManager @Inject constructor(
                 .setUri(path)
                 .setMediaId(title)
                 .build()
-            player.playbackParameters = PlaybackParameters(1.0f)
             player.setMediaItem(mediaItem)
             player.prepare()
             player.play()
@@ -269,43 +293,22 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // EFECTO DSP VINTAGE: Turntable Stop al pausar y reanudación limpia garantizada
     fun togglePlayPause() {
         exoPlayer?.let { player ->
             if (player.isPlaying) {
-                scope.launch {
-                    try {
-                        // Desaceleración suave y nostálgica en 2 pasos
-                        player.playbackParameters = PlaybackParameters(0.8f)
-                        delay(70L)
-                        player.playbackParameters = PlaybackParameters(0.5f)
-                        delay(70L)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    } finally {
-                        player.pause()
-                    }
-                }
+                player.pause()
             } else {
                 if (player.mediaItemCount > 0) {
                     player.play()
                 } else {
                     loadAndPlayPlaylist()
                 }
-                // Despierta y restablece el motor de audio a velocidad normal inmediatamente al reproducir
-                try {
-                    player.playbackParameters = PlaybackParameters(1.0f)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
             }
         }
     }
 
-    // Funciones para saltar entre pistas manualmente con velocidad reseteada
     fun skipToNext() {
         exoPlayer?.let { player ->
-            player.playbackParameters = PlaybackParameters(1.0f)
             if (player.hasNextMediaItem()) {
                 player.seekToNextMediaItem()
                 player.play()
@@ -315,7 +318,6 @@ class AudioPlayerManager @Inject constructor(
 
     fun skipToPrevious() {
         exoPlayer?.let { player ->
-            player.playbackParameters = PlaybackParameters(1.0f)
             if (player.hasPreviousMediaItem()) {
                 player.seekToPreviousMediaItem()
                 player.play()
@@ -323,7 +325,6 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // Funciones de Shuffle y Loop
     fun toggleShuffle() {
         exoPlayer?.let { player ->
             val newState = !player.shuffleModeEnabled
@@ -369,5 +370,7 @@ class AudioPlayerManager @Inject constructor(
         stopProgressTracking()
         exoPlayer?.release()
         exoPlayer = null
+        cracklePlayer?.release()
+        cracklePlayer = null
     }
 }
