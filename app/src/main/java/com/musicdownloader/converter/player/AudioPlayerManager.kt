@@ -25,7 +25,8 @@ class AudioPlayerManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private var exoPlayer: ExoPlayer? = null
-    private var cracklePlayer: ExoPlayer? = null // Reproductor secundario para el chisporroteo del vinilo
+    private var cracklePlayer: ExoPlayer? = null // Reproductor para el chisporroteo continuo
+    private var scratchPlayer: ExoPlayer? = null // Reproductor exclusivo para el sonido de scratch
     private val scope = CoroutineScope(Dispatchers.Main)
     private var progressJob: Job? = null
 
@@ -41,29 +42,26 @@ class AudioPlayerManager @Inject constructor(
     private val _duration = MutableStateFlow(0L)
     val duration: StateFlow<Long> = _duration
 
-    // Estados para Shuffle y Repeat
     private val _isShuffleEnabled = MutableStateFlow(false)
     val isShuffleEnabled: StateFlow<Boolean> = _isShuffleEnabled
 
     private val _repeatMode = MutableStateFlow(Player.REPEAT_MODE_OFF)
     val repeatMode: StateFlow<Int> = _repeatMode
 
-    // Estado para la carátula actual (Album Art)
     private val _currentArtwork = MutableStateFlow<Bitmap?>(null)
     val currentArtwork: StateFlow<Bitmap?> = _currentArtwork
 
     init {
-        // Inicializador del reproductor principal de música
         exoPlayer = ExoPlayer.Builder(context).build().apply {
             addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(playing: Boolean) {
                     _isPlaying.value = playing
                     if (playing) {
                         startProgressTracking()
-                        startCrackle() // Inicia el chisporroteo de vinilo
+                        startCrackle()
                     } else {
                         stopProgressTracking()
-                        stopCrackle() // Detiene el chisporroteo
+                        stopCrackle()
                     }
                 }
 
@@ -77,7 +75,6 @@ class AudioPlayerManager @Inject constructor(
                     mediaItem?.let { item ->
                         val title = item.mediaId.ifEmpty { item.localConfiguration?.uri?.lastPathSegment ?: "Pista desconocida" }
                         _currentTrackTitle.value = title
-                        
                         val filePath = item.localConfiguration?.uri?.path
                         extractAlbumArt(filePath)
                     }
@@ -85,10 +82,13 @@ class AudioPlayerManager @Inject constructor(
             })
         }
 
-        // Inicializador del reproductor de ambiente (Chisporroteo en bucle al 20% de volumen)
         cracklePlayer = ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_ONE
             volume = 0.2f 
+        }
+
+        scratchPlayer = ExoPlayer.Builder(context).build().apply {
+            volume = 0.8f
         }
     }
 
@@ -102,7 +102,7 @@ class AudioPlayerManager @Inject constructor(
             }
             cracklePlayer?.play()
         } catch (e: Exception) {
-            e.printStackTrace() // Escudo de seguridad por si el archivo físico aún no ha sido colocado
+            e.printStackTrace()
         }
     }
 
@@ -113,6 +113,43 @@ class AudioPlayerManager @Inject constructor(
             e.printStackTrace()
         }
     }
+
+    private fun playScratchSound() {
+        try {
+            val uri = Uri.parse("android.resource://${context.packageName}/raw/scratch")
+            val mediaItem = MediaItem.fromUri(uri)
+            scratchPlayer?.setMediaItem(mediaItem)
+            scratchPlayer?.prepare()
+            scratchPlayer?.seekTo(0L)
+            scratchPlayer?.play()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // --- SUPERPODERES DE DJ ---
+    
+    // 1. Al tocar el disco: Pausamos la música y suena el rasguño
+    fun startScratch() {
+        exoPlayer?.pause()
+        playScratchSound()
+    }
+
+    // 2. Al mover el dedo: Movemos la canción al vuelo
+    fun scratchTo(positionMs: Long) {
+        exoPlayer?.let { player ->
+            val targetPos = positionMs.coerceIn(0L, player.duration.coerceAtLeast(0L))
+            player.seekTo(targetPos)
+            _currentPosition.value = targetPos
+        }
+    }
+
+    // 3. Al soltar el dedo: La música vuelve a sonar solita
+    fun endScratch() {
+        exoPlayer?.play()
+    }
+
+    // ---------------------------
 
     private fun startProgressTracking() {
         progressJob?.cancel()
@@ -131,7 +168,6 @@ class AudioPlayerManager @Inject constructor(
         progressJob?.cancel()
     }
 
-    // Extracción inteligente de carátula
     private fun extractAlbumArt(filePath: String?) {
         if (filePath.isNullOrEmpty()) {
             _currentArtwork.value = null
@@ -154,9 +190,7 @@ class AudioPlayerManager @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
-            try {
-                retriever.release()
-            } catch (ignored: Exception) {}
+            try { retriever.release() } catch (ignored: Exception) {}
         }
 
         try {
@@ -164,30 +198,12 @@ class AudioPlayerManager @Inject constructor(
             val parentDir = audioFile.parentFile
             if (parentDir != null && parentDir.exists()) {
                 val baseName = audioFile.nameWithoutExtension
-                
                 val matchingImage = parentDir.listFiles { f ->
-                    f.isFile && (f.name.equals("$baseName.jpg", true) ||
-                            f.name.equals("$baseName.png", true) ||
-                            f.name.equals("$baseName.jpeg", true))
+                    f.isFile && (f.name.equals("$baseName.jpg", true) || f.name.equals("$baseName.png", true))
                 }?.firstOrNull()
 
                 if (matchingImage != null && matchingImage.exists()) {
                     val bitmap = BitmapFactory.decodeFile(matchingImage.absolutePath)
-                    if (bitmap != null) {
-                        _currentArtwork.value = bitmap
-                        return
-                    }
-                }
-
-                val genericCover = parentDir.listFiles { f ->
-                    f.isFile && (f.name.equals("cover.jpg", true) ||
-                            f.name.equals("folder.jpg", true) ||
-                            f.name.equals("album.jpg", true) ||
-                            f.name.equals("artwork.jpg", true))
-                }?.firstOrNull()
-
-                if (genericCover != null && genericCover.exists()) {
-                    val bitmap = BitmapFactory.decodeFile(genericCover.absolutePath)
                     if (bitmap != null) {
                         _currentArtwork.value = bitmap
                         return
@@ -206,24 +222,14 @@ class AudioPlayerManager @Inject constructor(
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
             if (downloadDir.exists() && downloadDir.isDirectory) {
                 val audioFiles = downloadDir.listFiles { file ->
-                    file.isFile && (file.extension.equals("mp3", ignoreCase = true) ||
-                            file.extension.equals("m4a", ignoreCase = true) ||
-                            file.extension.equals("webm", ignoreCase = true) ||
-                            file.extension.equals("wav", ignoreCase = true))
+                    file.isFile && (file.extension.equals("mp3", true) || file.extension.equals("wav", true))
                 }?.sortedBy { it.name }
 
                 if (!audioFiles.isNullOrEmpty()) {
                     exoPlayer?.let { player ->
                         player.stop()
                         player.clearMediaItems()
-
-                        val mediaItems = audioFiles.map { file ->
-                            MediaItem.Builder()
-                                .setUri(file.absolutePath)
-                                .setMediaId(file.name)
-                                .build()
-                        }
-
+                        val mediaItems = audioFiles.map { MediaItem.Builder().setUri(it.absolutePath).setMediaId(it.name).build() }
                         player.setMediaItems(mediaItems, 0, 0L)
                         player.prepare()
                         player.play()
@@ -238,52 +244,10 @@ class AudioPlayerManager @Inject constructor(
     }
 
     fun playFile(path: String, title: String) {
-        try {
-            val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
-            if (downloadDir.exists() && downloadDir.isDirectory) {
-                val audioFiles = downloadDir.listFiles { file ->
-                    file.isFile && (file.extension.equals("mp3", ignoreCase = true) ||
-                            file.extension.equals("m4a", ignoreCase = true) ||
-                            file.extension.equals("webm", ignoreCase = true) ||
-                            file.extension.equals("wav", ignoreCase = true))
-                }?.sortedBy { it.name }
-
-                if (!audioFiles.isNullOrEmpty()) {
-                    exoPlayer?.let { player ->
-                        player.stop()
-                        player.clearMediaItems()
-
-                        val mediaItems = audioFiles.map { file ->
-                            MediaItem.Builder()
-                                .setUri(file.absolutePath)
-                                .setMediaId(file.name)
-                                .build()
-                        }
-
-                        val targetIndex = audioFiles.indexOfFirst { it.absolutePath == path }
-                        val startIndex = if (targetIndex != -1) targetIndex else 0
-
-                        player.setMediaItems(mediaItems, startIndex, 0L)
-                        player.prepare()
-                        player.play()
-
-                        _currentTrackTitle.value = title
-                        extractAlbumArt(path)
-                    }
-                    return
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
         exoPlayer?.let { player ->
             player.stop()
             player.clearMediaItems()
-            val mediaItem = MediaItem.Builder()
-                .setUri(path)
-                .setMediaId(title)
-                .build()
+            val mediaItem = MediaItem.Builder().setUri(path).setMediaId(title).build()
             player.setMediaItem(mediaItem)
             player.prepare()
             player.play()
@@ -295,40 +259,26 @@ class AudioPlayerManager @Inject constructor(
 
     fun togglePlayPause() {
         exoPlayer?.let { player ->
-            if (player.isPlaying) {
-                player.pause()
-            } else {
-                if (player.mediaItemCount > 0) {
-                    player.play()
-                } else {
-                    loadAndPlayPlaylist()
-                }
+            if (player.isPlaying) player.pause()
+            else {
+                if (player.mediaItemCount > 0) player.play()
+                else loadAndPlayPlaylist()
             }
         }
     }
 
     fun skipToNext() {
-        exoPlayer?.let { player ->
-            if (player.hasNextMediaItem()) {
-                player.seekToNextMediaItem()
-                player.play()
-            }
-        }
+        exoPlayer?.let { if (it.hasNextMediaItem()) { it.seekToNextMediaItem(); it.play() } }
     }
 
     fun skipToPrevious() {
-        exoPlayer?.let { player ->
-            if (player.hasPreviousMediaItem()) {
-                player.seekToPreviousMediaItem()
-                player.play()
-            }
-        }
+        exoPlayer?.let { if (it.hasPreviousMediaItem()) { it.seekToPreviousMediaItem(); it.play() } }
     }
 
     fun toggleShuffle() {
-        exoPlayer?.let { player ->
-            val newState = !player.shuffleModeEnabled
-            player.shuffleModeEnabled = newState
+        exoPlayer?.let {
+            val newState = !it.shuffleModeEnabled
+            it.shuffleModeEnabled = newState
             _isShuffleEnabled.value = newState
         }
     }
@@ -350,27 +300,18 @@ class AudioPlayerManager @Inject constructor(
         _currentPosition.value = positionMs
     }
 
-    // Función optimizada para gestos táctiles de Scratch en tiempo real
-    fun scratchTo(positionMs: Long) {
-        exoPlayer?.let { player ->
-            val targetPos = positionMs.coerceIn(0L, player.duration.coerceAtLeast(0L))
-            player.seekTo(targetPos)
-            _currentPosition.value = targetPos
-        }
-    }
-
     fun seekForward() {
-        exoPlayer?.let { player ->
-            val newPos = (player.currentPosition + 10000).coerceAtMost(player.duration)
-            player.seekTo(newPos)
+        exoPlayer?.let {
+            val newPos = (it.currentPosition + 10000).coerceAtMost(it.duration)
+            it.seekTo(newPos)
             _currentPosition.value = newPos
         }
     }
 
     fun seekRewind() {
-        exoPlayer?.let { player ->
-            val newPos = (player.currentPosition - 10000).coerceAtLeast(0L)
-            player.seekTo(newPos)
+        exoPlayer?.let {
+            val newPos = (it.currentPosition - 10000).coerceAtLeast(0L)
+            it.seekTo(newPos)
             _currentPosition.value = newPos
         }
     }
@@ -381,5 +322,7 @@ class AudioPlayerManager @Inject constructor(
         exoPlayer = null
         cracklePlayer?.release()
         cracklePlayer = null
+        scratchPlayer?.release()
+        scratchPlayer = null
     }
 }
