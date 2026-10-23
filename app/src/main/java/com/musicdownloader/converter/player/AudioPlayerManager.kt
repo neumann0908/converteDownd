@@ -33,6 +33,10 @@ class AudioPlayerManager @Inject constructor(
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying
 
+    // Estado para controlar el efecto visual de rasguño (scratch) en el vinilo
+    private val _isScratching = MutableStateFlow(false)
+    val isScratching: StateFlow<Boolean> = _isScratching
+
     private val _currentTrackTitle = MutableStateFlow<String?>("Ninguna canción seleccionada")
     val currentTrackTitle: StateFlow<String?> = _currentTrackTitle
 
@@ -129,8 +133,9 @@ class AudioPlayerManager @Inject constructor(
 
     // --- SUPERPODERES DE DJ ---
     
-    // 1. Al tocar el disco: Pausamos la música y disparamos el rasguño
+    // 1. Al tocar el disco: Activamos el estado visual, pausamos la música y disparamos el rasguño
     fun startScratch() {
+        _isScratching.value = true
         exoPlayer?.pause()
         playScratchSound()
     }
@@ -144,8 +149,9 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // 3. Al soltar el dedo: Detenemos el scratch al instante y reanudamos la música
+    // 3. Al soltar el dedo: Desactivamos el estado visual, detenemos el scratch al instante y reanudamos la música
     fun endScratch() {
+        _isScratching.value = false
         scratchPlayer?.pause()
         scratchPlayer?.seekTo(0L)
         exoPlayer?.play()
