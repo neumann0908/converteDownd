@@ -1,5 +1,6 @@
 package com.musicdownloader.converter.presentation.ui.screens
 
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FastForward
@@ -15,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,11 +49,23 @@ fun PlayerScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Vinilo Animado Interactivo
+        // Vinilo Animado Interactivo con soporte para gestos táctiles de Scratch en tiempo real
         VinylRecord(
             artwork = currentArtwork,
             isPlaying = isPlaying,
-            size = 220.dp
+            size = 220.dp,
+            modifier = Modifier.pointerInput(Unit) {
+                detectDragGestures { change, dragAmount ->
+                    change.consume()
+                    // Sensibilidad del rasguño (scratch) basada en el arrastre horizontal del dedo
+                    val sensitivity = 50L 
+                    val currentPos = playerManager.currentPosition.value
+                    val newPosition = currentPos + (dragAmount.x * sensitivity).toLong()
+                    
+                    // Ejecutamos el scratch en tiempo real mediante el playerManager
+                    playerManager.scratchTo(newPosition)
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
