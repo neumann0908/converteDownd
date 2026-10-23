@@ -269,23 +269,40 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // Control de reproducción robusto y 100% seguro para evitar bloqueos de audio
+    // EFECTO DSP VINTAGE: Turntable Stop al pausar y reanudación limpia garantizada
     fun togglePlayPause() {
         exoPlayer?.let { player ->
             if (player.isPlaying) {
-                player.pause()
+                scope.launch {
+                    try {
+                        // Desaceleración suave y nostálgica en 2 pasos
+                        player.playbackParameters = PlaybackParameters(0.8f)
+                        delay(70L)
+                        player.playbackParameters = PlaybackParameters(0.5f)
+                        delay(70L)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    } finally {
+                        player.pause()
+                    }
+                }
             } else {
-                player.playbackParameters = PlaybackParameters(1.0f)
                 if (player.mediaItemCount > 0) {
                     player.play()
                 } else {
                     loadAndPlayPlaylist()
                 }
+                // Despierta y restablece el motor de audio a velocidad normal inmediatamente al reproducir
+                try {
+                    player.playbackParameters = PlaybackParameters(1.0f)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
     }
 
-    // Funciones para saltar entre pistas manualmente
+    // Funciones para saltar entre pistas manualmente con velocidad reseteada
     fun skipToNext() {
         exoPlayer?.let { player ->
             player.playbackParameters = PlaybackParameters(1.0f)
