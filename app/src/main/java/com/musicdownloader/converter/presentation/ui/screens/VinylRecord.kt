@@ -32,9 +32,13 @@ import kotlinx.coroutines.CancellationException
 fun VinylRecord(
     artwork: Bitmap?,
     isPlaying: Boolean,
-    isScratching: Boolean, // <--- Nuevo parámetro para activar el efecto visual de scratch
+    isScratching: Boolean = false, // Valor por defecto para evitar errores de parámetros
     size: Dp = 220.dp
 ) {
+    // Leemos el color primario AQUÍ dentro del contexto @Composable (fuera del Canvas)
+    const val primaryColor = MaterialTheme.colorScheme.primaryContainer // o MaterialTheme.colorScheme.primary
+    val resolvedPrimaryColor = MaterialTheme.colorScheme.primary
+
     // Estado animado para la rotación fluida y precisa
     val rotationState = remember { Animatable(0f) }
 
@@ -45,12 +49,10 @@ fun VinylRecord(
                 while (true) {
                     rotationState.animateTo(
                         targetValue = rotationState.value + 360f,
-                        animationSpec = tween(durationMillis = 4000, easing = LinearEasing) // 4 segundos por vuelta
+                        animationSpec = tween(durationMillis = 4000, easing = LinearEasing)
                     )
                 }
-            } catch (e: CancellationException) {
-                // Se cancela de forma limpia al pausar o hacer scratch
-            }
+            } catch (e: CancellationException) {}
         }
     }
 
@@ -110,7 +112,7 @@ fun VinylRecord(
                         center = center
                     )
 
-                    // ⚡ EFECTO VISUAL DE SCRATCH: Anillos de fricción brillantes si se está rascando
+                    // ⚡ EFECTO VISUAL DE SCRATCH: Usamos la variable de color obtenida de forma segura
                     if (isScratching) {
                         drawCircle(
                             color = Color.White.copy(alpha = scratchAlpha),
@@ -119,7 +121,7 @@ fun VinylRecord(
                             style = Stroke(width = 6f)
                         )
                         drawCircle(
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = scratchAlpha),
+                            color = resolvedPrimaryColor.copy(alpha = scratchAlpha),
                             radius = maxRadius * 0.48f,
                             center = center,
                             style = Stroke(width = 4f)
