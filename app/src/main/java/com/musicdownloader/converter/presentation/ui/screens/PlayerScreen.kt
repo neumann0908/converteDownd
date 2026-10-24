@@ -33,7 +33,7 @@ fun PlayerScreen(
 ) {
     val playerManager = viewModel.playerManager
     val isPlaying by playerManager.isPlaying.collectAsState()
-    val isScratching by playerManager.isScratching.collectAsState() // <--- NUEVO: Colectamos el estado de scratch
+    val isScratching by playerManager.isScratching.collectAsState()
     val currentTitle by playerManager.currentTrackTitle.collectAsState()
     val currentPosition by playerManager.currentPosition.collectAsState()
     val duration by playerManager.duration.collectAsState()
@@ -49,27 +49,27 @@ fun PlayerScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Caja mágica del vinilo con los gestos de DJ y el brazo de la aguja integrado
+        // Caja mágica del vinilo con gestos de DJ, modulación de pitch y brazo integrado
         Box(
             modifier = Modifier
                 .size(220.dp)
                 .pointerInput(Unit) {
                     detectDragGestures(
                         onDragStart = { offset ->
-                            // 1. Al apoyar el dedo: pausamos música y suena el rasguño
+                            // 1. Al apoyar el dedo: iniciamos el scratch visual y de audio
                             playerManager.startScratch()
                         },
                         onDrag = { change, dragAmount ->
                             change.consume()
-                            val sensitivity = 50L 
+                            val sensitivity = 40L 
                             val currentPos = playerManager.currentPosition.value
                             val newPosition = currentPos + (dragAmount.x * sensitivity).toLong()
                             
-                            // 2. Al mover el dedo: actualizamos la canción al vuelo
-                            playerManager.scratchTo(newPosition)
+                            // 2. Al mover el dedo: actualizamos la posición y modulamos velocidad/pitch con dragAmount.x
+                            playerManager.scratchTo(newPosition, dragAmount.x)
                         },
                         onDragEnd = {
-                            // 3. Al levantar el dedo: la música vuelve a sonar de inmediato
+                            // 3. Al levantar el dedo: restauramos la velocidad normal y reanudamos
                             playerManager.endScratch()
                         },
                         onDragCancel = {
@@ -83,7 +83,7 @@ fun PlayerScreen(
             VinylRecord(
                 artwork = currentArtwork,
                 isPlaying = isPlaying,
-                isScratching = isScratching, // <--- NUEVO: Pasamos el estado de scratch
+                isScratching = isScratching,
                 size = 220.dp
             )
 
