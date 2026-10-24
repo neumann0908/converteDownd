@@ -4,7 +4,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
+import android.media.audiofx.BassBoost
+import android.media.audiofx.PresetReverb
 import android.net.Uri
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -32,6 +35,16 @@ class AudioPlayerManager @Inject constructor(
     private val scope = CoroutineScope(Dispatchers.Main)
     private var progressJob: Job? = null
     private var fadeJob: Job? = null // Control de corrutinas para Fade In / Fade Out
+
+    // --- EFECTOS DE AUDIO AVANZADOS (BASS BOOST & REVERB) ---
+    private var bassBoost: BassBoost? = null
+    private var presetReverb: PresetReverb? = null
+
+    private val _isBassBoostEnabled = MutableStateFlow(false)
+    val isBassBoostEnabled: StateFlow<Boolean> = _isBassBoostEnabled
+
+    private val _isReverbEnabled = MutableStateFlow(false)
+    val isReverbEnabled: StateFlow<Boolean> = _isReverbEnabled
 
     // --- CARRUSEL ALEATORIO DE IMÁGENES DESDE DRAWABLE ---
     private var artSlideshowJob: Job? = null
@@ -99,6 +112,13 @@ class AudioPlayerManager @Inject constructor(
                     }
                 }
 
+                override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                    super.onAudioSessionIdChanged(audioSessionId)
+                    if (audioSessionId != C.AUDIO_SESSION_ID_UNSET) {
+                        setupAudioEffects(audioSessionId)
+                    }
+                }
+
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     mediaItem?.let { item ->
                         val title = item.mediaId.ifEmpty { item.localConfiguration?.uri?.lastPathSegment ?: "Pista desconocida" }
@@ -119,6 +139,65 @@ class AudioPlayerManager @Inject constructor(
             volume = 0.8f
         }
     }
+
+    // --- CONFIGURACIÓN DE EFECTOS DE AUDIO (BASS BOOST & REVERB) ---
+
+    private fun setupAudioEffects(audioSessionId: Int) {
+        try {
+            bassBoost?.release()
+            presetReverb?.release()
+
+            // 1. Configurar Bass Boost (Refuerzo de graves)
+            bassBoost = BassBoost(0, audioSessionId).apply {
+                enabled = _isBassBoostEnabled.value
+                if (enabled) {
+                    setStrength(900.toShort()) // Rango 0-1000 (900 para graves potentes)
+                }
+            }
+
+            // 2. Configurar Reverb (Acústica ambiental cálida / estudio retro)
+            presetReverb = PresetReverb(0, audioSessionId).apply {
+                enabled = _isReverbEnabled.value
+                if (enabled) {
+                    preset = PresetReverb.PRESET_ROOM
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun toggleBassBoost() {
+        val newState = !_isBassBoostEnabled.value
+        _isBassBoostEnabled.value = newState
+        try {
+            bassBoost?.let {
+                it.enabled = newState
+                if (newState) {
+                    it.setStrength(900.toShort())
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun toggleReverb() {
+        val newState = !_isReverbEnabled.value
+        _isReverbEnabled.value = newState
+        try {
+            presetReverb?.let {
+                it.enabled = newState
+                if (newState) {
+                    it.preset = PresetReverb.PRESET_ROOM
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // -------------------------------------------------------------
 
     private fun startCrackle() {
         try {
@@ -474,7 +553,7 @@ class AudioPlayerManager @Inject constructor(
         _currentPosition.value = positionMs
     }
 
-    fun seekForward() { // <--- ¡Corregido de 'fn' a 'fun'!
+    fun seekForward() {
         exoPlayer?.let {
             val newPos = (it.currentPosition + 10000).coerceAtMost(it.duration)
             it.seekTo(newPos)
@@ -494,6 +573,12 @@ class AudioPlayerManager @Inject constructor(
         stopProgressTracking()
         cancelSleepTimer()
         stopArtSlideshow()
+        
+        bassBoost?.release()
+        bassBoost = null
+        presetReverb?.release()
+        presetReverb = null
+
         exoPlayer?.release()
         exoPlayer = null
         cracklePlayer?.release()
