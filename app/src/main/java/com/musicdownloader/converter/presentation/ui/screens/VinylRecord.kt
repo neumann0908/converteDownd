@@ -35,16 +35,14 @@ import kotlinx.coroutines.CancellationException
 fun VinylRecord(
     artwork: Bitmap?,
     isPlaying: Boolean,
-    isScratching: Boolean = false, // Valor por defecto para evitar errores
+    isScratching: Boolean = false,
     size: Dp = 220.dp
 ) {
-    // Obtenemos el color primario de forma segura dentro del contexto Composable
     val resolvedPrimaryColor = MaterialTheme.colorScheme.primary
 
     // Estado animado para la rotación fluida y precisa
     val rotationState = remember { Animatable(0f) }
 
-    // Controlamos la rotación continua solo cuando está reproduciendo
     LaunchedEffect(isPlaying) {
         if (isPlaying) {
             try {
@@ -58,7 +56,6 @@ fun VinylRecord(
         }
     }
 
-    // Animación de brillo rápido para el efecto visual de rasguño DJ
     val scratchTransition = rememberInfiniteTransition(label = "ScratchEffect")
     val scratchAlpha by scratchTransition.animateFloat(
         initialValue = 0.3f,
@@ -74,22 +71,11 @@ fun VinylRecord(
         modifier = Modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
-        // Cuerpo principal del vinilo (Picture Disc con rotación aplicada y borde degradado 3D)
+        // Cuerpo principal del vinilo con rotación aplicada
         Card(
             modifier = Modifier
                 .size(size)
-                .rotate(rotationState.value)
-                .clip(CircleShape)
-                .border(
-                    width = 6.dp,
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.85f)
-                        )
-                    ),
-                    shape = CircleShape
-                ),
+                .rotate(rotationState.value),
             shape = CircleShape,
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFF111111))
@@ -103,14 +89,17 @@ fun VinylRecord(
                     Image(
                         bitmap = artwork.asImageBitmap(),
                         contentDescription = "Picture Disc Artwork",
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color.DarkGray),
+                            .background(Color.DarkGray)
+                            .clip(CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -122,7 +111,7 @@ fun VinylRecord(
                     }
                 }
 
-                // 2. Dibujo de surcos concéntricos sutiles y efectos sobre la imagen con Canvas
+                // 2. Canvas para surcos, brillo y el borde degradado mate 3D
                 Canvas(modifier = Modifier.size(size)) {
                     val center = Offset(size.toPx() / 2f, size.toPx() / 2f)
                     val maxRadius = size.toPx() / 2f
@@ -138,7 +127,7 @@ fun VinylRecord(
                         )
                     }
                     
-                    // Efecto de brillo reflejado en el vinilo
+                    // Efecto de brillo reflejado
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(Color.White.copy(alpha = 0.1f), Color.Transparent),
@@ -149,7 +138,22 @@ fun VinylRecord(
                         center = center
                     )
 
-                    // ⚡ EFECTO VISUAL DE SCRATCH: Anillos de fricción brillantes
+                    // Borde fino negro mate con degradado radial (Efecto Picture Disc 3D)
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.85f)
+                            ),
+                            center = center,
+                            radius = maxRadius
+                        ),
+                        radius = maxRadius - 3f,
+                        center = center,
+                        style = Stroke(width = 12f)
+                    )
+
+                    // ⚡ EFECTO VISUAL DE SCRATCH
                     if (isScratching) {
                         drawCircle(
                             color = Color.White.copy(alpha = scratchAlpha),
