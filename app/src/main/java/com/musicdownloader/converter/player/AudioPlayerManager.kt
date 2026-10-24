@@ -12,7 +12,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import com.musicdownloader.converter.R // <--- Vital para reconocer los recursos de res/drawable
+import com.musicdownloader.converter.R 
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,11 +30,11 @@ class AudioPlayerManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private var exoPlayer: ExoPlayer? = null
-    private var cracklePlayer: ExoPlayer? = null // Reproductor para el chisporroteo continuo
-    private var scratchPlayer: ExoPlayer? = null // Reproductor exclusivo para el sonido de scratch
+    private var cracklePlayer: ExoPlayer? = null 
+    private var scratchPlayer: ExoPlayer? = null 
     private val scope = CoroutineScope(Dispatchers.Main)
     private var progressJob: Job? = null
-    private var fadeJob: Job? = null // Control de corrutinas para Fade In / Fade Out
+    private var fadeJob: Job? = null 
 
     // --- EFECTOS DE AUDIO AVANZADOS (BASS BOOST & REVERB) ---
     private var bassBoost: BassBoost? = null
@@ -49,7 +49,6 @@ class AudioPlayerManager @Inject constructor(
     // --- CARRUSEL ALEATORIO DE IMÁGENES DESDE DRAWABLE ---
     private var artSlideshowJob: Job? = null
     
-    // Lista oficial de nuestras 3 imágenes limpias en minúsculas guardadas en res/drawable
     private val drawableArts = listOf(
         R.drawable.disco1,
         R.drawable.disco2,
@@ -68,7 +67,6 @@ class AudioPlayerManager @Inject constructor(
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying
 
-    // Estado para controlar el efecto visual de rasguño (scratch) en el vinilo
     private val _isScratching = MutableStateFlow(false)
     val isScratching: StateFlow<Boolean> = _isScratching
 
@@ -98,11 +96,11 @@ class AudioPlayerManager @Inject constructor(
                     if (playing) {
                         startProgressTracking()
                         startCrackle()
-                        startArtSlideshow() // <--- ¡Aquí arranca el show de imágenes al darle Play!
+                        startArtSlideshow() 
                     } else {
                         stopProgressTracking()
                         stopCrackle()
-                        stopArtSlideshow()  // <--- ¡Aquí se detiene al poner Pausa!
+                        stopArtSlideshow()  
                     }
                 }
 
@@ -147,19 +145,19 @@ class AudioPlayerManager @Inject constructor(
             bassBoost?.release()
             presetReverb?.release()
 
-            // 1. Configurar Bass Boost (Refuerzo de graves)
+            // 1. Configurar Bass Boost
             bassBoost = BassBoost(0, audioSessionId).apply {
                 enabled = _isBassBoostEnabled.value
                 if (enabled) {
-                    setStrength(900.toShort()) // Rango 0-1000 (900 para graves potentes)
+                    setStrength(900.toShort())
                 }
             }
 
-            // 2. Configurar Reverb (Acústica ambiental cálida / estudio retro)
+            // 2. Configurar Reverb (Corregido a PRESET_SMALLROOM)
             presetReverb = PresetReverb(0, audioSessionId).apply {
                 enabled = _isReverbEnabled.value
                 if (enabled) {
-                    preset = PresetReverb.PRESET_ROOM
+                    preset = PresetReverb.PRESET_SMALLROOM
                 }
             }
         } catch (e: Exception) {
@@ -189,7 +187,7 @@ class AudioPlayerManager @Inject constructor(
             presetReverb?.let {
                 it.enabled = newState
                 if (newState) {
-                    it.preset = PresetReverb.PRESET_ROOM
+                    it.preset = PresetReverb.PRESET_SMALLROOM
                 }
             }
         } catch (e: Exception) {
@@ -234,21 +232,19 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // --- CONTROL DEL CARRUSEL DE IMÁGENES ---
-
     private fun startArtSlideshow() {
         if (drawableArts.isEmpty()) return
         
         artSlideshowJob?.cancel()
         artSlideshowJob = scope.launch {
             while (true) {
-                delay(7000L) // Rota la imagen cada 7 segundos exactos
+                delay(7000L)
                 if (drawableArts.isNotEmpty()) {
-                    val randomResId = drawableArts.random() // Selecciona disco1, disco2 o disco3 de forma aleatoria
+                    val randomResId = drawableArts.random()
                     try {
                         val bitmap = BitmapFactory.decodeResource(context.resources, randomResId)
                         if (bitmap != null) {
-                            _currentArtwork.value = bitmap // ¡Actualiza el vinilo visualmente!
+                            _currentArtwork.value = bitmap
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -262,8 +258,6 @@ class AudioPlayerManager @Inject constructor(
         artSlideshowJob?.cancel()
         artSlideshowJob = null
     }
-
-    // --- CONTROL DEL TEMPORIZADOR DE APAGADO ---
 
     fun startSleepTimer(minutes: Long) {
         sleepTimerJob?.cancel()
@@ -290,14 +284,10 @@ class AudioPlayerManager @Inject constructor(
         _sleepTimerRemaining.value = null
     }
 
-    // --- CONTROL DE VELOCIDAD DE REPRODUCCIÓN ---
-
     fun setPlaybackSpeed(speed: Float) {
         _playbackSpeed.value = speed
         exoPlayer?.playbackParameters = PlaybackParameters(speed)
     }
-
-    // --- EFECTOS DE AUDIO: FADE IN / FADE OUT ---
 
     private fun fadeIn(durationMs: Long = 400L) {
         fadeJob?.cancel()
@@ -328,8 +318,6 @@ class AudioPlayerManager @Inject constructor(
             exoPlayer?.volume = 1f 
         }
     }
-
-    // --- SUPERPODERES DE DJ CON PITCH/SPEED MODULATION ---
     
     fun startScratch() {
         _isScratching.value = true
@@ -357,8 +345,6 @@ class AudioPlayerManager @Inject constructor(
             player.play()
         }
     }
-
-    // ---------------------------
 
     private fun startProgressTracking() {
         progressJob?.cancel()
