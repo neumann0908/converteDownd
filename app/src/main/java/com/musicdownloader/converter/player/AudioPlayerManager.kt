@@ -167,26 +167,22 @@ class AudioPlayerManager @Inject constructor(
 
     // --- SUPERPODERES DE DJ CON PITCH/SPEED MODULATION ---
     
-    // 1. Al tocar el disco: Activamos estado visual y disparamos el rasguño
     fun startScratch() {
         _isScratching.value = true
         playScratchSound()
     }
 
-    // 2. Al mover el dedo: Movemos la canción al vuelo y modulamos velocidad/pitch dinámicamente
     fun scratchTo(positionMs: Long, dragDeltaX: Float) {
         exoPlayer?.let { player ->
             val targetPos = positionMs.coerceIn(0L, player.duration.coerceAtLeast(0L))
             player.seekTo(targetPos)
             _currentPosition.value = targetPos
 
-            // Calculamos la velocidad en función del movimiento horizontal del dedo
             val speed = (1.0f + (dragDeltaX / 15f)).coerceIn(0.1f, 2.5f)
             player.playbackParameters = PlaybackParameters(speed)
         }
     }
 
-    // 3. Al soltar el dedo: Desactivamos el estado visual, restauramos velocidad normal y reanudamos la música
     fun endScratch() {
         _isScratching.value = false
         scratchPlayer?.pause()
@@ -275,17 +271,7 @@ class AudioPlayerManager @Inject constructor(
                 }?.sortedBy { it.name }
 
                 if (!audioFiles.isNullOrEmpty()) {
-                    exoPlayer?.let { player ->
-                        player.stop()
-                        player.clearMediaItems()
-                        val mediaItems = audioFiles.map { MediaItem.Builder().setUri(it.absolutePath).setMediaId(it.name).build() }
-                        player.setMediaItems(mediaItems, 0, 0L)
-                        player.prepare()
-                        player.play()
-                        fadeIn() // Entrada suave al iniciar lista
-                        _currentTrackTitle.value = audioFiles.first().name
-                        extractAlbumArt(audioFiles.first().absolutePath)
-                    }
+                    playFile(audioFiles.first().absolutePath, audioFiles.first().name)
                 }
             }
         } catch (e: Exception) {
@@ -293,32 +279,63 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
+    // MODIFICADO: Ahora carga toda la lista de la biblioteca en ExoPlayer para que Next/Previous funcionen siempre
     fun playFile(path: String, title: String) {
-        exoPlayer?.let { player ->
-            player.stop()
-            player.clearMediaItems()
-            val mediaItem = MediaItem.Builder().setUri(path).setMediaId(title).build()
-            player.setMediaItem(mediaItem)
-            player.prepare()
-            player.play()
-            fadeIn() // Entrada suave al reproducir archivo específico
-            _currentTrackTitle.value = title
-            _duration.value = player.duration.coerceAtLeast(0L)
-            extractAlbumArt(path)
+        try {
+            val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
+            val audioFiles = if (downloadDir.exists() && downloadDir.isDirectory) {
+                downloadDir.listFiles { file ->
+                    file.isFile && (file.extension.equals("mp3", true) || file.extension.equals("wav", true))
+                }?.sortedBy { it.name } ?: emptyList()
+            } else {
+                emptyList()
+            }
+
+            exoPlayer?.let { player ->
+                player.stop()
+                player.clearMediaItems()
+
+                if (audioFiles.isNotEmpty()) {
+                    val mediaItems = audioFiles.map { 
+                        MediaItem.Builder()
+                            .setUri(it.absolutePath)
+                            .setMediaId(it.name)
+                            .build() 
+                    }
+                    val targetIndex = audioFiles.indexOfFirst { it.absolutePath == path }.coerceAtLeast(0)
+                    
+                    player.setMediaItems(mediaItems, targetIndex, 0L)
+                    player.prepare()
+                    player.play()
+                    fadeIn()
+                    _currentTrackTitle.value = audioFiles[targetIndex].name
+                    extractAlbumArt(audioFiles[targetIndex].absolutePath)
+                } else {
+                    val mediaItem = MediaItem.Builder().setUri(path).setMediaId(title).build()
+                    player.setMediaItem(mediaItem)
+                    player.prepare()
+                    player.play()
+                    fadeIn()
+                    _currentTrackTitle.value = title
+                    _duration.value = player.duration.coerceAtLeast(0L)
+                    extractAlbumArt(path)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     fun togglePlayPause() {
         exoPlayer?.let { player ->
             if (player.isPlaying) {
-                // Salida gradual antes de pausar para evitar cortes secos
                 fadeOut {
                     player.pause()
                 }
             } else {
                 if (player.mediaItemCount > 0) {
                     player.play()
-                    fadeIn() // Entrada gradual al reanudar
+                    fadeIn()
                 } else {
                     loadAndPlayPlaylist()
                 }
@@ -327,11 +344,23 @@ class AudioPlayerManager @Inject constructor(
     }
 
     fun skipToNext() {
-        exoPlayer?.let { if (it.hasNextMediaItem()) { it.seekToNextMediaItem(); it.play(); fadeIn() } }
+        exoPlayer?.let { 
+            if (it.hasNextMediaItem()) { 
+                it.seekToNextMediaItem() 
+                it.play() 
+                fadeIn() 
+            } 
+        }
     }
 
     fun skipToPrevious() {
-        exoPlayer?.let { if (it.hasPreviousMediaItem()) { it.seekToPreviousMediaItem(); it.play(); fadeIn() } }
+        exoPlayer?.let { 
+            if (it.hasPreviousMediaItem()) { 
+                it.seekToPreviousMediaItem() 
+                it.play() 
+                fadeIn() 
+            } 
+        }
     }
 
     fun toggleShuffle() {
