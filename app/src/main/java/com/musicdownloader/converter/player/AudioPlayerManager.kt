@@ -32,6 +32,11 @@ class AudioPlayerManager @Inject constructor(
     private var progressJob: Job? = null
     private var fadeJob: Job? = null // Control de corrutinas para Fade In / Fade Out
 
+    // --- TEMPORIZADOR DE APAGADO (SLEEP TIMER) ---
+    private val _sleepTimerRemaining = MutableStateFlow<Long?>(null)
+    val sleepTimerRemaining: StateFlow<Long?> = _sleepTimerRemaining
+    private var sleepTimerJob: Job? = null
+
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying
 
@@ -131,6 +136,34 @@ class AudioPlayerManager @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    // --- NUEVO: CONTROL DEL TEMPORIZADOR DE APAGADO ---
+
+    fun startSleepTimer(minutes: Long) {
+        sleepTimerJob?.cancel()
+        val totalMs = minutes * 60 * 1000L
+        _sleepTimerRemaining.value = totalMs
+
+        sleepTimerJob = scope.launch {
+            var currentMs = totalMs
+            while (currentMs > 0) {
+                delay(1000L)
+                currentMs -= 1000L
+                _sleepTimerRemaining.value = currentMs.coerceAtLeast(0L)
+            }
+            // Al terminar el tiempo, aplicamos Fade Out y pausamos suavemente
+            fadeOut {
+                exoPlayer?.pause()
+                _sleepTimerRemaining.value = null
+            }
+        }
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        _sleepTimerRemaining.value = null
     }
 
     // --- EFECTOS DE AUDIO: FADE IN / FADE OUT ---
@@ -279,7 +312,6 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // MODIFICADO: Ahora carga toda la lista de la biblioteca en ExoPlayer para que Next/Previous funcionen siempre
     fun playFile(path: String, title: String) {
         try {
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
@@ -406,6 +438,7 @@ class AudioPlayerManager @Inject constructor(
 
     fun release() {
         stopProgressTracking()
+        cancelSleepTimer() // Limpiamos el temporizador si existía
         exoPlayer?.release()
         exoPlayer = null
         cracklePlayer?.release()
