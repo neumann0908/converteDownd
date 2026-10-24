@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material3.*
@@ -202,10 +203,10 @@ fun PlayerScreen(
                 )
             }
 
-            // Botón de Reverb (Acústica ambiental)
+            // Botón de Reverb (Acústica ambiental) - Corregido a Speaker
             IconButton(onClick = { playerManager.toggleReverb() }) {
                 Icon(
-                    imageVector = Icons.Default.HourglassBottom,
+                    imageVector = Icons.Default.Speaker,
                     contentDescription = "Efecto Reverb / Acústica",
                     tint = if (isReverbEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
@@ -312,7 +313,6 @@ fun PlayerScreen(
                                     value = currentLevel,
                                     onValueChange = { newVal ->
                                         currentLevel = newVal
-                                        // Conversión segura de Float a Int y luego a Short
                                         playerManager.setBandLevel(band, newVal.toInt().toShort())
                                     },
                                     valueRange = minLevel..maxLevel
