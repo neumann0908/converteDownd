@@ -9,6 +9,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.musicdownloader.converter.R // <--- Importante para reconocer tus recursos de res/drawable
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +32,15 @@ class AudioPlayerManager @Inject constructor(
     private val scope = CoroutineScope(Dispatchers.Main)
     private var progressJob: Job? = null
     private var fadeJob: Job? = null // Control de corrutinas para Fade In / Fade Out
+
+    // --- CARRUSEL ALEATORIO DE IMÁGENES DESDE DRAWABLE ---
+    private var artSlideshowJob: Job? = null
+    
+    // Aquí registrarás los nombres de tus imágenes cuando las guardes en res/drawable
+    private val drawableArts = listOf(
+        // R.drawable.foto1, // Ejemplo: descomenta cuando subas tus imágenes
+        // R.drawable.foto2
+    )
 
     // --- TEMPORIZADOR DE APAGADO (SLEEP TIMER) ---
     private val _sleepTimerRemaining = MutableStateFlow<Long?>(null)
@@ -74,9 +84,11 @@ class AudioPlayerManager @Inject constructor(
                     if (playing) {
                         startProgressTracking()
                         startCrackle()
+                        startArtSlideshow() // <--- ¡Aquí arranca el show de imágenes al darle Play!
                     } else {
                         stopProgressTracking()
                         stopCrackle()
+                        stopArtSlideshow()  // <--- ¡Aquí se detiene al poner Pausa!
                     }
                 }
 
@@ -142,6 +154,35 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
+    // --- CONTROL DEL CARRUSEL DE IMÁGENES ---
+
+    private fun startArtSlideshow() {
+        if (drawableArts.isEmpty()) return // Si no hay imágenes configuradas, no hace nada
+        
+        artSlideshowJob?.cancel()
+        artSlideshowJob = scope.launch {
+            while (true) {
+                delay(7000L) // Espera 7 segundos exactos
+                if (drawableArts.isNotEmpty()) {
+                    val randomResId = drawableArts.random() // Elige una imagen al azar
+                    try {
+                        val bitmap = BitmapFactory.decodeResource(context.resources, randomResId)
+                        if (bitmap != null) {
+                            _currentArtwork.value = bitmap // ¡Actualiza la carátula que gira en el vinilo!
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun stopArtSlideshow() {
+        artSlideshowJob?.cancel()
+        artSlideshowJob = null
+    }
+
     // --- CONTROL DEL TEMPORIZADOR DE APAGADO ---
 
     fun startSleepTimer(minutes: Long) {
@@ -156,7 +197,6 @@ class AudioPlayerManager @Inject constructor(
                 currentMs -= 1000L
                 _sleepTimerRemaining.value = currentMs.coerceAtLeast(0L)
             }
-            // Al terminar el tiempo, aplicamos Fade Out y pausamos suavemente
             fadeOut {
                 exoPlayer?.pause()
                 _sleepTimerRemaining.value = null
@@ -205,7 +245,7 @@ class AudioPlayerManager @Inject constructor(
             }
             exoPlayer?.volume = 0f
             onFinished()
-            exoPlayer?.volume = 1f // Restauramos volumen para el siguiente arranque
+            exoPlayer?.volume = 1f 
         }
     }
 
@@ -233,7 +273,6 @@ class AudioPlayerManager @Inject constructor(
         scratchPlayer?.seekTo(0L)
         
         exoPlayer?.let { player ->
-            // Restauramos a la velocidad configurada por el usuario (en lugar de 1.0 fijo)
             player.playbackParameters = PlaybackParameters(_playbackSpeed.value)
             player.play()
         }
@@ -350,7 +389,6 @@ class AudioPlayerManager @Inject constructor(
                     
                     player.setMediaItems(mediaItems, targetIndex, 0L)
                     player.prepare()
-                    // Aplicamos la velocidad actual al preparar la nueva pista
                     player.playbackParameters = PlaybackParameters(_playbackSpeed.value)
                     player.play()
                     fadeIn()
@@ -454,6 +492,7 @@ class AudioPlayerManager @Inject constructor(
     fun release() {
         stopProgressTracking()
         cancelSleepTimer()
+        stopArtSlideshow() // <--- Limpiamos el carrusel al destruir el reproductor
         exoPlayer?.release()
         exoPlayer = null
         cracklePlayer?.release()
