@@ -1,8 +1,3 @@
-cd ~/MusicDownloaderConverter
-
-cat << 'EOF' > app/src/main/java/com/musicdownloader/converter/presentation/ui/screens/AnalogVuMeter.kt
-package com.musicdownloader.converter.presentation.ui.screens
-
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
@@ -11,6 +6,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import kotlin.math.cos
@@ -69,11 +65,10 @@ fun AnalogVuMeter(
 
 @Composable
 fun SingleVuMeter(angle: Float) {
-    val chassisColor = androidx.compose.ui.graphics.Color(0xFFF4EEDC) // Crema retro
-    val bezelColor = androidx.compose.ui.graphics.Color(0xFF333333)
-    val needleColor = androidx.compose.ui.graphics.Color(0xFFD32F2F)   // Rojo clásico
+    val chassisColor = Color(0xFFF4EEDC)
+    val bezelColor = Color(0xFF333333)
+    val needleColor = Color(0xFFD32F2F)
 
-    // Tamaño compacto optimizado (85x34 dp)
     Canvas(modifier = Modifier.size(85.dp, 34.dp)) {
         val width = size.width
         val height = size.height
@@ -100,7 +95,7 @@ fun SingleVuMeter(angle: Float) {
             val endY = pivotY - (radius * cos(rad)).toFloat()
 
             drawLine(
-                color = androidx.compose.ui.graphics.Color.DarkGray,
+                color = Color.DarkGray,
                 start = Offset(startX, startY),
                 end = Offset(endX, endY),
                 strokeWidth = 0.6.dp.toPx()
@@ -113,7 +108,7 @@ fun SingleVuMeter(angle: Float) {
         val rEndX = pivotX + (radius * sin(redZoneRad)).toFloat()
         val rEndY = pivotY - (radius * cos(redZoneRad)).toFloat()
         drawLine(
-            color = androidx.compose.ui.graphics.Color.Red,
+            color = Color.Red,
             start = Offset(rStartX, rStartY),
             end = Offset(rEndX, rEndY),
             strokeWidth = 1.0.dp.toPx()
@@ -131,10 +126,9 @@ fun SingleVuMeter(angle: Float) {
         )
 
         drawCircle(
-            color = androidx.compose.ui.graphics.Color.Black,
+            color = Color.Black,
             radius = 2.5.dp.toPx(),
             center = Offset(pivotX, pivotY)
         )
     }
 }
-EOF
