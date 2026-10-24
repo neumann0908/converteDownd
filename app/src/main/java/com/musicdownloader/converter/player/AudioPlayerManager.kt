@@ -37,6 +37,10 @@ class AudioPlayerManager @Inject constructor(
     val sleepTimerRemaining: StateFlow<Long?> = _sleepTimerRemaining
     private var sleepTimerJob: Job? = null
 
+    // --- VELOCIDAD DE REPRODUCCIÓN ---
+    private val _playbackSpeed = MutableStateFlow(1.0f)
+    val playbackSpeed: StateFlow<Float> = _playbackSpeed
+
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying
 
@@ -138,7 +142,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // --- NUEVO: CONTROL DEL TEMPORIZADOR DE APAGADO ---
+    // --- CONTROL DEL TEMPORIZADOR DE APAGADO ---
 
     fun startSleepTimer(minutes: Long) {
         sleepTimerJob?.cancel()
@@ -164,6 +168,13 @@ class AudioPlayerManager @Inject constructor(
         sleepTimerJob?.cancel()
         sleepTimerJob = null
         _sleepTimerRemaining.value = null
+    }
+
+    // --- CONTROL DE VELOCIDAD DE REPRODUCCIÓN ---
+
+    fun setPlaybackSpeed(speed: Float) {
+        _playbackSpeed.value = speed
+        exoPlayer?.playbackParameters = PlaybackParameters(speed)
     }
 
     // --- EFECTOS DE AUDIO: FADE IN / FADE OUT ---
@@ -222,7 +233,8 @@ class AudioPlayerManager @Inject constructor(
         scratchPlayer?.seekTo(0L)
         
         exoPlayer?.let { player ->
-            player.playbackParameters = PlaybackParameters(1.0f)
+            // Restauramos a la velocidad configurada por el usuario (en lugar de 1.0 fijo)
+            player.playbackParameters = PlaybackParameters(_playbackSpeed.value)
             player.play()
         }
     }
@@ -338,6 +350,8 @@ class AudioPlayerManager @Inject constructor(
                     
                     player.setMediaItems(mediaItems, targetIndex, 0L)
                     player.prepare()
+                    // Aplicamos la velocidad actual al preparar la nueva pista
+                    player.playbackParameters = PlaybackParameters(_playbackSpeed.value)
                     player.play()
                     fadeIn()
                     _currentTrackTitle.value = audioFiles[targetIndex].name
@@ -346,6 +360,7 @@ class AudioPlayerManager @Inject constructor(
                     val mediaItem = MediaItem.Builder().setUri(path).setMediaId(title).build()
                     player.setMediaItem(mediaItem)
                     player.prepare()
+                    player.playbackParameters = PlaybackParameters(_playbackSpeed.value)
                     player.play()
                     fadeIn()
                     _currentTrackTitle.value = title
@@ -438,7 +453,7 @@ class AudioPlayerManager @Inject constructor(
 
     fun release() {
         stopProgressTracking()
-        cancelSleepTimer() // Limpiamos el temporizador si existía
+        cancelSleepTimer()
         exoPlayer?.release()
         exoPlayer = null
         cracklePlayer?.release()
