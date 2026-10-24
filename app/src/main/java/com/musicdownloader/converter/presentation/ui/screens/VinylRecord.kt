@@ -176,7 +176,7 @@ fun VinylRecord(
                         .size(36.dp)
                         .clip(CircleShape)
                         .background(Color.DarkGray.copy(alpha = 0.85f))
-                        .border(1.5f, Color.LightGray.copy(alpha = 0.8f), CircleShape),
+                        .border(1.5.dp, Color.LightGray.copy(alpha = 0.8f), CircleShape), // <--- Corregido a 1.5.dp
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
