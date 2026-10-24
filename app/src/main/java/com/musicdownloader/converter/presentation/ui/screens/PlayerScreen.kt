@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -37,10 +38,13 @@ fun PlayerScreen(
     val currentTitle by playerManager.currentTrackTitle.collectAsState()
     val currentPosition by playerManager.currentPosition.collectAsState()
     val duration by playerManager.duration.collectAsState()
+    val sleepTimerRemaining by playerManager.sleepTimerRemaining.collectAsState() // <--- Estado del Temporizador
     
     val isShuffleEnabled by viewModel.isShuffleEnabled.collectAsState()
     val repeatMode by viewModel.repeatMode.collectAsState()
     val currentArtwork by viewModel.currentArtwork.collectAsState()
+
+    var showTimerDialog by remember { mutableStateOf(false) } // <--- Control del diálogo del Temporizador
 
     Column(
         modifier = Modifier
@@ -56,7 +60,6 @@ fun PlayerScreen(
                 .pointerInput(Unit) {
                     detectDragGestures(
                         onDragStart = { offset ->
-                            // 1. Al apoyar el dedo: iniciamos el scratch visual y de audio
                             playerManager.startScratch()
                         },
                         onDrag = { change, dragAmount ->
@@ -65,11 +68,9 @@ fun PlayerScreen(
                             val currentPos = playerManager.currentPosition.value
                             val newPosition = currentPos + (dragAmount.x * sensitivity).toLong()
                             
-                            // 2. Al mover el dedo: actualizamos la posición y modulamos velocidad/pitch con dragAmount.x
                             playerManager.scratchTo(newPosition, dragAmount.x)
                         },
                         onDragEnd = {
-                            // 3. Al levantar el dedo: restauramos la velocidad normal y reanudamos
                             playerManager.endScratch()
                         },
                         onDragCancel = {
@@ -79,7 +80,6 @@ fun PlayerScreen(
                 },
             contentAlignment = Alignment.Center
         ) {
-            // El disco de vinilo giratorio con efectos de scratch visuales
             VinylRecord(
                 artwork = currentArtwork,
                 isPlaying = isPlaying,
@@ -87,7 +87,6 @@ fun PlayerScreen(
                 size = 220.dp
             )
 
-            // El brazo de la aguja (Tonearm) que reacciona al estado de reproducción
             VinylTonearm(
                 isPlaying = isPlaying,
                 size = 220.dp
@@ -106,7 +105,20 @@ fun PlayerScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        // Indicador visual del tiempo restante del Temporizador de Apagado
+        if (sleepTimerRemaining != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Apagado automático en: ${formatTime(sleepTimerRemaining!!)}",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
 
         Column(modifier = Modifier.fillMaxWidth()) {
             Slider(
@@ -135,7 +147,7 @@ fun PlayerScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -150,6 +162,15 @@ fun PlayerScreen(
                 )
             }
 
+            // Botón del Temporizador de Apagado
+            IconButton(onClick = { showTimerDialog = true }) {
+                Icon(
+                    imageVector = Icons.Default.HourglassBottom,
+                    contentDescription = "Temporizador de apagado",
+                    tint = if (sleepTimerRemaining != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+
             IconButton(onClick = { viewModel.cycleRepeatMode() }) {
                 val (icon, tint) = when (repeatMode) {
                     Player.REPEAT_MODE_ONE -> Pair(Icons.Default.RepeatOne, MaterialTheme.colorScheme.primary)
@@ -160,7 +181,7 @@ fun PlayerScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -195,6 +216,64 @@ fun PlayerScreen(
                 Icon(imageVector = Icons.Default.SkipNext, contentDescription = "Siguiente", modifier = Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
             }
         }
+    }
+
+    // Ventana emergente (Diálogo) para configurar el Temporizador de Apagado
+    if (showTimerDialog) {
+        AlertDialog(
+            onDismissRequest = { showTimerDialog = false },
+            title = { Text("Temporizador de Apagado") },
+            text = {
+                Column {
+                    TextButton(
+                        onClick = {
+                            playerManager.startSleepTimer(15)
+                            showTimerDialog = false
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("15 minutos") }
+
+                    TextButton(
+                        onClick = {
+                            playerManager.startSleepTimer(30)
+                            showTimerDialog = false
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("30 minutos") }
+
+                    TextButton(
+                        onClick = {
+                            playerManager.startSleepTimer(45)
+                            showTimerDialog = false
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("45 minutos") }
+
+                    TextButton(
+                        onClick = {
+                            playerManager.startSleepTimer(60)
+                            showTimerDialog = false
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("60 minutos") }
+
+                    if (sleepTimerRemaining != null) {
+                        TextButton(
+                            onClick = {
+                                playerManager.cancelSleepTimer()
+                                showTimerDialog = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Desactivar temporizador", color = MaterialTheme.colorScheme.error) }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTimerDialog = false }) {
+                    Text("Cerrar")
+                }
+            }
+        )
     }
 }
 
