@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.media.audiofx.BassBoost
+import android.media.audiofx.Equalizer
 import android.media.audiofx.PresetReverb
 import android.net.Uri
 import androidx.media3.common.C
@@ -36,9 +37,10 @@ class AudioPlayerManager @Inject constructor(
     private var progressJob: Job? = null
     private var fadeJob: Job? = null 
 
-    // --- EFECTOS DE AUDIO AVANZADOS (BASS BOOST & REVERB) ---
+    // --- EFECTOS DE AUDIO AVANZADOS (BASS BOOST, REVERB & EQUALIZER) ---
     private var bassBoost: BassBoost? = null
     private var presetReverb: PresetReverb? = null
+    private var equalizer: Equalizer? = null
 
     private val _isBassBoostEnabled = MutableStateFlow(false)
     val isBassBoostEnabled: StateFlow<Boolean> = _isBassBoostEnabled
@@ -146,12 +148,13 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // --- CONFIGURACIÓN DE EFECTOS DE AUDIO (BASS BOOST & REVERB) ---
+    // --- CONFIGURACIÓN DE EFECTOS DE AUDIO (BASS BOOST, REVERB & EQUALIZER) ---
 
     private fun setupAudioEffects(audioSessionId: Int) {
         try {
             bassBoost?.release()
             presetReverb?.release()
+            equalizer?.release()
 
             // 1. Configurar Bass Boost forzando potencia máxima soportada
             bassBoost = BassBoost(0, audioSessionId).apply {
@@ -169,6 +172,52 @@ class AudioPlayerManager @Inject constructor(
                     preset = PresetReverb.PRESET_SMALLROOM
                 }
             }
+
+            // 3. Configurar Ecualizador Gráfico
+            equalizer = Equalizer(0, audioSessionId).apply {
+                enabled = true
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // --- MÉTODOS PÚBLICOS PARA EL ECUALIZADOR GRÁFICO ---
+    fun getNumberOfBands(): Short {
+        return try {
+            equalizer?.numberOfBands ?: 0
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    fun getBandLevelRange(): ShortArray {
+        return try {
+            equalizer?.bandLevelRange ?: shortArrayOf(-1500, 1500)
+        } catch (e: Exception) {
+            shortArrayOf(-1500, 1500)
+        }
+    }
+
+    fun getCenterFreq(band: Short): Int {
+        return try {
+            equalizer?.getCenterFreq(band) ?: 0
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    fun getBandLevel(band: Short): Short {
+        return try {
+            equalizer?.getBandLevel(band) ?: 0
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    fun setBandLevel(band: Short, level: Short) {
+        try {
+            equalizer?.setBandLevel(band, level)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -588,6 +637,8 @@ class AudioPlayerManager @Inject constructor(
         bassBoost = null
         presetReverb?.release()
         presetReverb = null
+        equalizer?.release()
+        equalizer = null
 
         exoPlayer?.release()
         exoPlayer = null
