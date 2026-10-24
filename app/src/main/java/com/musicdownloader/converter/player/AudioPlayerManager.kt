@@ -97,6 +97,11 @@ class AudioPlayerManager @Inject constructor(
                         startProgressTracking()
                         startCrackle()
                         startArtSlideshow() 
+                        
+                        // Aseguramos que los efectos capturen la sesión activa
+                        if (audioSessionId != C.AUDIO_SESSION_ID_UNSET) {
+                            setupAudioEffects(audioSessionId)
+                        }
                     } else {
                         stopProgressTracking()
                         stopCrackle()
@@ -107,6 +112,9 @@ class AudioPlayerManager @Inject constructor(
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_READY) {
                         _duration.value = duration.coerceAtLeast(0L)
+                        if (audioSessionId != C.AUDIO_SESSION_ID_UNSET) {
+                            setupAudioEffects(audioSessionId)
+                        }
                     }
                 }
 
@@ -145,15 +153,16 @@ class AudioPlayerManager @Inject constructor(
             bassBoost?.release()
             presetReverb?.release()
 
-            // 1. Configurar Bass Boost
+            // 1. Configurar Bass Boost forzando potencia máxima soportada
             bassBoost = BassBoost(0, audioSessionId).apply {
                 enabled = _isBassBoostEnabled.value
                 if (enabled) {
-                    setStrength(900.toShort())
+                    val maxStrength = if (strengthSupported) 1000.toShort() else 500.toShort()
+                    setStrength(maxStrength)
                 }
             }
 
-            // 2. Configurar Reverb (Corregido a PRESET_SMALLROOM)
+            // 2. Configurar Reverb ambiental
             presetReverb = PresetReverb(0, audioSessionId).apply {
                 enabled = _isReverbEnabled.value
                 if (enabled) {
@@ -172,7 +181,15 @@ class AudioPlayerManager @Inject constructor(
             bassBoost?.let {
                 it.enabled = newState
                 if (newState) {
-                    it.setStrength(900.toShort())
+                    val maxStrength = if (it.strengthSupported) 1000.toShort() else 500.toShort()
+                    it.setStrength(maxStrength)
+                }
+            } ?: run {
+                exoPlayer?.audioSessionId?.let { sessionId ->
+                    if (sessionId != C.AUDIO_SESSION_ID_UNSET) {
+                        setupAudioEffects(sessionId)
+                        bassBoost?.enabled = newState
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -188,6 +205,13 @@ class AudioPlayerManager @Inject constructor(
                 it.enabled = newState
                 if (newState) {
                     it.preset = PresetReverb.PRESET_SMALLROOM
+                }
+            } ?: run {
+                exoPlayer?.audioSessionId?.let { sessionId ->
+                    if (sessionId != C.AUDIO_SESSION_ID_UNSET) {
+                        setupAudioEffects(sessionId)
+                        presetReverb?.enabled = newState
+                    }
                 }
             }
         } catch (e: Exception) {
