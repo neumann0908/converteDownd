@@ -9,7 +9,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import com.musicdownloader.converter.R // <--- Importante para reconocer tus recursos de res/drawable
+import com.musicdownloader.converter.R // <--- Vital para reconocer los recursos de res/drawable
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,10 +36,11 @@ class AudioPlayerManager @Inject constructor(
     // --- CARRUSEL ALEATORIO DE IMÁGENES DESDE DRAWABLE ---
     private var artSlideshowJob: Job? = null
     
-    // Aquí registrarás los nombres de tus imágenes cuando las guardes en res/drawable
+    // Lista oficial de nuestras 3 imágenes limpias en minúsculas guardadas en res/drawable
     private val drawableArts = listOf(
-        // R.drawable.foto1, // Ejemplo: descomenta cuando subas tus imágenes
-        // R.drawable.foto2
+        R.drawable.disco1,
+        R.drawable.disco2,
+        R.drawable.disco3
     )
 
     // --- TEMPORIZADOR DE APAGADO (SLEEP TIMER) ---
@@ -157,18 +158,18 @@ class AudioPlayerManager @Inject constructor(
     // --- CONTROL DEL CARRUSEL DE IMÁGENES ---
 
     private fun startArtSlideshow() {
-        if (drawableArts.isEmpty()) return // Si no hay imágenes configuradas, no hace nada
+        if (drawableArts.isEmpty()) return
         
         artSlideshowJob?.cancel()
         artSlideshowJob = scope.launch {
             while (true) {
-                delay(7000L) // Espera 7 segundos exactos
+                delay(7000L) // Rota la imagen cada 7 segundos exactos
                 if (drawableArts.isNotEmpty()) {
-                    val randomResId = drawableArts.random() // Elige una imagen al azar
+                    val randomResId = drawableArts.random() // Selecciona disco1, disco2 o disco3 de forma aleatoria
                     try {
                         val bitmap = BitmapFactory.decodeResource(context.resources, randomResId)
                         if (bitmap != null) {
-                            _currentArtwork.value = bitmap // ¡Actualiza la carátula que gira en el vinilo!
+                            _currentArtwork.value = bitmap // ¡Actualiza el vinilo visualmente!
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -473,7 +474,7 @@ class AudioPlayerManager @Inject constructor(
         _currentPosition.value = positionMs
     }
 
-    fun seekForward() {
+    fn seekForward() {
         exoPlayer?.let {
             val newPos = (it.currentPosition + 10000).coerceAtMost(it.duration)
             it.seekTo(newPos)
@@ -492,7 +493,7 @@ class AudioPlayerManager @Inject constructor(
     fun release() {
         stopProgressTracking()
         cancelSleepTimer()
-        stopArtSlideshow() // <--- Limpiamos el carrusel al destruir el reproductor
+        stopArtSlideshow()
         exoPlayer?.release()
         exoPlayer = null
         cracklePlayer?.release()
