@@ -474,7 +474,7 @@ class AudioPlayerManager @Inject constructor(
         _currentPosition.value = positionMs
     }
 
-    fn seekForward() {
+    fun seekForward() { // <--- ¡Corregido de 'fn' a 'fun'!
         exoPlayer?.let {
             val newPos = (it.currentPosition + 10000).coerceAtMost(it.duration)
             it.seekTo(newPos)
