@@ -2,6 +2,8 @@ package com.musicdownloader.converter.presentation.ui.screens
 
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
@@ -54,6 +56,7 @@ fun PlayerScreen(
 
     var showTimerDialog by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }
+    var showEqualizerDialog by remember { mutableStateOf(false) } // <--- Control para mostrar el widget del ecualizador
 
     Column(
         modifier = Modifier
@@ -158,7 +161,7 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Fila de controles secundarios (Shuffle, Velocidad, Bass Boost, Reverb, Sleep Timer, Repeat)
+        // Fila de controles secundarios (Shuffle, Velocidad, Ecualizador, Bass Boost, Reverb, Sleep Timer, Repeat)
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
@@ -181,10 +184,19 @@ fun PlayerScreen(
                 )
             }
 
+            // Botón para abrir el Ecualizador Gráfico
+            IconButton(onClick = { showEqualizerDialog = true }) {
+                Icon(
+                    imageVector = Icons.Default.GraphicEq,
+                    contentDescription = "Ecualizador Gráfico",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
             // Botón de Bass Boost (Refuerzo de graves)
             IconButton(onClick = { playerManager.toggleBassBoost() }) {
                 Icon(
-                    imageVector = Icons.Default.GraphicEq,
+                    imageVector = Icons.Default.SurroundSound,
                     contentDescription = "Refuerzo de graves (Bass Boost)",
                     tint = if (isBassBoostEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
@@ -193,7 +205,7 @@ fun PlayerScreen(
             // Botón de Reverb (Acústica ambiental)
             IconButton(onClick = { playerManager.toggleReverb() }) {
                 Icon(
-                    imageVector = Icons.Default.SurroundSound,
+                    imageVector = Icons.Default.HourglassBottom,
                     contentDescription = "Efecto Reverb / Acústica",
                     tint = if (isReverbEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
@@ -253,6 +265,70 @@ fun PlayerScreen(
                 Icon(imageVector = Icons.Default.SkipNext, contentDescription = "Siguiente", modifier = Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
             }
         }
+    }
+
+    // --- VENTANA EMERGENTE (DIÁLOGO) DEL ECUALIZADOR GRÁFICO ---
+    if (showEqualizerDialog) {
+        AlertDialog(
+            onDismissRequest = { showEqualizerDialog = false },
+            title = { Text("🎛️ Ecualizador Gráfico") },
+            text = {
+                val numBands = playerManager.getNumberOfBands()
+                if (numBands > 0) {
+                    val range = playerManager.getBandLevelRange()
+                    val minLevel = range[0].toFloat()
+                    val maxLevel = range[1].toFloat()
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 350.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        for (i in 0 until numBands) {
+                            val band = i.toShort()
+                            val centerFreqHz = playerManager.getCenterFreq(band)
+                            val freqLabel = if (centerFreqHz >= 1000000) {
+                                "${centerFreqHz / 1000000} MHz"
+                            } else if (centerFreqHz >= 1000) {
+                                "${centerFreqHz / 1000} kHz"
+                            } else {
+                                "$centerFreqHz Hz"
+                            }
+
+                            var currentLevel by remember {
+                                mutableStateOf(playerManager.getBandLevel(band).toFloat())
+                            }
+
+                            Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(text = freqLabel, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text(text = "${(currentLevel / 100).toInt()} dB", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                                }
+                                Slider(
+                                    value = currentLevel,
+                                    onValueChange = { newVal ->
+                                        currentLevel = newVal
+                                        playerManager.setBandLevel(band, newVal.toShort())
+                                    },
+                                    valueRange = minLevel..maxLevel
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Text("Reproduce una música para activar el ecualizador.")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showEqualizerDialog = false }) {
+                    Text("¡Listo!")
+                }
+            }
+        )
     }
 
     // Ventana emergente (Diálogo) para configurar el Temporizador de Apagado
