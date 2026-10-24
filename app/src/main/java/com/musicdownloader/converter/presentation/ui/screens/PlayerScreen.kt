@@ -56,7 +56,7 @@ fun PlayerScreen(
 
     var showTimerDialog by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }
-    var showEqualizerDialog by remember { mutableStateOf(false) } // <--- Control para mostrar el widget del ecualizador
+    var showEqualizerDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -312,7 +312,8 @@ fun PlayerScreen(
                                     value = currentLevel,
                                     onValueChange = { newVal ->
                                         currentLevel = newVal
-                                        playerManager.setBandLevel(band, newVal.toShort())
+                                        // Conversión segura de Float a Int y luego a Short
+                                        playerManager.setBandLevel(band, newVal.toInt().toShort())
                                     },
                                     valueRange = minLevel..maxLevel
                                 )
