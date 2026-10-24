@@ -1,3 +1,6 @@
+cd ~/MusicDownloaderConverter
+
+cat << 'EOF' > app/src/main/java/com/musicdownloader/converter/presentation/ui/screens/AnalogVuMeter.kt
 package com.musicdownloader.converter.presentation.ui.screens
 
 import androidx.compose.animation.core.*
@@ -18,11 +21,10 @@ fun AnalogVuMeter(
     isPlaying: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // Animación de oscilación para la aguja izquierda
     val infiniteTransitionLeft = rememberInfiniteTransition(label = "vuLeft")
     val needleOscillationLeft by infiniteTransitionLeft.animateFloat(
-        initialValue = -35f,
-        targetValue = 15f,
+        initialValue = -30f,
+        targetValue = 12f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 280, easing = LinearOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -30,11 +32,10 @@ fun AnalogVuMeter(
         label = "oscLeft"
     )
 
-    // Animación de oscilación ligeramente desfasada para la aguja derecha (efecto estéreo real)
     val infiniteTransitionRight = rememberInfiniteTransition(label = "vuRight")
     val needleOscillationRight by infiniteTransitionRight.animateFloat(
-        initialValue = -30f,
-        targetValue = 25f,
+        initialValue = -25f,
+        targetValue = 18f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 340, easing = LinearOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -42,9 +43,8 @@ fun AnalogVuMeter(
         label = "oscRight"
     )
 
-    // Si está pausado, las agujas bajan al reposo (-45 grados)
-    val targetLeft = if (isPlaying) needleOscillationLeft else -45f
-    val targetRight = if (isPlaying) needleOscillationRight else -45f
+    val targetLeft = if (isPlaying) needleOscillationLeft else -40f
+    val targetRight = if (isPlaying) needleOscillationRight else -40f
 
     val animatedLeft by animateFloatAsState(
         targetValue = targetLeft,
@@ -62,45 +62,40 @@ fun AnalogVuMeter(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Vúmetro Canal Izquierdo (L)
-        SingleVuMeter(label = "CH-L", angle = animatedLeft)
-        // Vúmetro Canal Derecho (R)
-        SingleVuMeter(label = "CH-R", angle = animatedRight)
+        SingleVuMeter(angle = animatedLeft)
+        SingleVuMeter(angle = animatedRight)
     }
 }
 
 @Composable
-fun SingleVuMeter(label: String, angle: Float) {
-    val chassisColor = androidx.compose.ui.graphics.Color(0xFFF4EEDC) // Color crema retro
+fun SingleVuMeter(angle: Float) {
+    val chassisColor = androidx.compose.ui.graphics.Color(0xFFF4EEDC) // Crema retro
     val bezelColor = androidx.compose.ui.graphics.Color(0xFF333333)
-    val needleColor = androidx.compose.ui.graphics.Color(0xFFD32F2F)   // Punta roja clásica
+    val needleColor = androidx.compose.ui.graphics.Color(0xFFD32F2F)   // Rojo clásico
 
-    Canvas(modifier = Modifier.size(130.dp, 55.dp)) {
+    // Tamaño compacto optimizado (85x34 dp)
+    Canvas(modifier = Modifier.size(85.dp, 34.dp)) {
         val width = size.width
         val height = size.height
 
-        // Fondo del medidor (Panel analógico)
         drawRoundRect(
             color = chassisColor,
-            cornerRadius = CornerRadius(6.dp.toPx())
+            cornerRadius = CornerRadius(3.dp.toPx())
         )
-        // Marco exterior oscuro
         drawRoundRect(
             color = bezelColor,
-            style = Stroke(width = 2.dp.toPx()),
-            cornerRadius = CornerRadius(6.dp.toPx())
+            style = Stroke(width = 1.2.dp.toPx()),
+            cornerRadius = CornerRadius(3.dp.toPx())
         )
 
-        // Líneas de escala simuladas en el fondo
         val pivotX = width / 2f
-        val pivotY = height + 40f
-        val radius = height * 1.8f
+        val pivotY = height + 18f
+        val radius = height * 1.5f
 
-        // Dibujar marcas de la escala VU
         for (i in -30..30 step 15) {
             val rad = Math.toRadians(i.toDouble())
-            val startX = pivotX + ((radius - 8.dp.toPx()) * sin(rad)).toFloat()
-            val startY = pivotY - ((radius - 8.dp.toPx()) * cos(rad)).toFloat()
+            val startX = pivotX + ((radius - 4.dp.toPx()) * sin(rad)).toFloat()
+            val startY = pivotY - ((radius - 4.dp.toPx()) * cos(rad)).toFloat()
             val endX = pivotX + (radius * sin(rad)).toFloat()
             val endY = pivotY - (radius * cos(rad)).toFloat()
 
@@ -108,24 +103,22 @@ fun SingleVuMeter(label: String, angle: Float) {
                 color = androidx.compose.ui.graphics.Color.DarkGray,
                 start = Offset(startX, startY),
                 end = Offset(endX, endY),
-                strokeWidth = 1.dp.toPx()
+                strokeWidth = 0.6.dp.toPx()
             )
         }
 
-        // Zona roja de saturación a la derecha
         val redZoneRad = Math.toRadians(20.toDouble())
-        val rStartX = pivotX + ((radius - 6.dp.toPx()) * sin(redZoneRad)).toFloat()
-        val rStartY = pivotY - ((radius - 6.dp.toPx()) * cos(redZoneRad)).toFloat()
+        val rStartX = pivotX + ((radius - 3.dp.toPx()) * sin(redZoneRad)).toFloat()
+        val rStartY = pivotY - ((radius - 3.dp.toPx()) * cos(redZoneRad)).toFloat()
         val rEndX = pivotX + (radius * sin(redZoneRad)).toFloat()
         val rEndY = pivotY - (radius * cos(redZoneRad)).toFloat()
         drawLine(
             color = androidx.compose.ui.graphics.Color.Red,
             start = Offset(rStartX, rStartY),
             end = Offset(rEndX, rEndY),
-            strokeWidth = 1.5.dp.toPx()
+            strokeWidth = 1.0.dp.toPx()
         )
 
-        // Dibujar la Aguja Dinámica
         val angleRad = Math.toRadians(angle.toDouble())
         val tipX = pivotX + (radius * sin(angleRad)).toFloat()
         val tipY = pivotY - (radius * cos(angleRad)).toFloat()
@@ -134,14 +127,14 @@ fun SingleVuMeter(label: String, angle: Float) {
             color = needleColor,
             start = Offset(pivotX, pivotY),
             end = Offset(tipX, tipY),
-            strokeWidth = 1.5.dp.toPx()
+            strokeWidth = 1.0.dp.toPx()
         )
 
-        // Eje central de la aguja (Tornillo pivote negro)
         drawCircle(
             color = androidx.compose.ui.graphics.Color.Black,
-            radius = 4.dp.toPx(),
+            radius = 2.5.dp.toPx(),
             center = Offset(pivotX, pivotY)
         )
     }
 }
+EOF
