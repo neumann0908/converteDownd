@@ -30,6 +30,7 @@ class AudioPlayerManager @Inject constructor(
     private var scratchPlayer: ExoPlayer? = null // Reproductor exclusivo para el sonido de scratch
     private val scope = CoroutineScope(Dispatchers.Main)
     private var progressJob: Job? = null
+    private var fadeJob: Job? = null // Control de corrutinas para Fade In / Fade Out
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying
@@ -132,9 +133,41 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
+    // --- EFECTOS DE AUDIO: FADE IN / FADE OUT ---
+
+    private fun fadeIn(durationMs: Long = 400L) {
+        fadeJob?.cancel()
+        fadeJob = scope.launch {
+            exoPlayer?.volume = 0f
+            val steps = 8
+            val stepDelay = durationMs / steps
+            for (i in 1..steps) {
+                delay(stepDelay)
+                exoPlayer?.volume = i.toFloat() / steps
+            }
+            exoPlayer?.volume = 1f
+        }
+    }
+
+    private fun fadeOut(durationMs: Long = 300L, onFinished: () -> Unit) {
+        fadeJob?.cancel()
+        fadeJob = scope.launch {
+            val currentVol = exoPlayer?.volume ?: 1f
+            val steps = 6
+            val stepDelay = durationMs / steps
+            for (i in steps downTo 1) {
+                delay(stepDelay)
+                exoPlayer?.volume = currentVol * (i.toFloat() / steps)
+            }
+            exoPlayer?.volume = 0f
+            onFinished()
+            exoPlayer?.volume = 1f // Restauramos volumen para el siguiente arranque
+        }
+    }
+
     // --- SUPERPODERES DE DJ CON PITCH/SPEED MODULATION ---
     
-    // 1. Al tocar el disco: Activamos el estado visual y disparamos el rasguño
+    // 1. Al tocar el disco: Activamos estado visual y disparamos el rasguño
     fun startScratch() {
         _isScratching.value = true
         playScratchSound()
@@ -249,6 +282,7 @@ class AudioPlayerManager @Inject constructor(
                         player.setMediaItems(mediaItems, 0, 0L)
                         player.prepare()
                         player.play()
+                        fadeIn() // Entrada suave al iniciar lista
                         _currentTrackTitle.value = audioFiles.first().name
                         extractAlbumArt(audioFiles.first().absolutePath)
                     }
@@ -267,6 +301,7 @@ class AudioPlayerManager @Inject constructor(
             player.setMediaItem(mediaItem)
             player.prepare()
             player.play()
+            fadeIn() // Entrada suave al reproducir archivo específico
             _currentTrackTitle.value = title
             _duration.value = player.duration.coerceAtLeast(0L)
             extractAlbumArt(path)
@@ -275,20 +310,28 @@ class AudioPlayerManager @Inject constructor(
 
     fun togglePlayPause() {
         exoPlayer?.let { player ->
-            if (player.isPlaying) player.pause()
-            else {
-                if (player.mediaItemCount > 0) player.play()
-                else loadAndPlayPlaylist()
+            if (player.isPlaying) {
+                // Salida gradual antes de pausar para evitar cortes secos
+                fadeOut {
+                    player.pause()
+                }
+            } else {
+                if (player.mediaItemCount > 0) {
+                    player.play()
+                    fadeIn() // Entrada gradual al reanudar
+                } else {
+                    loadAndPlayPlaylist()
+                }
             }
         }
     }
 
     fun skipToNext() {
-        exoPlayer?.let { if (it.hasNextMediaItem()) { it.seekToNextMediaItem(); it.play() } }
+        exoPlayer?.let { if (it.hasNextMediaItem()) { it.seekToNextMediaItem(); it.play(); fadeIn() } }
     }
 
     fun skipToPrevious() {
-        exoPlayer?.let { if (it.hasPreviousMediaItem()) { it.seekToPreviousMediaItem(); it.play() } }
+        exoPlayer?.let { if (it.hasPreviousMediaItem()) { it.seekToPreviousMediaItem(); it.play(); fadeIn() } }
     }
 
     fun toggleShuffle() {
