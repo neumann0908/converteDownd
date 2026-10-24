@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,14 +42,18 @@ fun PlayerScreen(
     val currentPosition by playerManager.currentPosition.collectAsState()
     val duration by playerManager.duration.collectAsState()
     val sleepTimerRemaining by playerManager.sleepTimerRemaining.collectAsState()
-    val playbackSpeed by playerManager.playbackSpeed.collectAsState() // <--- Estado de la velocidad actual
+    val playbackSpeed by playerManager.playbackSpeed.collectAsState()
+    
+    // Estados de los efectos de audio avanzados
+    val isBassBoostEnabled by playerManager.isBassBoostEnabled.collectAsState()
+    val isReverbEnabled by playerManager.isReverbEnabled.collectAsState()
     
     val isShuffleEnabled by viewModel.isShuffleEnabled.collectAsState()
     val repeatMode by viewModel.repeatMode.collectAsState()
     val currentArtwork by viewModel.currentArtwork.collectAsState()
 
     var showTimerDialog by remember { mutableStateOf(false) }
-    var showSpeedDialog by remember { mutableStateOf(false) } // <--- Control para mostrar el diálogo de velocidad
+    var showSpeedDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -56,7 +62,7 @@ fun PlayerScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Caja mágica del vinilo con gestos de DJ, modulación de pitch y brazo integrado
+        // Caja mágica del vinilo Picture Disc con gestos de DJ y brazo integrado
         Box(
             modifier = Modifier
                 .size(220.dp)
@@ -152,7 +158,7 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Fila de controles secundarios (Shuffle, Velocidad, Sleep Timer, Repeat)
+        // Fila de controles secundarios (Shuffle, Velocidad, Bass Boost, Reverb, Sleep Timer, Repeat)
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
@@ -172,6 +178,24 @@ fun PlayerScreen(
                     imageVector = Icons.Default.Speed,
                     contentDescription = "Velocidad de reproducción",
                     tint = if (playbackSpeed != 1.0f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+
+            // Botón de Bass Boost (Refuerzo de graves)
+            IconButton(onClick = { playerManager.toggleBassBoost() }) {
+                Icon(
+                    imageVector = Icons.Default.GraphicEq,
+                    contentDescription = "Refuerzo de graves (Bass Boost)",
+                    tint = if (isBassBoostEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+
+            // Botón de Reverb (Acústica ambiental)
+            IconButton(onClick = { playerManager.toggleReverb() }) {
+                Icon(
+                    imageVector = Icons.Default.SurroundSound,
+                    contentDescription = "Efecto Reverb / Acústica",
+                    tint = if (isReverbEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
 
