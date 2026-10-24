@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,13 +39,15 @@ fun PlayerScreen(
     val currentTitle by playerManager.currentTrackTitle.collectAsState()
     val currentPosition by playerManager.currentPosition.collectAsState()
     val duration by playerManager.duration.collectAsState()
-    val sleepTimerRemaining by playerManager.sleepTimerRemaining.collectAsState() // <--- Estado del Temporizador
+    val sleepTimerRemaining by playerManager.sleepTimerRemaining.collectAsState()
+    val playbackSpeed by playerManager.playbackSpeed.collectAsState() // <--- Estado de la velocidad actual
     
     val isShuffleEnabled by viewModel.isShuffleEnabled.collectAsState()
     val repeatMode by viewModel.repeatMode.collectAsState()
     val currentArtwork by viewModel.currentArtwork.collectAsState()
 
-    var showTimerDialog by remember { mutableStateOf(false) } // <--- Control del diálogo del Temporizador
+    var showTimerDialog by remember { mutableStateOf(false) }
+    var showSpeedDialog by remember { mutableStateOf(false) } // <--- Control para mostrar el diálogo de velocidad
 
     Column(
         modifier = Modifier
@@ -149,6 +152,7 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Fila de controles secundarios (Shuffle, Velocidad, Sleep Timer, Repeat)
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
@@ -159,6 +163,15 @@ fun PlayerScreen(
                     imageVector = Icons.Default.Shuffle,
                     contentDescription = "Modo aleatorio",
                     tint = if (isShuffleEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+
+            // Botón de Velocidad de Reproducción
+            IconButton(onClick = { showSpeedDialog = true }) {
+                Icon(
+                    imageVector = Icons.Default.Speed,
+                    contentDescription = "Velocidad de reproducción",
+                    tint = if (playbackSpeed != 1.0f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
 
@@ -225,37 +238,15 @@ fun PlayerScreen(
             title = { Text("Temporizador de Apagado") },
             text = {
                 Column {
-                    TextButton(
-                        onClick = {
-                            playerManager.startSleepTimer(15)
-                            showTimerDialog = false
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("15 minutos") }
-
-                    TextButton(
-                        onClick = {
-                            playerManager.startSleepTimer(30)
-                            showTimerDialog = false
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("30 minutos") }
-
-                    TextButton(
-                        onClick = {
-                            playerManager.startSleepTimer(45)
-                            showTimerDialog = false
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("45 minutos") }
-
-                    TextButton(
-                        onClick = {
-                            playerManager.startSleepTimer(60)
-                            showTimerDialog = false
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("60 minutos") }
+                    listOf(15L, 30L, 45L, 60L).forEach { mins ->
+                        TextButton(
+                            onClick = {
+                                playerManager.startSleepTimer(mins)
+                                showTimerDialog = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("$mins minutos") }
+                    }
 
                     if (sleepTimerRemaining != null) {
                         TextButton(
@@ -270,6 +261,40 @@ fun PlayerScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showTimerDialog = false }) {
+                    Text("Cerrar")
+                }
+            }
+        )
+    }
+
+    // Ventana emergente (Diálogo) para configurar la Velocidad de Reproducción
+    if (showSpeedDialog) {
+        AlertDialog(
+            onDismissRequest = { showSpeedDialog = false },
+            title = { Text("Velocidad de Reproducción") },
+            text = {
+                Column {
+                    val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
+                    speeds.forEach { speed ->
+                        TextButton(
+                            onClick = {
+                                playerManager.setPlaybackSpeed(speed)
+                                showSpeedDialog = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val label = if (speed == 1.0f) "Normal (1.0x)" else "${speed}x"
+                            Text(
+                                text = label,
+                                fontWeight = if (playbackSpeed == speed) FontWeight.Bold else FontWeight.Normal,
+                                color = if (playbackSpeed == speed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSpeedDialog = false }) {
                     Text("Cerrar")
                 }
             }
