@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.sin
 
 @Composable
@@ -39,7 +40,7 @@ fun VinylRecord(
     artwork: Bitmap?,
     isPlaying: Boolean,
     isScratching: Boolean = false,
-    size: Dp = 220.dp
+    size: Dp = 240.dp
 ) {
     val resolvedPrimaryColor = MaterialTheme.colorScheme.primary
 
@@ -70,57 +71,91 @@ fun VinylRecord(
         label = "ScratchAlpha"
     )
 
-    // Contenedor principal que simula la tornamesa Technics Gold Edition
+    // Contenedor principal con sombra y relieve elevado
     Box(
         modifier = Modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
-        // 1. CHASIS DE LA TORNAMESA (Estilo Technics SL-1200 Gold Edition)
+        // 1. CHASIS PRO (Degradado metálico dorado y textura industrial de puntos perforados)
         Card(
             modifier = Modifier.fillMaxSize(),
-            shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFD5AB28)) // Dorado Pro
+            shape = RoundedCornerShape(20.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 14.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
         ) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFFE8C547), // Dorado luz superior
+                                Color(0xFFD5AB28), // Dorado base Technics Pro
+                                Color(0xFF9E7C13)  // Sombra metálica inferior
+                            )
+                        )
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                // Canvas para el plato de aluminio, puntos estroboscópicos y luz LED roja
+                // Canvas para el patrón texturizado pegboard, plato de aluminio, estroboscopio y LEDs de estado
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val canvasWidth = size.toPx()
                     val canvasHeight = size.toPx()
                     val center = Offset(canvasWidth / 2f, canvasHeight / 2f)
-                    val platterRadius = canvasWidth * 0.44f
+                    val platterRadius = canvasWidth * 0.43f
 
-                    // Borde exterior del plato de aluminio
+                    // Textura de puntos sutiles (Estilo panel perforado industrial)
+                    val step = 24f
+                    var y = 16f
+                    while (y < canvasHeight) {
+                        var x = 16f
+                        while (x < canvasWidth) {
+                            val distToCenter = hypot(x - center.x, y - center.y)
+                            if (distToCenter > platterRadius + 16f) {
+                                drawCircle(
+                                    color = Color.Black.copy(alpha = 0.18f),
+                                    radius = 2.1f,
+                                    center = Offset(x, y)
+                                )
+                            }
+                            x += step
+                        }
+                        y += step
+                    }
+
+                    // Borde exterior del plato de aluminio con relieve metálico
                     drawCircle(
-                        color = Color(0xFFCCCCCC),
+                        color = Color(0xFFE0E0E0),
+                        radius = platterRadius + 2f,
+                        center = center
+                    )
+                    drawCircle(
+                        color = Color(0xFFB0B0B0),
                         radius = platterRadius,
                         center = center
                     )
                     drawCircle(
-                        color = Color(0xFF4A4A4A),
+                        color = Color(0xFF333333),
                         radius = platterRadius,
                         center = center,
-                        style = Stroke(width = 3f)
+                        style = Stroke(width = 3.5f)
                     )
 
-                    // Anillo de puntos estroboscópicos (Estilo Technics)
-                    val strobeRadius = platterRadius - 8f
-                    val dotCount = 48
+                    // Anillo de puntos estroboscópicos
+                    val strobeRadius = platterRadius - 7f
+                    val dotCount = 52
                     for (i in 0 until dotCount) {
                         val angle = (i * 360f / dotCount) * (Math.PI / 180f)
                         val x = center.x + (strobeRadius * cos(angle)).toFloat()
-                        val y = center.y + (strobeRadius * sin(angle)).toFloat()
+                        val yPos = center.y + (strobeRadius * sin(angle)).toFloat()
                         drawCircle(
                             color = Color.Black,
-                            radius = 2f,
-                            center = Offset(x, y)
+                            radius = 1.8f,
+                            center = Offset(x, yPos)
                         )
                     }
 
-                    // Luz estroboscópica roja clásica en la esquina inferior izquierda del plato
+                    // Luz estroboscópica roja inferior izquierda
                     drawCircle(
                         color = Color(0xFFFF3333),
                         radius = 4f,
@@ -131,12 +166,38 @@ fun VinylRecord(
                         radius = 2f,
                         center = Offset(center.x - platterRadius * 0.72f, center.y + platterRadius * 0.72f)
                     )
+
+                    // 💡 BOMBILLAS / LEDS DE ESTADO (Verde = Reproduciendo, Rojo = Pausa)
+                    val ledX = center.x + platterRadius * 0.75f
+                    val ledY = center.y - platterRadius * 0.75f
+
+                    // Base oscura del LED
+                    drawCircle(
+                        color = Color.DarkGray,
+                        radius = 6f,
+                        center = Offset(ledX, ledY)
+                    )
+
+                    // Color de emisión inteligente según estado
+                    val ledColor = if (isPlaying) Color(0xFF00E676) else Color(0xFFFF1744)
+                    drawCircle(
+                        color = ledColor,
+                        radius = 3.8f,
+                        center = Offset(ledX, ledY)
+                    )
+                    // Halo de brillo exterior del LED
+                    drawCircle(
+                        color = ledColor.copy(alpha = 0.45f),
+                        radius = 7.5f,
+                        center = Offset(ledX, ledY),
+                        style = Stroke(width = 1.5f)
+                    )
                 }
             }
         }
 
         // 2. DISCO DE VINILO GIRATORIO (Con Picture Disc, surcos y spindle)
-        val vinylSize = size * 0.82f
+        val vinylSize = size * 0.78f
         Box(
             modifier = Modifier.size(vinylSize),
             contentAlignment = Alignment.Center
@@ -146,14 +207,14 @@ fun VinylRecord(
                     .size(vinylSize)
                     .rotate(rotationState.value),
                 shape = CircleShape,
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF111111))
             ) {
                 Box(
                     modifier = Modifier.size(vinylSize),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Imagen de extremo a extremo (Picture Disc / Artwork)
+                    // Imagen de extremo a extremo (Picture Disc dinámico / Artwork)
                     if (artwork != null) {
                         Image(
                             bitmap = artwork.asImageBitmap(),
@@ -180,7 +241,7 @@ fun VinylRecord(
                         }
                     }
 
-                    // Surcos, brillo y borde 3D
+                    // Surcos hiperrealistas, brillo y borde 3D
                     Canvas(modifier = Modifier.size(vinylSize)) {
                         val vSize = vinylSize.toPx()
                         val center = Offset(vSize / 2f, vSize / 2f)
@@ -189,7 +250,7 @@ fun VinylRecord(
                         for (i in 4..12) {
                             val radius = maxRadius * (i / 12f)
                             drawCircle(
-                                color = Color.Black.copy(alpha = 0.15f),
+                                color = Color.Black.copy(alpha = 0.18f),
                                 radius = radius,
                                 center = center,
                                 style = Stroke(width = 1f)
@@ -198,7 +259,7 @@ fun VinylRecord(
 
                         drawCircle(
                             brush = Brush.radialGradient(
-                                colors = listOf(Color.White.copy(alpha = 0.1f), Color.Transparent),
+                                colors = listOf(Color.White.copy(alpha = 0.12f), Color.Transparent),
                                 center = center,
                                 radius = maxRadius
                             ),
@@ -210,14 +271,14 @@ fun VinylRecord(
                             brush = Brush.radialGradient(
                                 colors = listOf(
                                     Color.Transparent,
-                                    Color.Black.copy(alpha = 0.85f)
+                                    Color.Black.copy(alpha = 0.9f)
                                 ),
                                 center = center,
                                 radius = maxRadius
                             ),
                             radius = maxRadius - 2f,
                             center = center,
-                            style = Stroke(width = 10f)
+                            style = Stroke(width = 12f)
                         )
 
                         if (isScratching) {
@@ -239,9 +300,9 @@ fun VinylRecord(
                     // Eje central clásico (Perno metálico)
                     Box(
                         modifier = Modifier
-                            .size(30.dp)
+                            .size(28.dp)
                             .clip(CircleShape)
-                            .background(Color.DarkGray.copy(alpha = 0.85f))
+                            .background(Color.DarkGray.copy(alpha = 0.9f))
                             .border(1.5.dp, Color.LightGray.copy(alpha = 0.8f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
