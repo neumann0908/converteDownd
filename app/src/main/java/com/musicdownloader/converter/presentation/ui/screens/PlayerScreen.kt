@@ -106,7 +106,12 @@ fun PlayerScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // --- VÚMETRO ANALÓGICO ESTÉREO EN VIVO ---
+        AnalogVuMeter(isPlaying = isPlaying)
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
             text = currentTitle ?: "Ninguna canción seleccionada",
@@ -203,7 +208,7 @@ fun PlayerScreen(
                 )
             }
 
-            // Botón de Reverb (Acústica ambiental) - Corregido a Speaker
+            // Botón de Reverb (Acústica ambiental)
             IconButton(onClick = { playerManager.toggleReverb() }) {
                 Icon(
                     imageVector = Icons.Default.Speaker,
