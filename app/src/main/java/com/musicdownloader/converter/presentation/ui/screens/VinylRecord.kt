@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.Card
@@ -30,6 +31,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun VinylRecord(
@@ -67,124 +70,188 @@ fun VinylRecord(
         label = "ScratchAlpha"
     )
 
+    // Contenedor principal que simula la tornamesa Technics Gold Edition
     Box(
         modifier = Modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
-        // Cuerpo principal del vinilo con rotación aplicada
+        // 1. CHASIS DE LA TORNAMESA (Estilo Technics SL-1200 Gold Edition)
         Card(
-            modifier = Modifier
-                .size(size)
-                .rotate(rotationState.value),
-            shape = CircleShape,
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF111111))
+            modifier = Modifier.fillMaxSize(),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFD5AB28)) // Dorado Pro
         ) {
             Box(
-                modifier = Modifier.size(size),
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                // 1. IMAGEN DE EXTREMO A EXTREMO (Picture Disc full cover dinámico)
-                if (artwork != null) {
-                    Image(
-                        bitmap = artwork.asImageBitmap(),
-                        contentDescription = "Picture Disc Artwork",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.DarkGray)
-                            .clip(CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.5f),
-                            modifier = Modifier.size(48.dp)
-                        )
-                    }
-                }
+                // Canvas para el plato de aluminio, puntos estroboscópicos y luz LED roja
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val canvasWidth = size.toPx()
+                    val canvasHeight = size.toPx()
+                    val center = Offset(canvasWidth / 2f, canvasHeight / 2f)
+                    val platterRadius = canvasWidth * 0.44f
 
-                // 2. Canvas para surcos, brillo y el borde degradado mate 3D
-                Canvas(modifier = Modifier.size(size)) {
-                    val center = Offset(size.toPx() / 2f, size.toPx() / 2f)
-                    val maxRadius = size.toPx() / 2f
-
-                    // Surcos translúcidos del vinilo superpuestos
-                    for (i in 5..15) {
-                        val radius = maxRadius * (i / 15f)
-                        drawCircle(
-                            color = Color.Black.copy(alpha = 0.15f),
-                            radius = radius,
-                            center = center,
-                            style = Stroke(width = 1f)
-                        )
-                    }
-                    
-                    // Efecto de brillo reflejado
+                    // Borde exterior del plato de aluminio
                     drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color.White.copy(alpha = 0.1f), Color.Transparent),
-                            center = center,
-                            radius = maxRadius
-                        ),
-                        radius = maxRadius,
+                        color = Color(0xFFCCCCCC),
+                        radius = platterRadius,
                         center = center
                     )
-
-                    // Borde fino negro mate con degradado radial (Efecto Picture Disc 3D)
                     drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.85f)
-                            ),
-                            center = center,
-                            radius = maxRadius
-                        ),
-                        radius = maxRadius - 3f,
+                        color = Color(0xFF4A4A4A),
+                        radius = platterRadius,
                         center = center,
-                        style = Stroke(width = 12f)
+                        style = Stroke(width = 3f)
                     )
 
-                    // ⚡ EFECTO VISUAL DE SCRATCH
-                    if (isScratching) {
+                    // Anillo de puntos estroboscópicos (Estilo Technics)
+                    val strobeRadius = platterRadius - 8f
+                    val dotCount = 48
+                    for (i in 0 until dotCount) {
+                        val angle = (i * 360f / dotCount) * (Math.PI / 180f)
+                        val x = center.x + (strobeRadius * cos(angle)).toFloat()
+                        val y = center.y + (strobeRadius * sin(angle)).toFloat()
                         drawCircle(
-                            color = Color.White.copy(alpha = scratchAlpha),
-                            radius = maxRadius * 0.72f,
-                            center = center,
-                            style = Stroke(width = 6f)
-                        )
-                        drawCircle(
-                            color = resolvedPrimaryColor.copy(alpha = scratchAlpha),
-                            radius = maxRadius * 0.48f,
-                            center = center,
-                            style = Stroke(width = 4f)
+                            color = Color.Black,
+                            radius = 2f,
+                            center = Offset(x, y)
                         )
                     }
-                }
 
-                // 3. Eje central clásico del disco (Perno metálico central)
+                    // Luz estroboscópica roja clásica en la esquina inferior izquierda del plato
+                    drawCircle(
+                        color = Color(0xFFFF3333),
+                        radius = 4f,
+                        center = Offset(center.x - platterRadius * 0.72f, center.y + platterRadius * 0.72f)
+                    )
+                    drawCircle(
+                        color = Color(0xFFFF9999),
+                        radius = 2f,
+                        center = Offset(center.x - platterRadius * 0.72f, center.y + platterRadius * 0.72f)
+                    )
+                }
+            }
+        }
+
+        // 2. DISCO DE VINILO GIRATORIO (Con Picture Disc, surcos y spindle)
+        val vinylSize = size * 0.82f
+        Box(
+            modifier = Modifier.size(vinylSize),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier
+                    .size(vinylSize)
+                    .rotate(rotationState.value),
+                shape = CircleShape,
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF111111))
+            ) {
                 Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color.DarkGray.copy(alpha = 0.85f))
-                        .border(1.5.dp, Color.LightGray.copy(alpha = 0.8f), CircleShape), // <--- Corregido a 1.5.dp
+                    modifier = Modifier.size(vinylSize),
                     contentAlignment = Alignment.Center
                 ) {
+                    // Imagen de extremo a extremo (Picture Disc / Artwork)
+                    if (artwork != null) {
+                        Image(
+                            bitmap = artwork.asImageBitmap(),
+                            contentDescription = "Picture Disc Artwork",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.DarkGray)
+                                .clip(CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.5f),
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
+                    }
+
+                    // Surcos, brillo y borde 3D
+                    Canvas(modifier = Modifier.size(vinylSize)) {
+                        val vSize = vinylSize.toPx()
+                        val center = Offset(vSize / 2f, vSize / 2f)
+                        val maxRadius = vSize / 2f
+
+                        for (i in 4..12) {
+                            val radius = maxRadius * (i / 12f)
+                            drawCircle(
+                                color = Color.Black.copy(alpha = 0.15f),
+                                radius = radius,
+                                center = center,
+                                style = Stroke(width = 1f)
+                            )
+                        }
+
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color.White.copy(alpha = 0.1f), Color.Transparent),
+                                center = center,
+                                radius = maxRadius
+                            ),
+                            radius = maxRadius,
+                            center = center
+                        )
+
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.85f)
+                                ),
+                                center = center,
+                                radius = maxRadius
+                            ),
+                            radius = maxRadius - 2f,
+                            center = center,
+                            style = Stroke(width = 10f)
+                        )
+
+                        if (isScratching) {
+                            drawCircle(
+                                color = Color.White.copy(alpha = scratchAlpha),
+                                radius = maxRadius * 0.72f,
+                                center = center,
+                                style = Stroke(width = 6f)
+                            )
+                            drawCircle(
+                                color = resolvedPrimaryColor.copy(alpha = scratchAlpha),
+                                radius = maxRadius * 0.48f,
+                                center = center,
+                                style = Stroke(width = 4f)
+                            )
+                        }
+                    }
+
+                    // Eje central clásico (Perno metálico)
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
+                            .size(30.dp)
                             .clip(CircleShape)
-                            .background(Color.Black)
-                    )
+                            .background(Color.DarkGray.copy(alpha = 0.85f))
+                            .border(1.5.dp, Color.LightGray.copy(alpha = 0.8f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black)
+                        )
+                    }
                 }
             }
         }
