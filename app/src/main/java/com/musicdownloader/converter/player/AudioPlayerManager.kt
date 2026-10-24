@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -131,30 +132,37 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // --- SUPERPODERES DE DJ ---
+    // --- SUPERPODERES DE DJ CON PITCH/SPEED MODULATION ---
     
-    // 1. Al tocar el disco: Activamos el estado visual, pausamos la música y disparamos el rasguño
+    // 1. Al tocar el disco: Activamos el estado visual y disparamos el rasguño
     fun startScratch() {
         _isScratching.value = true
-        exoPlayer?.pause()
         playScratchSound()
     }
 
-    // 2. Al mover el dedo: Movemos la canción al vuelo
-    fun scratchTo(positionMs: Long) {
+    // 2. Al mover el dedo: Movemos la canción al vuelo y modulamos velocidad/pitch dinámicamente
+    fun scratchTo(positionMs: Long, dragDeltaX: Float) {
         exoPlayer?.let { player ->
             val targetPos = positionMs.coerceIn(0L, player.duration.coerceAtLeast(0L))
             player.seekTo(targetPos)
             _currentPosition.value = targetPos
+
+            // Calculamos la velocidad en función del movimiento horizontal del dedo
+            val speed = (1.0f + (dragDeltaX / 15f)).coerceIn(0.1f, 2.5f)
+            player.playbackParameters = PlaybackParameters(speed)
         }
     }
 
-    // 3. Al soltar el dedo: Desactivamos el estado visual, detenemos el scratch al instante y reanudamos la música
+    // 3. Al soltar el dedo: Desactivamos el estado visual, restauramos velocidad normal y reanudamos la música
     fun endScratch() {
         _isScratching.value = false
         scratchPlayer?.pause()
         scratchPlayer?.seekTo(0L)
-        exoPlayer?.play()
+        
+        exoPlayer?.let { player ->
+            player.playbackParameters = PlaybackParameters(1.0f)
+            player.play()
+        }
     }
 
     // ---------------------------
