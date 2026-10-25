@@ -11,14 +11,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.musicdownloader.converter.viewmodel.DjViewModel
+import com.musicdownloader.converter.presentation.viewmodel.DjViewModel
 
 @Composable
 fun DjTurntablesScreen(viewModel: DjViewModel) {
     val isPlayingA by viewModel.isPlayingDeckA.collectAsState()
     val isPlayingB by viewModel.isPlayingDeckB.collectAsState()
 
-    // Animación de rotación para el Plato A
     val infiniteTransitionA = rememberInfiniteTransition(label = "deckA")
     val angleA by infiniteTransitionA.animateFloat(
         initialValue = 0f,
@@ -44,7 +43,6 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            // Plato A
             TurntableDeck(
                 title = "Deck A",
                 isPlaying = isPlayingA,
@@ -52,11 +50,10 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                 onTogglePlay = { viewModel.toggleDeckA() }
             )
 
-            // Plato B
             TurntableDeck(
                 title = "Deck B",
                 isPlaying = isPlayingB,
-                rotationAngle = if (isPlayingB) angleA else 0f, // Puedes desacoplarlo si gustas
+                rotationAngle = if (isPlayingB) angleA else 0f,
                 onTogglePlay = { viewModel.toggleDeckB() }
             )
         }
@@ -78,7 +75,6 @@ fun TurntableDeck(
             modifier = Modifier.size(150.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Vinilo visual básico simulado con Canvas
             Canvas(modifier = Modifier.fillMaxSize().rotate(rotationAngle)) {
                 drawCircle(color = Color.Black)
                 drawCircle(color = Color.DarkGray, radius = size.minDimension / 3)
