@@ -94,7 +94,8 @@ fun PlaylistsScreen(
                 // 🎡 CARRUSEL 3D ESTILO PINTEREST (Cover Flow con tarjetas verticales estilizadas)
                 HorizontalPager(
                     state = pagerState,
-                    contentPadding = PaddingValues(horizontal = 56.dp),
+                    // Corregido para usar PaddingValues compatible con todas las versiones
+                    contentPadding = PaddingValues(start = 56.dp, end = 56.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
