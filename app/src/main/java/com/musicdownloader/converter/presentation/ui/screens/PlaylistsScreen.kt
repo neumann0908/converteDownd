@@ -1,5 +1,6 @@
 package com.musicdownloader.converter.presentation.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -22,7 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.musicdownloader.converter.presentation.viewmodel.PlaylistsViewModel
 import kotlin.math.absoluteValue
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun PlaylistsScreen(
     viewModel: PlaylistsViewModel = hiltViewModel()
@@ -98,7 +99,7 @@ fun PlaylistsScreen(
                         .fillMaxWidth()
                         .weight(1f)
                 ) { page ->
-                    val playlist = playlists[page]
+                    val playlist = playlists.getOrNull(page) ?: return@HorizontalPager
                     val songs by viewModel.getSongsForPlaylist(playlist.id).collectAsState(initial = emptyList())
 
                     // Cálculo matemático preciso para el efecto de escala y profundidad 3D
