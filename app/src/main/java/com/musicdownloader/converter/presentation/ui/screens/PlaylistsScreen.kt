@@ -91,14 +91,13 @@ fun PlaylistsScreen(
                     }
                 }
             } else {
-                // 🎡 CARRUSEL 3D ESTILO PINTEREST (Cover Flow con tarjetas verticales estilizadas)
+                // 🎡 CARRUSEL 3D ESTILO PINTEREST (Sin PaddingValues, usando ancho fijo de tarjeta)
                 HorizontalPager(
                     state = pagerState,
-                    // Constructor posicional (horizontal, vertical) libre de errores de nombres
-                    contentPadding = PaddingValues(56.dp, 0.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
+                        .weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) { page ->
                     val playlist = playlists.getOrNull(page) ?: return@HorizontalPager
                     val songs by viewModel.getSongsForPlaylist(playlist.id).collectAsState(initial = emptyList())
