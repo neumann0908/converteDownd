@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 
-// ¡Aquí estaba el detalle: es "data class" con espacio, no con punto!
 data class Track(val name: String, val path: String)
 
 class DjViewModel(application: Application) : AndroidViewModel(application) {
