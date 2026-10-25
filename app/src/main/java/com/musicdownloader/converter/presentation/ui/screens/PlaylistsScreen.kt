@@ -38,7 +38,7 @@ fun PlaylistsScreen(
 
     val pagerState = rememberPagerState(pageCount = { playlists.size })
 
-    // Fondo atmosférico Hi-Fi en armonía con la tornamesa
+    // Fondo atmosférico Hi-Fi en armonía con la tornamesa (Padding uniforme sin conflictos)
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -51,7 +51,7 @@ fun PlaylistsScreen(
                     )
                 )
             )
-            .padding(vertical = 16.dp)
+            .padding(16.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -65,7 +65,7 @@ fun PlaylistsScreen(
                 color = Color.White,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, bottom = 12.dp)
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
             )
 
             if (playlists.isEmpty()) {
@@ -91,191 +91,196 @@ fun PlaylistsScreen(
                     }
                 }
             } else {
-                // 🎡 CARRUSEL 3D ESTILO PINTEREST (Sin PaddingValues, usando ancho fijo de tarjeta)
+                // 🎡 CARRUSEL 3D ESTILO PINTEREST (Sin parámetros incompatibles)
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .weight(1f)
                 ) { page ->
-                    val playlist = playlists.getOrNull(page) ?: return@HorizontalPager
-                    val songs by viewModel.getSongsForPlaylist(playlist.id).collectAsState(initial = emptyList())
-
-                    // Cálculo matemático preciso para el efecto de escala y profundidad 3D
-                    val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue
-                    val scale = 1f - (pageOffset * 0.15f).coerceIn(0f, 0.2f)
-                    val alpha = 1f - (pageOffset * 0.35f).coerceIn(0f, 0.45f)
-
-                    Card(
-                        modifier = Modifier
-                            .width(280.dp)
-                            .fillMaxHeight(0.92f)
-                            .graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                                this.alpha = alpha
-                            },
-                        shape = RoundedCornerShape(24.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = if (pageOffset == 0f) 16.dp else 4.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFF352F44)
-                        )
+                    // Contenedor seguro para centrar cada tarjeta perfectamente
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
+                        val playlist = playlists.getOrNull(page) ?: return@Box
+                        val songs by viewModel.getSongsForPlaylist(playlist.id).collectAsState(initial = emptyList())
+
+                        // Cálculo matemático preciso para el efecto de escala y profundidad 3D
+                        val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue
+                        val scale = 1f - (pageOffset * 0.15f).coerceIn(0f, 0.2f)
+                        val alpha = 1f - (pageOffset * 0.35f).coerceIn(0f, 0.45f)
+
+                        Card(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color(0xFF433C56),
-                                            Color(0xFF2E273D)
+                                .width(280.dp)
+                                .fillMaxHeight(0.92f)
+                                .graphicsLayer {
+                                    scaleX = scale
+                                    scaleY = scale
+                                    this.alpha = alpha
+                                },
+                            shape = RoundedCornerShape(24.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = if (pageOffset == 0f) 16.dp else 4.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFF352F44)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color(0xFF433C56),
+                                                Color(0xFF2E273D)
+                                            )
                                         )
                                     )
-                                )
-                                .padding(18.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            // Cabecera con nombre de la lista y acciones rápidas
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                    .padding(18.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(
-                                    text = playlist.name,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
-                                    color = Color.White,
-                                    maxLines = 1,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(
-                                        onClick = {
-                                            targetPlaylistIdForSong = playlist.id
-                                            songNameInput = ""
-                                            showAddSongDialog = true
-                                        },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.AddCircle,
-                                            contentDescription = "Añadir canción",
-                                            tint = Color(0xFFE8C547)
-                                        )
-                                    }
-                                    IconButton(
-                                        onClick = { viewModel.deletePlaylist(playlist.id) },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Eliminar lista",
-                                            tint = Color(0xFFFF5252)
-                                        )
+                                // Cabecera con nombre de la lista y acciones rápidas
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = playlist.name,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 18.sp,
+                                        color = Color.White,
+                                        maxLines = 1,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        IconButton(
+                                            onClick = {
+                                                targetPlaylistIdForSong = playlist.id
+                                                songNameInput = ""
+                                                showAddSongDialog = true
+                                            },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.AddCircle,
+                                                contentDescription = "Añadir canción",
+                                                tint = Color(0xFFE8C547)
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { viewModel.deletePlaylist(playlist.id) },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Eliminar lista",
+                                                tint = Color(0xFFFF5252)
+                                            )
+                                        }
                                     }
                                 }
-                            }
 
-                            // 🖼️ ICONO / ARTE CENTRAL DE LA PLAYLIST
-                            Box(
-                                modifier = Modifier
-                                    .size(110.dp)
-                                    .background(Color(0xFF231F2E), RoundedCornerShape(20.dp))
-                                    .padding(6.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
+                                // 🖼️ ICONO / ARTE CENTRAL DE LA PLAYLIST
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(Color(0xFF1B1724), RoundedCornerShape(16.dp)),
+                                        .size(110.dp)
+                                        .background(Color(0xFF231F2E), RoundedCornerShape(20.dp))
+                                        .padding(6.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.QueueMusic,
-                                        contentDescription = null,
-                                        tint = Color(0xFFE8C547),
-                                        modifier = Modifier.size(44.dp)
-                                    )
-                                }
-                            }
-
-                            Text(
-                                text = "${songs.size} canciones",
-                                fontSize = 13.sp,
-                                color = Color.White.copy(alpha = 0.6f),
-                                textAlign = TextAlign.Center
-                            )
-
-                            Divider(
-                                color = Color.White.copy(alpha = 0.15f),
-                                thickness = 1.dp
-                            )
-
-                            // Listado interno de canciones con scroll vertical interno
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
-                                    .background(Color(0xFF231F2E).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                                    .padding(8.dp)
-                            ) {
-                                if (songs.isEmpty()) {
                                     Box(
-                                        modifier = Modifier.fillMaxSize(),
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color(0xFF1B1724), RoundedCornerShape(16.dp)),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(
-                                            text = "Esta lista está vacía.",
-                                            fontSize = 13.sp,
-                                            color = Color.White.copy(alpha = 0.5f)
+                                        Icon(
+                                            imageVector = Icons.Default.QueueMusic,
+                                            contentDescription = null,
+                                            tint = Color(0xFFE8C547),
+                                            modifier = Modifier.size(44.dp)
                                         )
                                     }
-                                } else {
-                                    Column(
-                                        modifier = Modifier.fillMaxSize(),
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        songs.forEach { song ->
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .background(Color(0xFF2A2438), RoundedCornerShape(6.dp))
-                                                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
+                                }
+
+                                Text(
+                                    text = "${songs.size} canciones",
+                                    fontSize = 13.sp,
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    textAlign = TextAlign.Center
+                                )
+
+                                Divider(
+                                    color = Color.White.copy(alpha = 0.15f),
+                                    thickness = 1.dp
+                                )
+
+                                // Listado interno de canciones con scroll vertical interno
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f)
+                                        .background(Color(0xFF231F2E).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                                        .padding(8.dp)
+                                ) {
+                                    if (songs.isEmpty()) {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "Esta lista está vacía.",
+                                                fontSize = 13.sp,
+                                                color = Color.White.copy(alpha = 0.5f)
+                                            )
+                                        }
+                                    } else {
+                                        Column(
+                                            modifier = Modifier.fillMaxSize(),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            songs.forEach { song ->
                                                 Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    modifier = Modifier.weight(1f)
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .background(Color(0xFF2A2438), RoundedCornerShape(6.dp))
+                                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.MusicNote,
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(14.dp),
-                                                        tint = Color(0xFFE8C547)
-                                                    )
-                                                    Spacer(modifier = Modifier.width(6.dp))
-                                                    Text(
-                                                        text = song.songName,
-                                                        fontSize = 12.sp,
-                                                        color = Color.White,
-                                                        maxLines = 1
-                                                    )
-                                                }
-                                                IconButton(
-                                                    onClick = {
-                                                        viewModel.removeSongFromPlaylist(playlist.id, song.songPath)
-                                                    },
-                                                    modifier = Modifier.size(20.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.RemoveCircleOutline,
-                                                        contentDescription = "Quitar canción",
-                                                        tint = Color(0xFFFF5252)
-                                                    )
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier.weight(1f)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.MusicNote,
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(14.dp),
+                                                            tint = Color(0xFFE8C547)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Text(
+                                                            text = song.songName,
+                                                            fontSize = 12.sp,
+                                                            color = Color.White,
+                                                            maxLines = 1
+                                                        )
+                                                    }
+                                                    IconButton(
+                                                        onClick = {
+                                                            viewModel.removeSongFromPlaylist(playlist.id, song.songPath)
+                                                        },
+                                                        modifier = Modifier.size(20.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.RemoveCircleOutline,
+                                                            contentDescription = "Quitar canción",
+                                                            tint = Color(0xFFFF5252)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
