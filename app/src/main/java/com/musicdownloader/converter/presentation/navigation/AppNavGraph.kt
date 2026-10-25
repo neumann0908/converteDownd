@@ -12,7 +12,7 @@ import com.musicdownloader.converter.presentation.screens.downloader.DownloaderS
 import com.musicdownloader.converter.presentation.screens.history.HistoryScreen
 import com.musicdownloader.converter.presentation.screens.library.LibraryScreen
 import com.musicdownloader.converter.presentation.screens.player.PlayerScreen
-import com.musicdownloader.converter.viewmodel.DjViewModel
+import com.musicdownloader.converter.presentation.viewmodel.DjViewModel
 
 @Composable
 fun AppNavGraph(navController: NavHostController, modifier: Modifier = Modifier) {
