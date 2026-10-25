@@ -127,7 +127,7 @@ fun PlaylistsScreen(
                                             Icon(
                                                 imageVector = Icons.Default.QueueMusic,
                                                 contentDescription = null,
-                                                tint = Color(0xFFE8C547) // Acento dorado pro
+                                                tint = Color(0xFFE8C547)
                                             )
                                         }
                                         Spacer(modifier = Modifier.width(12.dp))
@@ -175,7 +175,8 @@ fun PlaylistsScreen(
                                             .background(Color(0xFF2A2438).copy(alpha = 0.6f))
                                             .padding(horizontal = 16.dp, vertical = 10.dp)
                                     ) {
-                                        HorizontalDivider(
+                                        // Corregido de HorizontalDivider a Divider
+                                        Divider(
                                             modifier = Modifier.padding(bottom = 8.dp),
                                             color = Color.White.copy(alpha = 0.15f)
                                         )
@@ -237,7 +238,7 @@ fun PlaylistsScreen(
             }
         }
 
-        // Botón flotante "+ Nueva Lista" con acento dorado
+        // Botón flotante "+ Nueva Lista"
         Button(
             onClick = { 
                 newPlaylistName = ""
