@@ -136,7 +136,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     modifier = Modifier.weight(1f),
                     title = "DECK A (Master)",
                     statusColor = Color.Green,
-                    trackName = trackA?.name ?: "Toca para cargar pista",
+                    track = trackA,
                     isPlaying = isPlayingA,
                     rotationAngle = if (isPlayingA) angleA else 0f,
                     onTogglePlay = { viewModel.toggleDeckA() },
@@ -144,14 +144,15 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                         viewModel.loadLibraryTracks()
                         selectingForDeck = "A"
                     },
-                    onEqClick = { eqDialogDeck = "A" }
+                    onEqClick = { eqDialogDeck = "A" },
+                    showSyncButton = false
                 )
 
                 DeckCard(
                     modifier = Modifier.weight(1f),
-                    title = "DECK B (Scratch)",
+                    title = "DECK B (Sync)",
                     statusColor = Color.Red,
-                    trackName = trackB?.name ?: "Toca para cargar pista",
+                    track = trackB,
                     isPlaying = isPlayingB,
                     rotationAngle = if (isPlayingB) angleB else 0f,
                     onTogglePlay = { viewModel.toggleDeckB() },
@@ -159,7 +160,9 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                         viewModel.loadLibraryTracks()
                         selectingForDeck = "B"
                     },
-                    onEqClick = { eqDialogDeck = "B" }
+                    onEqClick = { eqDialogDeck = "B" },
+                    showSyncButton = true,
+                    onSyncClick = { viewModel.autoSyncDeckB() } // ⚡ Dispara la sincronización automática de BPM
                 )
             }
 
@@ -198,7 +201,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             }
         }
 
-        // Diálogo para seleccionar la pista de audio
+        // Diálogo para seleccionar la pista de audio con visualización de BPM y Key
         if (selectingForDeck != null) {
             AlertDialog(
                 onDismissRequest = { selectingForDeck = null },
@@ -231,12 +234,23 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                                     colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2B3D)),
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
-                                    Text(
-                                        text = track.name,
-                                        color = Color.White,
-                                        fontSize = 12.sp,
-                                        modifier = Modifier.padding(12.dp)
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = track.name,
+                                            color = Color.White,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Text(
+                                            text = "${track.bpm} BPM | ${track.musicalKey}",
+                                            color = Color(0xFFFFD700),
+                                            fontSize = 11.sp
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -281,12 +295,14 @@ fun DeckCard(
     modifier: Modifier = Modifier,
     title: String,
     statusColor: Color,
-    trackName: String,
+    track: DjTrack?,
     isPlaying: Boolean,
     rotationAngle: Float,
     onTogglePlay: () -> Unit,
     onTrackClick: () -> Unit,
-    onEqClick: () -> Unit
+    onEqClick: () -> Unit,
+    showSyncButton: Boolean = false,
+    onSyncClick: () -> Unit = {}
 ) {
     Card(
         modifier = modifier.fillMaxHeight(),
@@ -315,20 +331,48 @@ fun DeckCard(
                 }
             }
 
+            // Visualizador de pista con BPM y Clave Armónica (Key Detection)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
                     .background(Color(0xFF2B2B3D))
                     .clickable { onTrackClick() }
-                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                    .padding(vertical = 8.dp, horizontal = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = trackName, color = Color(0xFFFFD700), fontSize = 10.sp, maxLines = 1)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = track?.name ?: "Toca para cargar pista",
+                        color = Color(0xFFFFD700),
+                        fontSize = 10.sp,
+                        maxLines = 1
+                    )
+                    if (track != null) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "BPM: ${track.bpm} | Key: ${track.musicalKey}",
+                            color = Color.LightGray,
+                            fontSize = 9.sp
+                        )
+                    }
+                }
+            }
+
+            // Botón SYNC dedicado para Deck B
+            if (showSyncButton) {
+                Button(
+                    onClick = onSyncClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
+                    modifier = Modifier.fillMaxWidth().height(28.dp),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text("SYNC (AUTO)", fontSize = 10.sp, color = Color.Black)
+                }
             }
 
             Box(
-                modifier = Modifier.size(110.dp),
+                modifier = Modifier.size(100.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Canvas(modifier = Modifier.fillMaxSize().rotate(rotationAngle)) {
@@ -379,13 +423,12 @@ fun DeckControlDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // 🎯 Puntos Hot Cue (Cue 1 y Cue 2)
+                // Puntos Hot Cue
                 Text(text = "Puntos Hot Cue", color = Color(0xFFFFD700), fontSize = 12.sp)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Cue 1
                     Column(modifier = Modifier.weight(1f)) {
                         Button(
                             onClick = { onSetCue(1) },
@@ -402,7 +445,6 @@ fun DeckControlDialog(
                             Text("Jump C1", fontSize = 10.sp, color = Color.White)
                         }
                     }
-                    // Cue 2
                     Column(modifier = Modifier.weight(1f)) {
                         Button(
                             onClick = { onSetCue(2) },
