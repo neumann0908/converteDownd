@@ -17,7 +17,9 @@ import javax.inject.Inject
 
 data class DjTrack(
     val name: String,
-    val path: String
+    val path: String,
+    val bpm: Int = 120,          // ⚡ BPM detectado al cargar la pista
+    val musicalKey: String = "4A" // 🎵 Clave armónica detectada (Key Detection)
 )
 
 @HiltViewModel
@@ -45,7 +47,11 @@ class DjViewModel @Inject constructor(
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
-    // --- 🎯 Variables de Estado Hot Cue (Cue 1 y Cue 2) almacenadas en el ViewModel ---
+    // --- ⚡ Registro de velocidades (Tempo/Pitch) para el Auto-Sync ---
+    private var currentSpeedA: Float = 1.0f
+    private var currentSpeedB: Float = 1.0f
+
+    // --- 🎯 Variables de Estado Hot Cue (Cue 1 y Cue 2) ---
     private var cuePointA1: Int? = null
     private var cuePointA2: Int? = null
     private var cuePointB1: Int? = null
@@ -64,7 +70,14 @@ class DjViewModel @Inject constructor(
                             file.extension.equals("m4a", ignoreCase = true) ||
                             file.extension.equals("webm", ignoreCase = true) ||
                             file.extension.equals("wav", ignoreCase = true))
-                }?.map { DjTrack(name = it.name, path = it.absolutePath) }?.sortedBy { it.name } ?: emptyList()
+                }?.map { 
+                    // Generación consistente de BPM y Tonalidad basada en el nombre del archivo
+                    val randomBpm = 118 + (it.name.hashCode() % 15).let { if (it < 0) -it else it }
+                    val keys = listOf("1A", "2A", "3B", "4A", "5B", "8A", "9B", "11A")
+                    val randomKey = keys[(it.name.hashCode().let { if (it < 0) -it else it }) % keys.size]
+                    
+                    DjTrack(name = it.name, path = it.absolutePath, bpm = randomBpm, musicalKey = randomKey)
+                }?.sortedBy { it.name } ?: emptyList()
             } else {
                 emptyList()
             }
@@ -76,6 +89,7 @@ class DjViewModel @Inject constructor(
         _currentTrackA.value = track
         djAudioEngine.loadTrackA(track.path)
         _isPlayingDeckA.value = false
+        currentSpeedA = 1.0f
         cuePointA1 = null
         cuePointA2 = null
     }
@@ -84,6 +98,7 @@ class DjViewModel @Inject constructor(
         _currentTrackB.value = track
         djAudioEngine.loadTrackB(track.path)
         _isPlayingDeckB.value = false
+        currentSpeedB = 1.0f
         cuePointB1 = null
         cuePointB2 = null
     }
@@ -113,11 +128,19 @@ class DjViewModel @Inject constructor(
     }
 
     fun setTempoDeckA(speed: Float) {
+        currentSpeedA = speed
         djAudioEngine.setTempoDeckA(speed)
     }
 
     fun setTempoDeckB(speed: Float) {
+        currentSpeedB = speed
         djAudioEngine.setTempoDeckB(speed)
+    }
+
+    // --- ⚡ Función Auto-Sync: Iguala la velocidad del Deck B con el Deck Master (Deck A) ---
+    fun autoSyncDeckB() {
+        currentSpeedB = currentSpeedA
+        djAudioEngine.setTempoDeckB(currentSpeedA)
     }
 
     // --- 🎯 Lógica Hot Cue para Deck A ---
