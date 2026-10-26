@@ -43,10 +43,23 @@ class DjAudioEngine(private val context: Context) {
     var isPlayingB: Boolean = false
         private set
 
+    // --- 🎛️ Estados de Stems para Deck A ---
+    private var isVocalsMutedA = false
+    private var isDrumsMutedA = false
+    private var isBassMutedA = false
+
+    // --- 🎛️ Estados de Stems para Deck B ---
+    private var isVocalsMutedB = false
+    private var isDrumsMutedB = false
+    private var isBassMutedB = false
+
     fun loadTrackA(path: String, onPrepared: () -> Unit = {}) {
         try {
             mediaPlayerA?.release()
             equalizerA?.release()
+            isVocalsMutedA = false
+            isDrumsMutedA = false
+            isBassMutedA = false
 
             mediaPlayerA = MediaPlayer().apply {
                 setDataSource(path)
@@ -73,6 +86,9 @@ class DjAudioEngine(private val context: Context) {
         try {
             mediaPlayerB?.release()
             equalizerB?.release()
+            isVocalsMutedB = false
+            isDrumsMutedB = false
+            isBassMutedB = false
 
             mediaPlayerB = MediaPlayer().apply {
                 setDataSource(path)
@@ -139,6 +155,52 @@ class DjAudioEngine(private val context: Context) {
         val maxLevel = range[1].toFloat()
         val normalized = (value.coerceIn(-1f, 1f) + 1f) / 2f
         return (minLevel + normalized * (maxLevel - minLevel)).toInt().toShort()
+    }
+
+    // --- 🎛️ Control de Stems para Deck A ---
+    fun toggleStemVocalsA(muted: Boolean) {
+        isVocalsMutedA = muted
+        applyStemsA()
+    }
+
+    fun toggleStemDrumsA(muted: Boolean) {
+        isDrumsMutedA = muted
+        applyStemsA()
+    }
+
+    fun toggleStemBassA(muted: Boolean) {
+        isBassMutedA = muted
+        applyStemsA()
+    }
+
+    private fun applyStemsA() {
+        val lowVal = if (isBassMutedA) -1f else 0f
+        val midVal = if (isVocalsMutedA) -1f else 0f
+        val highVal = if (isDrumsMutedA) -1f else 0f
+        setEqualizerA(lowVal, midVal, highVal)
+    }
+
+    // --- 🎛️ Control de Stems para Deck B ---
+    fun toggleStemVocalsB(muted: Boolean) {
+        isVocalsMutedB = muted
+        applyStemsB()
+    }
+
+    fun toggleStemDrumsB(muted: Boolean) {
+        isDrumsMutedB = muted
+        applyStemsB()
+    }
+
+    fun toggleStemBassB(muted: Boolean) {
+        isBassMutedB = muted
+        applyStemsB()
+    }
+
+    private fun applyStemsB() {
+        val lowVal = if (isBassMutedB) -1f else 0f
+        val midVal = if (isVocalsMutedB) -1f else 0f
+        val highVal = if (isDrumsMutedB) -1f else 0f
+        setEqualizerB(lowVal, midVal, highVal)
     }
 
     fun setTempoDeckA(speed: Float) {
