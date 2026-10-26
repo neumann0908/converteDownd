@@ -18,8 +18,8 @@ import javax.inject.Inject
 data class DjTrack(
     val name: String,
     val path: String,
-    val bpm: Int = 120,          // ⚡ BPM detectado al cargar la pista
-    val musicalKey: String = "4A" // 🎵 Clave armónica detectada (Key Detection)
+    val bpm: Int = 120,
+    val musicalKey: String = "4A"
 )
 
 @HiltViewModel
@@ -47,11 +47,9 @@ class DjViewModel @Inject constructor(
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
-    // --- ⚡ Registro de velocidades (Tempo/Pitch) para el Auto-Sync ---
     private var currentSpeedA: Float = 1.0f
     private var currentSpeedB: Float = 1.0f
 
-    // --- 🎯 Variables de Estado Hot Cue (Cue 1 y Cue 2) ---
     private var cuePointA1: Int? = null
     private var cuePointA2: Int? = null
     private var cuePointB1: Int? = null
@@ -71,7 +69,6 @@ class DjViewModel @Inject constructor(
                             file.extension.equals("webm", ignoreCase = true) ||
                             file.extension.equals("wav", ignoreCase = true))
                 }?.map { 
-                    // Generación consistente de BPM y Tonalidad basada en el nombre del archivo
                     val randomBpm = 118 + (it.name.hashCode() % 15).let { if (it < 0) -it else it }
                     val keys = listOf("1A", "2A", "3B", "4A", "5B", "8A", "9B", "11A")
                     val randomKey = keys[(it.name.hashCode().let { if (it < 0) -it else it }) % keys.size]
@@ -103,7 +100,6 @@ class DjViewModel @Inject constructor(
         cuePointB2 = null
     }
 
-    // ⚡ Corrección quirúrgica de "fn" a "fun"
     fun toggleDeckA() {
         val trackPath = _currentTrackA.value?.path ?: return
         val isPlaying = djAudioEngine.togglePlayA(trackPath)
@@ -128,6 +124,15 @@ class DjViewModel @Inject constructor(
         djAudioEngine.setEqualizerB(low, mid, high)
     }
 
+    // --- 🎛️ Métodos de Stems (Neural Mix) ---
+    fun toggleStemVocalsA(muted: Boolean) { djAudioEngine.toggleStemVocalsA(muted) }
+    fun toggleStemDrumsA(muted: Boolean) { djAudioEngine.toggleStemDrumsA(muted) }
+    fun toggleStemBassA(muted: Boolean) { djAudioEngine.toggleStemBassA(muted) }
+
+    fun toggleStemVocalsB(muted: Boolean) { djAudioEngine.toggleStemVocalsB(muted) }
+    fun toggleStemDrumsB(muted: Boolean) { djAudioEngine.toggleStemDrumsB(muted) }
+    fun toggleStemBassB(muted: Boolean) { djAudioEngine.toggleStemBassB(muted) }
+
     fun setTempoDeckA(speed: Float) {
         currentSpeedA = speed
         djAudioEngine.setTempoDeckA(speed)
@@ -138,18 +143,13 @@ class DjViewModel @Inject constructor(
         djAudioEngine.setTempoDeckB(speed)
     }
 
-    // --- ⚡ Función Auto-Sync Avanzada: Iguala velocidad (Tempo) y alinea fase (Posición/seekTo) ---
     fun autoSyncDeckB() {
-        // 1. Iguala la velocidad del Deck B con la velocidad actual del Deck A (Master)
         currentSpeedB = currentSpeedA
         djAudioEngine.setTempoDeckB(currentSpeedA)
-
-        // 2. Obtiene la posición exacta del Deck A y salta (seekTo) el Deck B a ese mismo milisegundo
         val masterPosition = djAudioEngine.getCurrentPositionA()
         djAudioEngine.seekToDeckB(masterPosition)
     }
 
-    // --- 🎯 Lógica Hot Cue para Deck A ---
     fun setHotCueA(cueIndex: Int) {
         val pos = djAudioEngine.getCurrentPositionA()
         if (cueIndex == 1) cuePointA1 = pos else if (cueIndex == 2) cuePointA2 = pos
@@ -160,7 +160,6 @@ class DjViewModel @Inject constructor(
         pos?.let { djAudioEngine.seekToDeckA(it) }
     }
 
-    // --- 🎯 Lógica Hot Cue para Deck B ---
     fun setHotCueB(cueIndex: Int) {
         val pos = djAudioEngine.getCurrentPositionB()
         if (cueIndex == 1) cuePointB1 = pos else if (cueIndex == 2) cuePointB2 = pos
