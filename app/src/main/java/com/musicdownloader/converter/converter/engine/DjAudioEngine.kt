@@ -144,7 +144,7 @@ class DjAudioEngine(private val context: Context) {
         return (minLevel + normalized * (maxLevel - minLevel)).toInt().toShort()
     }
 
-    // --- ⚡ Control de Velocidad y Tempo (PlaybackParams / Pitch) según Referencia ---
+    // --- ⚡ Control de Velocidad y Tempo (PlaybackParams / Pitch) ---
     fun setTempoDeckA(speed: Float) {
         try {
             mediaPlayerA?.let { player ->
@@ -170,6 +170,39 @@ class DjAudioEngine(private val context: Context) {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    // --- 🎯 Métodos Hot Cue (SeekTo & Position) según Referencia ---
+    fun seekToDeckA(positionMs: Int) {
+        try {
+            mediaPlayerA?.seekTo(positionMs)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun seekToDeckB(positionMs: Int) {
+        try {
+            mediaPlayerB?.seekTo(positionMs)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun getCurrentPositionA(): Int {
+        return try {
+            mediaPlayerA?.currentPosition ?: 0
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    fun getCurrentPositionB(): Int {
+        return try {
+            mediaPlayerB?.currentPosition ?: 0
+        } catch (e: Exception) {
+            0
         }
     }
 
