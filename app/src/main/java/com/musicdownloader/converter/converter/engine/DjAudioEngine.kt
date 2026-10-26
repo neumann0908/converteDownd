@@ -53,7 +53,6 @@ class DjAudioEngine(private val context: Context) {
                 prepare()
                 isLooping = true
                 setOnPreparedListener {
-                    // Asociar el Equalizer al audioSessionId del Deck A[span_2](start_span)[span_2](end_span)
                     try {
                         equalizerA = Equalizer(0, audioSessionId).apply {
                             enabled = true
@@ -80,7 +79,6 @@ class DjAudioEngine(private val context: Context) {
                 prepare()
                 isLooping = true
                 setOnPreparedListener {
-                    // Asociar el Equalizer al audioSessionId del Deck B[span_3](start_span)[span_3](end_span)
                     try {
                         equalizerB = Equalizer(0, audioSessionId).apply {
                             enabled = true
