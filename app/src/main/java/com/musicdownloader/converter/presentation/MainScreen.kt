@@ -5,12 +5,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -20,6 +22,8 @@ import com.musicdownloader.converter.presentation.ui.screens.DownloadScreen
 import com.musicdownloader.converter.presentation.screens.library.LibraryScreen
 import com.musicdownloader.converter.presentation.ui.screens.PlayerScreen
 import com.musicdownloader.converter.presentation.ui.screens.PlaylistsScreen
+import com.musicdownloader.converter.presentation.screens.DjTurntablesScreen
+import com.musicdownloader.converter.presentation.viewmodel.DjViewModel
 import com.musicdownloader.converter.presentation.ui.MiniPlayerBar
 import com.musicdownloader.converter.presentation.viewmodel.PlayerViewModel
 
@@ -28,6 +32,9 @@ sealed class Screen(val route: String, val title: String, val icon: @Composable 
     object Library : Screen("library", "Biblioteca", { Icon(Icons.Default.LibraryMusic, contentDescription = null) })
     object Playlists : Screen("playlists", "Listas", { Icon(Icons.Default.QueueMusic, contentDescription = null) })
     object Player : Screen("player", "Player", { Icon(Icons.Default.PlayCircle, contentDescription = null) })
+    
+    // 🎧 Nueva pantalla DJ Pro añadida aquí
+    object DjTurntables : Screen("dj_turntables", "DJ Pro", { Icon(Icons.Default.MusicNote, contentDescription = null) })
 }
 
 @Composable
@@ -36,7 +43,6 @@ fun MainScreen(
 ) {
     val navController = rememberNavController()
     
-    // Recolectamos los estados reales adaptados a AudioPlayerManager
     val currentTrackTitle by playerViewModel.currentTrackTitle.collectAsState()
     val isPlaying by playerViewModel.isPlaying.collectAsState()
 
@@ -44,13 +50,13 @@ fun MainScreen(
         Screen.Download,
         Screen.Library,
         Screen.Playlists,
-        Screen.Player
+        Screen.Player,
+        Screen.DjTurntables // 👈 Añadido a la barra inferior
     )
 
     Scaffold(
         bottomBar = {
             Column {
-                // Mini-Player conectado al título real y estado de reproducción
                 MiniPlayerBar(
                     currentSongName = currentTrackTitle, 
                     isPlaying = isPlaying,
@@ -101,6 +107,12 @@ fun MainScreen(
             composable(Screen.Library.route) { LibraryScreen() }
             composable(Screen.Playlists.route) { PlaylistsScreen() }
             composable(Screen.Player.route) { PlayerScreen() }
+            
+            // 🎛️ Ruta y ViewModel conectados para la consola DJ
+            composable(Screen.DjTurntables.route) {
+                val djViewModel: DjViewModel = viewModel()
+                DjTurntablesScreen(viewModel = djViewModel)
+            }
         }
     }
 }
