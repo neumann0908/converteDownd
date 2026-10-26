@@ -1,5 +1,6 @@
 package com.musicdownloader.converter.engine
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
@@ -12,6 +13,7 @@ import android.media.MediaPlayer
 import android.media.MediaMuxer
 import android.media.projection.MediaProjection
 import android.os.Build
+import androidx.annotation.RequiresApi
 import java.io.File
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
@@ -23,7 +25,6 @@ class DjAudioEngine(private val context: Context) {
     private var mediaPlayerA: MediaPlayer? = null
     private var mediaPlayerB: MediaPlayer? = null
 
-    // Componentes para la grabación interna digital (AudioRecord + MediaCodec + MediaMuxer)
     private var audioRecord: AudioRecord? = null
     private var mediaMuxer: MediaMuxer? = null
     private var mediaCodec: MediaCodec? = null
@@ -119,7 +120,6 @@ class DjAudioEngine(private val context: Context) {
         }
     }
 
-    // --- 🎛️ Iniciar Grabación Interna por AudioPlaybackCapture ---
     fun startRecording(mediaProjection: MediaProjection? = null): Boolean {
         return try {
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
@@ -133,26 +133,9 @@ class DjAudioEngine(private val context: Context) {
             val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
             val bufferSize = if (minBufferSize > 0) minBufferSize * 2 else 4096
 
-            // Configurar AudioRecord con la API de captura interna (Android 10+ / API 29+)
             audioRecord = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && mediaProjection != null) {
-                val playbackConf = AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
-                    .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
-                    .addMatchingUsage(AudioAttributes.USAGE_GAME)
-                    .build()
-
-                AudioRecord.Builder()
-                    .setAudioPlaybackCaptureConfiguration(playbackConf)
-                    .setAudioFormat(
-                        AudioFormat.Builder()
-                            .setEncoding(audioFormat)
-                            .setSampleRate(sampleRate)
-                            .setChannelMask(channelConfig)
-                            .build()
-                    )
-                    .setBufferSizeInBytes(bufferSize)
-                    .build()
+                createPlaybackCaptureRecord(mediaProjection, sampleRate, channelConfig, audioFormat, bufferSize)
             } else {
-                // Respaldo por seguridad si no se pasa MediaProjection
                 @Suppress("DEPRECATION")
                 AudioRecord(
                     android.media.MediaRecorder.AudioSource.DEFAULT,
@@ -163,7 +146,6 @@ class DjAudioEngine(private val context: Context) {
                 )
             }
 
-            // Configurar Codificador AAC para comprimir en .m4a con alta calidad de estudio
             val format = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, 2).apply {
                 setInteger(MediaFormat.KEY_BIT_RATE, 128000)
                 setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
@@ -188,6 +170,33 @@ class DjAudioEngine(private val context: Context) {
             stopRecording()
             false
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    @SuppressLint("MissingPermission")
+    private fun createPlaybackCaptureRecord(
+        mediaProjection: MediaProjection,
+        sampleRate: Int,
+        channelConfig: Int,
+        audioFormat: Int,
+        bufferSize: Int
+    ): AudioRecord {
+        val playbackConf = AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
+            .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
+            .addMatchingUsage(AudioAttributes.USAGE_GAME)
+            .build()
+
+        return AudioRecord.Builder()
+            .setAudioPlaybackCaptureConfiguration(playbackConf)
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setEncoding(audioFormat)
+                    .setSampleRate(sampleRate)
+                    .setChannelMask(channelConfig)
+                    .build()
+            )
+            .setBufferSizeInBytes(bufferSize)
+            .build()
     }
 
     private fun startEncodingLoop() {
