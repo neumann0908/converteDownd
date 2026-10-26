@@ -45,6 +45,12 @@ class DjViewModel @Inject constructor(
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
+    // --- 🎯 Variables de Estado Hot Cue (Cue 1 y Cue 2) almacenadas en el ViewModel ---
+    private var cuePointA1: Int? = null
+    private var cuePointA2: Int? = null
+    private var cuePointB1: Int? = null
+    private var cuePointB2: Int? = null
+
     init {
         loadLibraryTracks()
     }
@@ -70,12 +76,16 @@ class DjViewModel @Inject constructor(
         _currentTrackA.value = track
         djAudioEngine.loadTrackA(track.path)
         _isPlayingDeckA.value = false
+        cuePointA1 = null
+        cuePointA2 = null
     }
 
     fun setTrackForDeckB(track: DjTrack) {
         _currentTrackB.value = track
         djAudioEngine.loadTrackB(track.path)
         _isPlayingDeckB.value = false
+        cuePointB1 = null
+        cuePointB2 = null
     }
 
     fun toggleDeckA() {
@@ -94,7 +104,6 @@ class DjViewModel @Inject constructor(
         djAudioEngine.updateCrossfader(value)
     }
 
-    // --- Conexión directa del Ecualizador con el motor ---
     fun setEqualizerA(low: Float, mid: Float, high: Float) {
         djAudioEngine.setEqualizerA(low, mid, high)
     }
@@ -103,13 +112,34 @@ class DjViewModel @Inject constructor(
         djAudioEngine.setEqualizerB(low, mid, high)
     }
 
-    // --- Conexión directa del Tempo / Velocidad con el motor ---
     fun setTempoDeckA(speed: Float) {
         djAudioEngine.setTempoDeckA(speed)
     }
 
     fun setTempoDeckB(speed: Float) {
         djAudioEngine.setTempoDeckB(speed)
+    }
+
+    // --- 🎯 Lógica Hot Cue para Deck A ---
+    fun setHotCueA(cueIndex: Int) {
+        val pos = djAudioEngine.getCurrentPositionA()
+        if (cueIndex == 1) cuePointA1 = pos else if (cueIndex == 2) cuePointA2 = pos
+    }
+
+    fun jumpHotCueA(cueIndex: Int) {
+        val pos = if (cueIndex == 1) cuePointA1 else cuePointA2
+        pos?.let { djAudioEngine.seekToDeckA(it) }
+    }
+
+    // --- 🎯 Lógica Hot Cue para Deck B ---
+    fun setHotCueB(cueIndex: Int) {
+        val pos = djAudioEngine.getCurrentPositionB()
+        if (cueIndex == 1) cuePointB1 = pos else if (cueIndex == 2) cuePointB2 = pos
+    }
+
+    fun jumpHotCueB(cueIndex: Int) {
+        val pos = if (cueIndex == 1) cuePointB1 else cuePointB2
+        pos?.let { djAudioEngine.seekToDeckB(it) }
     }
 
     fun toggleRecording() {
