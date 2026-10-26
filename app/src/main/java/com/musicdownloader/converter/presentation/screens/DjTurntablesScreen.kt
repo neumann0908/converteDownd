@@ -30,6 +30,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
     val trackA by viewModel.currentTrackA.collectAsState()
     val trackB by viewModel.currentTrackB.collectAsState()
     val libraryTracks by viewModel.libraryTracks.collectAsState()
+    val isRecording by viewModel.isRecording.collectAsState() // 👈 Estado de grabación desde el ViewModel
 
     var crossfaderValue by remember { mutableStateOf(0.5f) }
     var selectingForDeck by remember { mutableStateOf<String?>(null) }
@@ -59,13 +60,44 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = "CONSOLA DJ PRO - DUAL DECK",
-                color = Color(0xFFFFD700),
-                style = MaterialTheme.typography.titleMedium,
-                fontSize = 15.sp
-            )
+            // Fila superior: Título y Botón de Grabación (REC)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "CONSOLA DJ PRO - DUAL DECK",
+                    color = Color(0xFFFFD700),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = 14.sp
+                )
 
+                // 🔴 Botón de Grabación en Vivo (Mix Recorder)
+                Button(
+                    onClick = { viewModel.toggleRecording() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isRecording) Color.Red else Color(0xFF2B2B3D)
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (isRecording) Color.White else Color.Red)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isRecording) "GRABANDO..." else "REC",
+                        color = Color.White,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+
+            // Decks A y B
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -82,7 +114,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     rotationAngle = if (isPlayingA) angleA else 0f,
                     onTogglePlay = { viewModel.toggleDeckA() },
                     onTrackClick = {
-                        viewModel.loadLibraryTracks() // 👈 Refresca al instante al hacer clic
+                        viewModel.loadLibraryTracks() // Refresca la biblioteca al instante
                         selectingForDeck = "A"
                     }
                 )
@@ -96,12 +128,13 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     rotationAngle = if (isPlayingB) angleB else 0f,
                     onTogglePlay = { viewModel.toggleDeckB() },
                     onTrackClick = {
-                        viewModel.loadLibraryTracks() // 👈 Refresca al instante al hacer clic
+                        viewModel.loadLibraryTracks() // Refresca la biblioteca al instante
                         selectingForDeck = "B"
                     }
                 )
             }
 
+            // Control de Crossfader
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -136,6 +169,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             }
         }
 
+        // Diálogo para seleccionar la pista de audio
         if (selectingForDeck != null) {
             AlertDialog(
                 onDismissRequest = { selectingForDeck = null },
