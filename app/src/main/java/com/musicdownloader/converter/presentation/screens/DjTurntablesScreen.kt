@@ -3,6 +3,7 @@ package com.musicdownloader.converter.presentation.screens
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,9 +26,15 @@ import com.musicdownloader.converter.presentation.viewmodel.DjViewModel
 fun DjTurntablesScreen(viewModel: DjViewModel) {
     val isPlayingA by viewModel.isPlayingDeckA.collectAsState()
     val isPlayingB by viewModel.isPlayingDeckB.collectAsState()
+    val trackA by viewModel.currentTrackA.collectAsState()
+    val trackB by viewModel.currentTrackB.collectAsState()
+    val libraryTracks by viewModel.libraryTracks.collectAsState()
 
     // Estado local para el deslizador del Crossfader
     var crossfaderValue by remember { mutableStateOf(0.5f) }
+
+    // Estado para controlar qué Deck está abriendo el selector de canciones ("A", "B" o null)
+    var selectingForDeck by remember { mutableStateOf<String?>(null) }
 
     // Animaciones de rotación para los vinilos
     val infiniteTransitionA = rememberInfiniteTransition(label = "deckA")
@@ -52,91 +59,149 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
         label = "rotationB"
     )
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF13131A))
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+            .padding(16.dp)
     ) {
-        // Título Superior Estilizado
-        Text(
-            text = "CONSOLA DJ PRO - DUAL DECK",
-            color = Color(0xFFFFD700),
-            style = MaterialTheme.typography.titleMedium,
-            fontSize = 15.sp
-        )
-
-        // Decks A y B en paralelo
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Deck A (Master)
-            DeckCard(
-                modifier = Modifier.weight(1f),
-                title = "DECK A (Master)",
-                statusColor = Color.Green,
-                trackName = "Electronic Cyber Beat",
-                isPlaying = isPlayingA,
-                rotationAngle = if (isPlayingA) angleA else 0f,
-                onTogglePlay = { viewModel.toggleDeckA() }
+            // Título Superior Estilizado
+            Text(
+                text = "CONSOLA DJ PRO - DUAL DECK",
+                color = Color(0xFFFFD700),
+                style = MaterialTheme.typography.titleMedium,
+                fontSize = 15.sp
             )
 
-            // Deck B (Scratch)
-            DeckCard(
-                modifier = Modifier.weight(1f),
-                title = "DECK B (Scratch)",
-                statusColor = Color.Red,
-                trackName = "Toca para cargar pista",
-                isPlaying = isPlayingB,
-                rotationAngle = if (isPlayingB) angleB else 0f,
-                onTogglePlay = { viewModel.toggleDeckB() }
-            )
-        }
-
-        // Sección del Crossfader
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C))
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            // Decks A y B en paralelo
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "CROSSFADER",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontSize = 13.sp
-                    )
-                    Icon(
-                        imageVector = Icons.Default.MusicNote,
-                        contentDescription = null,
-                        tint = Color(0xFFFFD700)
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Slider(
-                    value = crossfaderValue,
-                    onValueChange = { crossfaderValue = it },
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color(0xFFFFD700),
-                        activeTrackColor = Color(0xFFFFD700),
-                        inactiveTrackColor = Color.DarkGray
-                    )
+                // Deck A (Master)
+                DeckCard(
+                    modifier = Modifier.weight(1f),
+                    title = "DECK A (Master)",
+                    statusColor = Color.Green,
+                    trackName = trackA,
+                    isPlaying = isPlayingA,
+                    rotationAngle = if (isPlayingA) angleA else 0f,
+                    onTogglePlay = { viewModel.toggleDeckA() },
+                    onTrackClick = { selectingForDeck = "A" }
+                )
+
+                // Deck B (Scratch)
+                DeckCard(
+                    modifier = Modifier.weight(1f),
+                    title = "DECK B (Scratch)",
+                    statusColor = Color.Red,
+                    trackName = trackB,
+                    isPlaying = isPlayingB,
+                    rotationAngle = if (isPlayingB) angleB else 0f,
+                    onTogglePlay = { viewModel.toggleDeckB() },
+                    onTrackClick = { selectingForDeck = "B" }
                 )
             }
+
+            // Sección del Crossfader
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C))
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "CROSSFADER",
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontSize = 13.sp
+                        )
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            tint = Color(0xFFFFD700)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Slider(
+                        value = crossfaderValue,
+                        onValueChange = { crossfaderValue = it },
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFFFFD700),
+                            activeTrackColor = Color(0xFFFFD700),
+                            inactiveTrackColor = Color.DarkGray
+                        )
+                    )
+                }
+            }
+        }
+
+        // Diálogo Selector de Canciones de la Biblioteca
+        if (selectingForDeck != null) {
+            AlertDialog(
+                onDismissRequest = { selectingForDeck = null },
+                containerColor = Color(0xFF1E1E2C),
+                title = {
+                    Text(
+                        text = "Seleccionar Pista - Deck $selectingForDeck",
+                        color = Color(0xFFFFD700),
+                        fontSize = 14.sp
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        libraryTracks.forEach { track ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (selectingForDeck == "A") {
+                                            viewModel.setTrackForDeckA(track)
+                                        } else {
+                                            viewModel.setTrackForDeckB(track)
+                                        }
+                                        selectingForDeck = null
+                                    },
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2B3D)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = track,
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { selectingForDeck = null }) {
+                        Text("Cerrar", color = Color(0xFFFFD700))
+                    }
+                }
+            )
         }
     }
 }
@@ -149,7 +214,8 @@ fun DeckCard(
     trackName: String,
     isPlaying: Boolean,
     rotationAngle: Float,
-    onTogglePlay: () -> Unit
+    onTogglePlay: () -> Unit,
+    onTrackClick: () -> Unit
 ) {
     Card(
         modifier = modifier.fillMaxHeight(),
@@ -182,13 +248,14 @@ fun DeckCard(
                 )
             }
 
-            // Nombre de la Pista (Cápsula)
+            // Nombre de la Pista (Cápsula interactiva para cargar canción)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
                     .background(Color(0xFF2B2B3D))
-                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                    .clickable { onTrackClick() }
+                    .padding(vertical = 10.dp, horizontal = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
