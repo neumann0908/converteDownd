@@ -77,7 +77,6 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Fila superior: Título y Botón REC
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -124,7 +123,6 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                 }
             }
 
-            // Decks A y B
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -162,11 +160,10 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     },
                     onEqClick = { eqDialogDeck = "B" },
                     showSyncButton = true,
-                    onSyncClick = { viewModel.autoSyncDeckB() } // ⚡ Dispara la sincronización automática de BPM
+                    onSyncClick = { viewModel.autoSyncDeckB() }
                 )
             }
 
-            // Control de Crossfader
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -201,7 +198,6 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             }
         }
 
-        // Diálogo para seleccionar la pista de audio con visualización de BPM y Key
         if (selectingForDeck != null) {
             AlertDialog(
                 onDismissRequest = { selectingForDeck = null },
@@ -264,27 +260,11 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             )
         }
 
-        // Diálogo unificado con Hot Cues, Tempo y Ecualizador
         if (eqDialogDeck != null) {
             DeckControlDialog(
                 deckName = eqDialogDeck!!,
-                onDismiss = { eqDialogDeck = null },
-                onApplyEq = { low, mid, high ->
-                    if (eqDialogDeck == "A") viewModel.setEqualizerA(low, mid, high)
-                    else viewModel.setEqualizerB(low, mid, high)
-                },
-                onApplyTempo = { speed ->
-                    if (eqDialogDeck == "A") viewModel.setTempoDeckA(speed)
-                    else viewModel.setTempoDeckB(speed)
-                },
-                onSetCue = { cueIndex ->
-                    if (eqDialogDeck == "A") viewModel.setHotCueA(cueIndex)
-                    else viewModel.setHotCueB(cueIndex)
-                },
-                onJumpCue = { cueIndex ->
-                    if (eqDialogDeck == "A") viewModel.jumpHotCueA(cueIndex)
-                    else viewModel.jumpHotCueB(cueIndex)
-                }
+                viewModel = viewModel,
+                onDismiss = { eqDialogDeck = null }
             )
         }
     }
@@ -324,14 +304,13 @@ fun DeckCard(
                 Text(text = title, color = Color.LightGray, fontSize = 11.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onEqClick, modifier = Modifier.size(24.dp)) {
-                        Icon(imageVector = Icons.Default.Equalizer, contentDescription = "FX & Cues", tint = Color(0xFFFFD700))
+                        Icon(imageVector = Icons.Default.Equalizer, contentDescription = "FX & Stems", tint = Color(0xFFFFD700))
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(statusColor))
                 }
             }
 
-            // Visualizador de pista con BPM y Clave Armónica (Key Detection)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -359,7 +338,6 @@ fun DeckCard(
                 }
             }
 
-            // Botón SYNC dedicado para Deck B
             if (showSyncButton) {
                 Button(
                     onClick = onSyncClick,
@@ -401,16 +379,17 @@ fun DeckCard(
 @Composable
 fun DeckControlDialog(
     deckName: String,
-    onDismiss: () -> Unit,
-    onApplyEq: (Float, Float, Float) -> Unit,
-    onApplyTempo: (Float) -> Unit,
-    onSetCue: (Int) -> Unit,
-    onJumpCue: (Int) -> Unit
+    viewModel: DjViewModel,
+    onDismiss: () -> Unit
 ) {
     var low by remember { mutableFloatStateOf(0f) }
     var mid by remember { mutableFloatStateOf(0f) }
     var high by remember { mutableFloatStateOf(0f) }
     var tempo by remember { mutableFloatStateOf(1.0f) }
+
+    var vocalsMuted by remember { mutableStateOf(false) }
+    var drumsMuted by remember { mutableStateOf(false) }
+    var bassMuted by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -423,7 +402,52 @@ fun DeckControlDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Puntos Hot Cue
+                // 🎛️ Neural Mix / Stem Isolation
+                Text(text = "Aislamiento de Stems (Neural Mix)", color = Color(0xFFFFD700), fontSize = 12.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Button(
+                        onClick = { 
+                            vocalsMuted = !vocalsMuted
+                            if (deckName == "A") viewModel.toggleStemVocalsA(vocalsMuted)
+                            else viewModel.toggleStemVocalsB(vocalsMuted)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (vocalsMuted) Color.Red else Color(0xFF3B3B4F)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (vocalsMuted) "Vocals OFF" else "Vocals", fontSize = 9.sp, color = Color.White)
+                    }
+
+                    Button(
+                        onClick = { 
+                            drumsMuted = !drumsMuted
+                            if (deckName == "A") viewModel.toggleStemDrumsA(drumsMuted)
+                            else viewModel.toggleStemDrumsB(drumsMuted)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (drumsMuted) Color.Red else Color(0xFF3B3B4F)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (drumsMuted) "Drums OFF" else "Drums", fontSize = 9.sp, color = Color.White)
+                    }
+
+                    Button(
+                        onClick = { 
+                            bassMuted = !bassMuted
+                            if (deckName == "A") viewModel.toggleStemBassA(bassMuted)
+                            else viewModel.toggleStemBassB(bassMuted)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (bassMuted) Color.Red else Color(0xFF3B3B4F)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (bassMuted) "Bass OFF" else "Bass", fontSize = 9.sp, color = Color.White)
+                    }
+                }
+
+                Divider(color = Color.DarkGray, thickness = 1.dp)
+
+                // Hot Cues
                 Text(text = "Puntos Hot Cue", color = Color(0xFFFFD700), fontSize = 12.sp)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -431,14 +455,14 @@ fun DeckControlDialog(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Button(
-                            onClick = { onSetCue(1) },
+                            onClick = { if (deckName == "A") viewModel.setHotCueA(1) else viewModel.setHotCueB(1) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Set C1", fontSize = 10.sp, color = Color.White)
                         }
                         Button(
-                            onClick = { onJumpCue(1) },
+                            onClick = { if (deckName == "A") viewModel.jumpHotCueA(1) else viewModel.jumpHotCueB(1) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -447,14 +471,14 @@ fun DeckControlDialog(
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Button(
-                            onClick = { onSetCue(2) },
+                            onClick = { if (deckName == "A") viewModel.setHotCueA(2) else viewModel.setHotCueB(2) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Set C2", fontSize = 10.sp, color = Color.White)
                         }
                         Button(
-                            onClick = { onJumpCue(2) },
+                            onClick = { if (deckName == "A") viewModel.jumpHotCueA(2) else viewModel.jumpHotCueB(2) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -465,14 +489,15 @@ fun DeckControlDialog(
 
                 Divider(color = Color.DarkGray, thickness = 1.dp)
 
-                // Control de Velocidad / Tempo
+                // Tempo
                 Column {
                     Text(text = "Velocidad (Tempo): ${String.format("%.2f", tempo)}x", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = tempo,
                         onValueChange = { 
                             tempo = it
-                            onApplyTempo(tempo)
+                            if (deckName == "A") viewModel.setTempoDeckA(tempo)
+                            else viewModel.setTempoDeckB(tempo)
                         },
                         valueRange = 0.5f..2.0f,
                         colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
@@ -481,12 +506,12 @@ fun DeckControlDialog(
 
                 Divider(color = Color.DarkGray, thickness = 1.dp)
 
-                // Ecualizador de 3 Bandas
+                // EQ de 3 Bandas
                 Column {
                     Text(text = "Graves (Low)", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = low,
-                        onValueChange = { low = it; onApplyEq(low, mid, high) },
+                        onValueChange = { low = it; if (deckName == "A") viewModel.setEqualizerA(low, mid, high) else viewModel.setEqualizerB(low, mid, high) },
                         valueRange = -1f..1f,
                         colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
                     )
@@ -495,7 +520,7 @@ fun DeckControlDialog(
                     Text(text = "Medios (Mid)", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = mid,
-                        onValueChange = { mid = it; onApplyEq(low, mid, high) },
+                        onValueChange = { mid = it; if (deckName == "A") viewModel.setEqualizerA(low, mid, high) else viewModel.setEqualizerB(low, mid, high) },
                         valueRange = -1f..1f,
                         colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
                     )
@@ -504,7 +529,7 @@ fun DeckControlDialog(
                     Text(text = "Agudos (High)", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = high,
-                        onValueChange = { high = it; onApplyEq(low, mid, high) },
+                        onValueChange = { high = it; if (deckName == "A") viewModel.setEqualizerA(low, mid, high) else viewModel.setEqualizerB(low, mid, high) },
                         valueRange = -1f..1f,
                         colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
                     )
