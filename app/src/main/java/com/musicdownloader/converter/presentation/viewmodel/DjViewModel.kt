@@ -1,21 +1,12 @@
 package com.musicdownloader.converter.presentation.viewmodel
 
 import android.app.Application
-import android.os.Environment
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import java.io.File
-
-data class Track(val name: String, val path: String)
 
 class DjViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val _tracks = MutableStateFlow<List<Track>>(emptyList())
-    val tracks: StateFlow<List<Track>> = _tracks.asStateFlow()
 
     private val _isPlayingDeckA = MutableStateFlow(false)
     val isPlayingDeckA: StateFlow<Boolean> = _isPlayingDeckA.asStateFlow()
@@ -23,23 +14,23 @@ class DjViewModel(application: Application) : AndroidViewModel(application) {
     private val _isPlayingDeckB = MutableStateFlow(false)
     val isPlayingDeckB: StateFlow<Boolean> = _isPlayingDeckB.asStateFlow()
 
-    init {
-        loadMusicTracks()
-    }
+    // Pistas actuales en los Decks
+    private val _currentTrackA = MutableStateFlow("Electronic Cyber Beat")
+    val currentTrackA: StateFlow<String> = _currentTrackA.asStateFlow()
 
-    fun loadMusicTracks() {
-        viewModelScope.launch {
-            val musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val musicFiles = mutableListOf<Track>()
-            
-            musicDir?.listFiles()?.forEach { file ->
-                if (file.isFile && (file.extension.equals("mp3", true) || file.extension.equals("wav", true))) {
-                    musicFiles.add(Track(file.name, file.absolutePath))
-                }
-            }
-            _tracks.value = musicFiles
-        }
-    }
+    private val _currentTrackB = MutableStateFlow("Toca para cargar pista")
+    val currentTrackB: StateFlow<String> = _currentTrackB.asStateFlow()
+
+    // Lista de canciones simulada de la biblioteca (puedes conectarla con tu Room DB o lista real más adelante)
+    private val _libraryTracks = MutableStateFlow(listOf(
+        "Electronic Cyber Beat",
+        "Cyberpunk Synthwave",
+        "Bass Drop Remix",
+        "Lofi Chillhop",
+        "Night Drive Theme",
+        "Retro Synth Pop"
+    ))
+    val libraryTracks: StateFlow<List<String>> = _libraryTracks.asStateFlow()
 
     fun toggleDeckA() {
         _isPlayingDeckA.value = !_isPlayingDeckA.value
@@ -47,5 +38,13 @@ class DjViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleDeckB() {
         _isPlayingDeckB.value = !_isPlayingDeckB.value
+    }
+
+    fun setTrackForDeckA(trackName: String) {
+        _currentTrackA.value = trackName
+    }
+
+    fun setTrackForDeckB(trackName: String) {
+        _currentTrackB.value = trackName
     }
 }
