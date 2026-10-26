@@ -51,6 +51,7 @@ class DjViewModel @Inject constructor(
 
     private var mediaRecorder: MediaRecorder? = null
     private var currentRecordingFile: File? = null
+    private var recordingStartTime: Long = 0L
 
     // --- Reproductores independientes para Deck A y Deck B ---
     private var mediaPlayerA: MediaPlayer? = null
@@ -171,7 +172,7 @@ class DjViewModel @Inject constructor(
         }
     }
 
-    // --- 🔴 Lógica de Grabación en Vivo (Mix Recorder) ---
+    // --- 🔴 Lógica de Grabación en Vivo (Mix Recorder) Blindada ---
     fun toggleRecording() {
         if (_isRecording.value) {
             stopRecording()
@@ -202,26 +203,39 @@ class DjViewModel @Inject constructor(
                 prepare()
                 start()
             }
+            recordingStartTime = System.currentTimeMillis()
             _isRecording.value = true
         } catch (e: Exception) {
             e.printStackTrace()
+            mediaRecorder?.release()
+            mediaRecorder = null
             _isRecording.value = false
         }
     }
 
     private fun stopRecording() {
         try {
+            val elapsed = System.currentTimeMillis() - recordingStartTime
             mediaRecorder?.apply {
                 stop()
                 release()
             }
             mediaRecorder = null
             _isRecording.value = false
+
+            // Si la grabación duró menos de 2 segundos, se descarta para evitar archivos vacíos/corruptos
+            if (elapsed < 2000) {
+                currentRecordingFile?.delete()
+            }
             
-            // Recarga automática de la biblioteca para reflejar la mezcla grabada al instante
+            // Recarga automática de la biblioteca para reflejar la mezcla grabada válida
             loadLibraryTracks()
         } catch (e: Exception) {
             e.printStackTrace()
+            mediaRecorder?.release()
+            mediaRecorder = null
+            _isRecording.value = false
+            try { currentRecordingFile?.delete() } catch (_: Exception) {}
         }
     }
 
