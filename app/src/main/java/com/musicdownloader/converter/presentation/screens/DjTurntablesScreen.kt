@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.musicdownloader.converter.presentation.viewmodel.DjViewModel
+import com.musicdownloader.converter.presentation.viewmodel.DjTrack
 
 @Composable
 fun DjTurntablesScreen(viewModel: DjViewModel) {
@@ -30,32 +31,20 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
     val trackB by viewModel.currentTrackB.collectAsState()
     val libraryTracks by viewModel.libraryTracks.collectAsState()
 
-    // Estado local para el deslizador del Crossfader
     var crossfaderValue by remember { mutableStateOf(0.5f) }
-
-    // Estado para controlar qué Deck está abriendo el selector de canciones ("A", "B" o null)
     var selectingForDeck by remember { mutableStateOf<String?>(null) }
 
-    // Animaciones de rotación para los vinilos
     val infiniteTransitionA = rememberInfiniteTransition(label = "deckA")
     val angleA by infiniteTransitionA.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
+        initialValue = 0f, targetValue = 360f,
+        animationSpec = infiniteRepeatable(animation = tween(2000, easing = LinearEasing), repeatMode = RepeatMode.Restart),
         label = "rotationA"
     )
 
     val infiniteTransitionB = rememberInfiniteTransition(label = "deckB")
     val angleB by infiniteTransitionB.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
+        initialValue = 0f, targetValue = 360f,
+        animationSpec = infiniteRepeatable(animation = tween(2000, easing = LinearEasing), repeatMode = RepeatMode.Restart),
         label = "rotationB"
     )
 
@@ -70,7 +59,6 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Título Superior Estilizado
             Text(
                 text = "CONSOLA DJ PRO - DUAL DECK",
                 color = Color(0xFFFFD700),
@@ -78,7 +66,6 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                 fontSize = 15.sp
             )
 
-            // Decks A y B en paralelo
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -86,24 +73,22 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Deck A (Master)
                 DeckCard(
                     modifier = Modifier.weight(1f),
                     title = "DECK A (Master)",
                     statusColor = Color.Green,
-                    trackName = trackA,
+                    trackName = trackA?.name ?: "Toca para cargar pista",
                     isPlaying = isPlayingA,
                     rotationAngle = if (isPlayingA) angleA else 0f,
                     onTogglePlay = { viewModel.toggleDeckA() },
                     onTrackClick = { selectingForDeck = "A" }
                 )
 
-                // Deck B (Scratch)
                 DeckCard(
                     modifier = Modifier.weight(1f),
                     title = "DECK B (Scratch)",
                     statusColor = Color.Red,
-                    trackName = trackB,
+                    trackName = trackB?.name ?: "Toca para cargar pista",
                     isPlaying = isPlayingB,
                     rotationAngle = if (isPlayingB) angleB else 0f,
                     onTogglePlay = { viewModel.toggleDeckB() },
@@ -111,7 +96,6 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                 )
             }
 
-            // Sección del Crossfader
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -126,22 +110,16 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "CROSSFADER",
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontSize = 13.sp
-                        )
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            tint = Color(0xFFFFD700)
-                        )
+                        Text(text = "CROSSFADER", color = Color.White, fontSize = 13.sp)
+                        Icon(imageVector = Icons.Default.MusicNote, contentDescription = null, tint = Color(0xFFFFD700))
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Slider(
                         value = crossfaderValue,
-                        onValueChange = { crossfaderValue = it },
+                        onValueChange = { 
+                            crossfaderValue = it
+                            viewModel.updateCrossfader(it)
+                        },
                         colors = SliderDefaults.colors(
                             thumbColor = Color(0xFFFFD700),
                             activeTrackColor = Color(0xFFFFD700),
@@ -152,17 +130,12 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             }
         }
 
-        // Diálogo Selector de Canciones de la Biblioteca
         if (selectingForDeck != null) {
             AlertDialog(
                 onDismissRequest = { selectingForDeck = null },
                 containerColor = Color(0xFF1E1E2C),
                 title = {
-                    Text(
-                        text = "Seleccionar Pista - Deck $selectingForDeck",
-                        color = Color(0xFFFFD700),
-                        fontSize = 14.sp
-                    )
+                    Text(text = "Seleccionar Pista - Deck $selectingForDeck", color = Color(0xFFFFD700), fontSize = 14.sp)
                 },
                 text = {
                     Column(
@@ -171,27 +144,31 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                             .heightIn(max = 300.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        libraryTracks.forEach { track ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        if (selectingForDeck == "A") {
-                                            viewModel.setTrackForDeckA(track)
-                                        } else {
-                                            viewModel.setTrackForDeckB(track)
-                                        }
-                                        selectingForDeck = null
-                                    },
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2B3D)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    text = track,
-                                    color = Color.White,
-                                    fontSize = 12.sp,
-                                    modifier = Modifier.padding(12.dp)
-                                )
+                        if (libraryTracks.isEmpty()) {
+                            Text(text = "No hay canciones descargadas", color = Color.LightGray, fontSize = 12.sp)
+                        } else {
+                            libraryTracks.forEach { track ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            if (selectingForDeck == "A") {
+                                                viewModel.setTrackForDeckA(track)
+                                            } else {
+                                                viewModel.setTrackForDeckB(track)
+                                            }
+                                            selectingForDeck = null
+                                        },
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2B3D)),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = track.name,
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.padding(12.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -229,26 +206,15 @@ fun DeckCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Cabecera de la tornamesa (Título + Indicador de estado)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = title,
-                    color = Color.LightGray,
-                    fontSize = 11.sp
-                )
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(statusColor)
-                )
+                Text(text = title, color = Color.LightGray, fontSize = 11.sp)
+                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(statusColor))
             }
 
-            // Nombre de la Pista (Cápsula interactiva para cargar canción)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -258,15 +224,9 @@ fun DeckCard(
                     .padding(vertical = 10.dp, horizontal = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = trackName,
-                    color = Color(0xFFFFD700),
-                    fontSize = 10.sp,
-                    maxLines = 1
-                )
+                Text(text = trackName, color = Color(0xFFFFD700), fontSize = 10.sp, maxLines = 1)
             }
 
-            // Vinilo Giratorio con centro dorado
             Box(
                 modifier = Modifier.size(110.dp),
                 contentAlignment = Alignment.Center
@@ -280,13 +240,9 @@ fun DeckCard(
                 }
             }
 
-            // Botón de Play / Pause circular
             IconButton(
                 onClick = onTogglePlay,
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF2B2B3D))
+                modifier = Modifier.size(44.dp).clip(CircleShape).background(Color(0xFF2B2B3D))
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
