@@ -1,10 +1,20 @@
 package com.musicdownloader.converter.engine
 
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.AudioPlaybackCaptureConfiguration
+import android.media.MediaCodec
+import android.media.MediaCodecInfo
+import android.media.MediaFormat
 import android.media.MediaPlayer
-import android.media.MediaRecorder
+import android.media.MediaMuxer
+import android.media.projection.MediaProjection
 import android.os.Build
 import java.io.File
+import java.nio.ByteBuffer
+import kotlin.concurrent.thread
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -13,7 +23,12 @@ class DjAudioEngine(private val context: Context) {
     private var mediaPlayerA: MediaPlayer? = null
     private var mediaPlayerB: MediaPlayer? = null
 
-    private var mediaRecorder: MediaRecorder? = null
+    // Componentes para la grabación interna digital (AudioRecord + MediaCodec + MediaMuxer)
+    private var audioRecord: AudioRecord? = null
+    private var mediaMuxer: MediaMuxer? = null
+    private var mediaCodec: MediaCodec? = null
+    private var recordingThread: Thread? = null
+    private var isRecordingActive = false
     private var currentRecordingFile: File? = null
     private var recordingStartTime: Long = 0L
 
@@ -104,49 +119,148 @@ class DjAudioEngine(private val context: Context) {
         }
     }
 
-    fun startRecording(): Boolean {
+    // --- 🎛️ Iniciar Grabación Interna por AudioPlaybackCapture ---
+    fun startRecording(mediaProjection: MediaProjection? = null): Boolean {
         return try {
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
             if (!downloadDir.exists()) downloadDir.mkdirs()
 
             currentRecordingFile = File(downloadDir, "DJ_Mix_${System.currentTimeMillis()}.m4a")
 
-            mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                MediaRecorder(context)
+            val sampleRate = 44100
+            val channelConfig = AudioFormat.CHANNEL_IN_STEREO
+            val audioFormat = AudioFormat.ENCODING_PCM_16BIT
+            val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+            val bufferSize = if (minBufferSize > 0) minBufferSize * 2 else 4096
+
+            // Configurar AudioRecord con la API de captura interna (Android 10+)
+            audioRecord = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && mediaProjection != null) {
+                val playbackConf = AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
+                    .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
+                    .addMatchingUsage(AudioAttributes.USAGE_GAME)
+                    .build()
+
+                AudioRecord.Builder()
+                    .setAudioPlaybackCaptureConfiguration(playbackConf)
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(audioFormat)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(channelConfig)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(bufferSize)
+                    .build()
             } else {
+                // Respaldo por si la versión es menor a Android 10 o no hay proyección activa
                 @Suppress("DEPRECATION")
-                MediaRecorder()
-            }.apply {
-                // Usamos VOICE_COMMUNICATION para suprimir ruidos externos y eco eficientemente
-                setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setOutputFile(currentRecordingFile?.absolutePath)
-                prepare()
+                AudioRecord(
+                    android.media.MediaRecorder.AudioSource.DEFAULT,
+                    sampleRate,
+                    channelConfig,
+                    audioFormat,
+                    bufferSize
+                )
+            }
+
+            // Configurar Codificador AAC para comprimir en .m4a con alta calidad
+            val format = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, 2).apply {
+                setInteger(MediaFormat.KEY_BIT_RATE, 128000)
+                setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
+                setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, bufferSize)
+            }
+
+            mediaCodec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC).apply {
+                configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
                 start()
             }
+
+            mediaMuxer = MediaMuxer(currentRecordingFile!!.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+
+            audioRecord?.startRecording()
+            isRecordingActive = true
             recordingStartTime = System.currentTimeMillis()
+
+            startEncodingLoop()
             true
         } catch (e: Exception) {
             e.printStackTrace()
-            releaseRecorder()
-            try { currentRecordingFile?.delete() } catch (_: Exception) {}
-            currentRecordingFile = null
+            stopRecording()
             false
+        }
+    }
+
+    private fun startEncodingLoop() {
+        recordingThread = thread(start = true) {
+            val bufferInfo = MediaCodec.BufferInfo()
+            val readBuffer = ByteArray(4096)
+            var trackIndex = -1
+            var muxerStarted = false
+
+            try {
+                while (isRecordingActive) {
+                    val record = audioRecord ?: break
+                    val codec = mediaCodec ?: break
+                    val muxer = mediaMuxer ?: break
+
+                    val bytesRead = record.read(readBuffer, 0, readBuffer.size)
+                    if (bytesRead > 0) {
+                        val inputBufferIndex = codec.dequeueInputBuffer(10000)
+                        if (inputBufferIndex >= 0) {
+                            val inputBuffer: ByteBuffer? = codec.getInputBuffer(inputBufferIndex)
+                            inputBuffer?.clear()
+                            inputBuffer?.put(readBuffer, 0, bytesRead)
+                            codec.queueInputBuffer(inputBufferIndex, 0, bytesRead, System.nanoTime() / 1000, 0)
+                        }
+                    }
+
+                    val outputBufferIndex = codec.dequeueOutputBuffer(bufferInfo, 10000)
+                    if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                        trackIndex = muxer.addTrack(codec.outputFormat)
+                        muxer.start()
+                        muxerStarted = true
+                    } else if (outputBufferIndex >= 0) {
+                        val encodedData = codec.getOutputBuffer(outputBufferIndex)
+                        if (encodedData != null && muxerStarted) {
+                            if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                                bufferInfo.size = 0
+                            }
+                            if (bufferInfo.size > 0) {
+                                encodedData.position(bufferInfo.offset)
+                                encodedData.limit(bufferInfo.offset + bufferInfo.size)
+                                muxer.writeSampleData(trackIndex, encodedData, bufferInfo)
+                            }
+                        }
+                        codec.releaseOutputBuffer(outputBufferIndex, false)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
     fun stopRecording(): File? {
         try {
-            val elapsed = System.currentTimeMillis() - recordingStartTime
-            mediaRecorder?.apply {
-                stop()
-                release()
-            }
-            mediaRecorder = null
+            isRecordingActive = false
+            recordingThread?.join(1000)
+            recordingThread = null
 
-            // Validación estricta: Si dura menos de 2 segundos o pesa menos de 10KB, se elimina
+            audioRecord?.stop()
+            audioRecord?.release()
+            audioRecord = null
+
+            mediaCodec?.stop()
+            mediaCodec?.release()
+            mediaCodec = null
+
+            mediaMuxer?.stop()
+            mediaMuxer?.release()
+            mediaMuxer = null
+
+            val elapsed = System.currentTimeMillis() - recordingStartTime
             val fileLength = currentRecordingFile?.length() ?: 0L
+
             if (elapsed < 2000 || fileLength < 10240L) {
                 currentRecordingFile?.delete()
                 currentRecordingFile = null
@@ -158,22 +272,14 @@ class DjAudioEngine(private val context: Context) {
             return savedFile
         } catch (e: Exception) {
             e.printStackTrace()
-            releaseRecorder()
             try { currentRecordingFile?.delete() } catch (_: Exception) {}
             currentRecordingFile = null
             return null
         }
     }
 
-    private fun releaseRecorder() {
-        try {
-            mediaRecorder?.release()
-        } catch (_: Exception) {}
-        mediaRecorder = null
-    }
-
     fun release() {
-        releaseRecorder()
+        stopRecording()
         mediaPlayerA?.release()
         mediaPlayerB?.release()
         mediaPlayerA = null
