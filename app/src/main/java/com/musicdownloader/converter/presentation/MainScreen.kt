@@ -12,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -32,8 +31,6 @@ sealed class Screen(val route: String, val title: String, val icon: @Composable 
     object Library : Screen("library", "Biblioteca", { Icon(Icons.Default.LibraryMusic, contentDescription = null) })
     object Playlists : Screen("playlists", "Listas", { Icon(Icons.Default.QueueMusic, contentDescription = null) })
     object Player : Screen("player", "Player", { Icon(Icons.Default.PlayCircle, contentDescription = null) })
-    
-    // 🎧 Nueva pantalla DJ Pro añadida aquí
     object DjTurntables : Screen("dj_turntables", "DJ Pro", { Icon(Icons.Default.MusicNote, contentDescription = null) })
 }
 
@@ -51,7 +48,7 @@ fun MainScreen(
         Screen.Library,
         Screen.Playlists,
         Screen.Player,
-        Screen.DjTurntables // 👈 Añadido a la barra inferior
+        Screen.DjTurntables
     )
 
     Scaffold(
@@ -108,9 +105,9 @@ fun MainScreen(
             composable(Screen.Playlists.route) { PlaylistsScreen() }
             composable(Screen.Player.route) { PlayerScreen() }
             
-            // 🎛️ Ruta y ViewModel conectados para la consola DJ
+            // 🎛️ ViewModel corregido con hiltViewModel() para la consola DJ
             composable(Screen.DjTurntables.route) {
-                val djViewModel: DjViewModel = viewModel()
+                val djViewModel: DjViewModel = hiltViewModel()
                 DjTurntablesScreen(viewModel = djViewModel)
             }
         }
