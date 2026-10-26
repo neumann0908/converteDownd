@@ -11,6 +11,7 @@ import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.media.MediaPlayer
 import android.media.MediaMuxer
+import android.media.PlaybackParams
 import android.media.audiofx.Equalizer
 import android.media.projection.MediaProjection
 import android.os.Build
@@ -26,7 +27,7 @@ class DjAudioEngine(private val context: Context) {
     private var mediaPlayerA: MediaPlayer? = null
     private var mediaPlayerB: MediaPlayer? = null
 
-    // Instancias del Ecualizador nativo de Android para cada Deck[span_1](start_span)[span_1](end_span)
+    // Instancias del Ecualizador nativo de Android para cada Deck[span_0](start_span)[span_0](end_span)
     private var equalizerA: Equalizer? = null
     private var equalizerB: Equalizer? = null
 
@@ -141,6 +142,35 @@ class DjAudioEngine(private val context: Context) {
         val maxLevel = range[1].toFloat()
         val normalized = (value.coerceIn(-1f, 1f) + 1f) / 2f
         return (minLevel + normalized * (maxLevel - minLevel)).toInt().toShort()
+    }
+
+    // --- ⚡ Control de Velocidad y Tempo (PlaybackParams / Pitch) según Referencia ---
+    fun setTempoDeckA(speed: Float) {
+        try {
+            mediaPlayerA?.let { player ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val params = player.playbackParams ?: PlaybackParams()
+                    params.speed = speed.coerceIn(0.5f, 2.0f)
+                    player.playbackParams = params
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun setTempoDeckB(speed: Float) {
+        try {
+            mediaPlayerB?.let { player ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val params = player.playbackParams ?: PlaybackParams()
+                    params.speed = speed.coerceIn(0.5f, 2.0f)
+                    player.playbackParams = params
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     fun togglePlayA(pathIfNull: String?): Boolean {
