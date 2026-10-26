@@ -42,7 +42,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
 
     var crossfaderValue by remember { mutableStateOf(0.5f) }
     var selectingForDeck by remember { mutableStateOf<String?>(null) }
-    var eqDialogDeck by remember { mutableStateOf<String?>(null) } // 🎚️ Estado para el diálogo de EQ ("A" o "B")
+    var eqDialogDeck by remember { mutableStateOf<String?>(null) } // 🎚️ Estado para el diálogo de EQ & Tempo ("A" o "B")
 
     // Lanzador para solicitar permisos de audio en tiempo de ejecución
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -252,16 +252,23 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             )
         }
 
-        // 🎚️ Diálogo del Ecualizador de 3 Bandas
+        // 🎚️ Diálogo unificado de Ecualizador y Control de Velocidad (Tempo)
         if (eqDialogDeck != null) {
-            EqualizerDialog(
+            EqualizerAndTempoDialog(
                 deckName = eqDialogDeck!!,
                 onDismiss = { eqDialogDeck = null },
-                onApply = { low, mid, high ->
+                onApplyEq = { low, mid, high ->
                     if (eqDialogDeck == "A") {
                         viewModel.setEqualizerA(low, mid, high)
                     } else {
                         viewModel.setEqualizerB(low, mid, high)
+                    }
+                },
+                onApplyTempo = { speed ->
+                    if (eqDialogDeck == "A") {
+                        viewModel.setTempoDeckA(speed)
+                    } else {
+                        viewModel.setTempoDeckB(speed)
                     }
                 }
             )
@@ -300,9 +307,9 @@ fun DeckCard(
             ) {
                 Text(text = title, color = Color.LightGray, fontSize = 11.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Botón EQ integrado en la cabecera del deck
+                    // Botón EQ & Tempo integrado en la cabecera del deck
                     IconButton(onClick = onEqClick, modifier = Modifier.size(24.dp)) {
-                        Icon(imageVector = Icons.Default.Equalizer, contentDescription = "EQ", tint = Color(0xFFFFD700))
+                        Icon(imageVector = Icons.Default.Equalizer, contentDescription = "EQ & Tempo", tint = Color(0xFFFFD700))
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(statusColor))
@@ -349,34 +356,52 @@ fun DeckCard(
 }
 
 @Composable
-fun EqualizerDialog(
+fun EqualizerAndTempoDialog(
     deckName: String,
     onDismiss: () -> Unit,
-    onApply: (Float, Float, Float) -> Unit
+    onApplyEq: (Float, Float, Float) -> Unit,
+    onApplyTempo: (Float) -> Unit
 ) {
     var low by remember { mutableFloatStateOf(0f) }
     var mid by remember { mutableFloatStateOf(0f) }
     var high by remember { mutableFloatStateOf(0f) }
+    var tempo by remember { mutableFloatStateOf(1.0f) } // 1.0x por defecto
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF1E1E2C),
         title = {
-            Text(text = "EQ 3 Bandas - Deck $deckName", color = Color(0xFFFFD700), fontSize = 14.sp)
+            Text(text = "Efectos & Tempo - Deck $deckName", color = Color(0xFFFFD700), fontSize = 14.sp)
         },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // Control de Velocidad / Tempo (Pitch)
+                Column {
+                    Text(text = "Velocidad (Tempo): ${String.format("%.2f", tempo)}x", color = Color(0xFFFFD700), fontSize = 12.sp)
+                    Slider(
+                        value = tempo,
+                        onValueChange = { 
+                            tempo = it
+                            onApplyTempo(tempo)
+                        },
+                        valueRange = 0.5f..2.0f,
+                        colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
+                    )
+                }
+
+                Divider(color = Color.DarkGray, thickness = 1.dp)
+
                 // Graves (Low)
                 Column {
-                    Text(text = "Graves (Low)", color = Color.White, fontSize = 12.sp)
+                    Text(text = "Graves (Low)", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = low,
                         onValueChange = { 
                             low = it
-                            onApply(low, mid, high)
+                            onApplyEq(low, mid, high)
                         },
                         valueRange = -1f..1f,
                         colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
@@ -385,12 +410,12 @@ fun EqualizerDialog(
 
                 // Medios (Mid)
                 Column {
-                    Text(text = "Medios (Mid)", color = Color.White, fontSize = 12.sp)
+                    Text(text = "Medios (Mid)", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = mid,
                         onValueChange = { 
                             mid = it
-                            onApply(low, mid, high)
+                            onApplyEq(low, mid, high)
                         },
                         valueRange = -1f..1f,
                         colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
@@ -399,12 +424,12 @@ fun EqualizerDialog(
 
                 // Agudos (High)
                 Column {
-                    Text(text = "Agudos (High)", color = Color.White, fontSize = 12.sp)
+                    Text(text = "Agudos (High)", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = high,
                         onValueChange = { 
                             high = it
-                            onApply(low, mid, high)
+                            onApplyEq(low, mid, high)
                         },
                         valueRange = -1f..1f,
                         colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
