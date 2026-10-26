@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Transform
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -18,4 +19,7 @@ sealed class BottomNavItem(
     object Library : BottomNavItem("library", "Biblioteca", Icons.Default.LibraryMusic)
     object Player : BottomNavItem("player", "Player", Icons.Default.PlayCircle)
     object History : BottomNavItem("history", "Historial", Icons.Default.History)
+    
+    // 🎧 Nuevo ítem añadido para la consola DJ Pro
+    object DjTurntables : BottomNavItem("dj_turntables", "DJ Pro", Icons.Default.MusicNote)
 }
