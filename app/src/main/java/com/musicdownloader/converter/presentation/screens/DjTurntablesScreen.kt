@@ -1,5 +1,9 @@
 package com.musicdownloader.converter.presentation.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -18,22 +22,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.musicdownloader.converter.presentation.viewmodel.DjViewModel
 import com.musicdownloader.converter.presentation.viewmodel.DjTrack
 
 @Composable
 fun DjTurntablesScreen(viewModel: DjViewModel) {
+    val context = LocalContext.current
     val isPlayingA by viewModel.isPlayingDeckA.collectAsState()
     val isPlayingB by viewModel.isPlayingDeckB.collectAsState()
     val trackA by viewModel.currentTrackA.collectAsState()
     val trackB by viewModel.currentTrackB.collectAsState()
     val libraryTracks by viewModel.libraryTracks.collectAsState()
-    val isRecording by viewModel.isRecording.collectAsState() // 👈 Estado de grabación desde el ViewModel
+    val isRecording by viewModel.isRecording.collectAsState()
 
     var crossfaderValue by remember { mutableStateOf(0.5f) }
     var selectingForDeck by remember { mutableStateOf<String?>(null) }
+
+    // Lanzador para solicitar permisos de audio en tiempo de ejecución
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.toggleRecording()
+        }
+    }
 
     val infiniteTransitionA = rememberInfiniteTransition(label = "deckA")
     val angleA by infiniteTransitionA.animateFloat(
@@ -60,7 +76,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Fila superior: Título y Botón de Grabación (REC)
+            // Fila superior: Título y Botón REC con validación de permisos
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -73,27 +89,38 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     fontSize = 14.sp
                 )
 
-                // 🔴 Botón de Grabación en Vivo (Mix Recorder)
-                Button(
-                    onClick = { viewModel.toggleRecording() },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isRecording) Color.Red else Color(0xFF2B2B3D)
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                // 🔴 Botón de Grabación en Vivo (Mix Recorder) optimizado
+                IconButton(
+                    onClick = {
+                        val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+                            viewModel.toggleRecording()
+                        } else {
+                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        }
+                    },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isRecording) Color.Red else Color(0xFF2B2B3D))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(if (isRecording) Color.White else Color.Red)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (isRecording) "GRABANDO..." else "REC",
-                        color = Color.White,
-                        fontSize = 11.sp
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(if (isRecording) Color.White else Color.Red)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isRecording) "REC ON" else "REC",
+                            color = Color.White,
+                            fontSize = 11.sp
+                        )
+                    }
                 }
             }
 
