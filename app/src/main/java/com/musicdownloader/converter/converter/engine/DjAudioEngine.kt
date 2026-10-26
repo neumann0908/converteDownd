@@ -27,7 +27,6 @@ class DjAudioEngine(private val context: Context) {
     private var mediaPlayerA: MediaPlayer? = null
     private var mediaPlayerB: MediaPlayer? = null
 
-    // Instancias del Ecualizador nativo de Android para cada Deck[span_0](start_span)[span_0](end_span)
     private var equalizerA: Equalizer? = null
     private var equalizerB: Equalizer? = null
 
@@ -96,7 +95,6 @@ class DjAudioEngine(private val context: Context) {
         }
     }
 
-    // --- 🎚️ Control de Ecualización de 3 Bandas para Deck A ---
     fun setEqualizerA(low: Float, mid: Float, high: Float) {
         equalizerA?.let { eq ->
             try {
@@ -116,7 +114,6 @@ class DjAudioEngine(private val context: Context) {
         }
     }
 
-    // --- 🎚️ Control de Ecualización de 3 Bandas para Deck B ---
     fun setEqualizerB(low: Float, mid: Float, high: Float) {
         equalizerB?.let { eq ->
             try {
@@ -144,7 +141,6 @@ class DjAudioEngine(private val context: Context) {
         return (minLevel + normalized * (maxLevel - minLevel)).toInt().toShort()
     }
 
-    // --- ⚡ Control de Velocidad y Tempo (PlaybackParams / Pitch) ---
     fun setTempoDeckA(speed: Float) {
         try {
             mediaPlayerA?.let { player ->
@@ -173,7 +169,6 @@ class DjAudioEngine(private val context: Context) {
         }
     }
 
-    // --- 🎯 Métodos Hot Cue (SeekTo & Position) según Referencia ---
     fun seekToDeckA(positionMs: Int) {
         try {
             mediaPlayerA?.seekTo(positionMs)
