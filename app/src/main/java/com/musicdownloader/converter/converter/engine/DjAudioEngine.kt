@@ -117,7 +117,8 @@ class DjAudioEngine(private val context: Context) {
                 @Suppress("DEPRECATION")
                 MediaRecorder()
             }.apply {
-                setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
+                // Usamos DEFAULT o MIC asegurando compatibilidad general de mezcla
+                setAudioSource(MediaRecorder.AudioSource.MIC)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 setOutputFile(currentRecordingFile?.absolutePath)
@@ -129,6 +130,8 @@ class DjAudioEngine(private val context: Context) {
         } catch (e: Exception) {
             e.printStackTrace()
             releaseRecorder()
+            try { currentRecordingFile?.delete() } catch (_: Exception) {}
+            currentRecordingFile = null
             false
         }
     }
@@ -142,15 +145,22 @@ class DjAudioEngine(private val context: Context) {
             }
             mediaRecorder = null
 
-            if (elapsed < 2000) {
+            // Validación estricta: Si dura menos de 2 segundos o pesa menos de 10KB, se elimina por seguridad
+            val fileLength = currentRecordingFile?.length() ?: 0L
+            if (elapsed < 2000 || fileLength < 10240L) {
                 currentRecordingFile?.delete()
+                currentRecordingFile = null
                 return null
             }
-            return currentRecordingFile
+
+            val savedFile = currentRecordingFile
+            currentRecordingFile = null
+            return savedFile
         } catch (e: Exception) {
             e.printStackTrace()
             releaseRecorder()
             try { currentRecordingFile?.delete() } catch (_: Exception) {}
+            currentRecordingFile = null
             return null
         }
     }
