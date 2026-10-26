@@ -103,7 +103,8 @@ class DjViewModel @Inject constructor(
         cuePointB2 = null
     }
 
-    fn toggleDeckA() {
+    // ⚡ Corrección quirúrgica de "fn" a "fun"
+    fun toggleDeckA() {
         val trackPath = _currentTrackA.value?.path ?: return
         val isPlaying = djAudioEngine.togglePlayA(trackPath)
         _isPlayingDeckA.value = isPlaying
