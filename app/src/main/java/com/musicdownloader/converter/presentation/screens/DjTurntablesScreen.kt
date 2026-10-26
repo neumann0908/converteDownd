@@ -4,13 +4,21 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.musicdownloader.converter.presentation.viewmodel.DjViewModel
 
 @Composable
@@ -18,6 +26,10 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
     val isPlayingA by viewModel.isPlayingDeckA.collectAsState()
     val isPlayingB by viewModel.isPlayingDeckB.collectAsState()
 
+    // Estado local para el deslizador del Crossfader
+    var crossfaderValue by remember { mutableStateOf(0.5f) }
+
+    // Animaciones de rotación para los vinilos
     val infiniteTransitionA = rememberInfiniteTransition(label = "deckA")
     val angleA by infiniteTransitionA.animateFloat(
         initialValue = 0f,
@@ -29,65 +41,192 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
         label = "rotationA"
     )
 
+    val infiniteTransitionB = rememberInfiniteTransition(label = "deckB")
+    val angleB by infiniteTransitionB.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotationB"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF121212))
+            .background(Color(0xFF13131A))
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceAround
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Text("🎚️ DJ PRO CONSOLE 🎛️", style = MaterialTheme.typography.headlineMedium, color = Color.Cyan)
+        // Título Superior Estilizado
+        Text(
+            text = "CONSOLA DJ PRO - DUAL DECK",
+            color = Color(0xFFFFD700),
+            style = MaterialTheme.typography.titleMedium,
+            fontSize = 15.sp
+        )
 
+        // Decks A y B en paralelo
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            TurntableDeck(
-                title = "Deck A",
+            // Deck A (Master)
+            DeckCard(
+                modifier = Modifier.weight(1f),
+                title = "DECK A (Master)",
+                statusColor = Color.Green,
+                trackName = "Electronic Cyber Beat",
                 isPlaying = isPlayingA,
                 rotationAngle = if (isPlayingA) angleA else 0f,
                 onTogglePlay = { viewModel.toggleDeckA() }
             )
 
-            TurntableDeck(
-                title = "Deck B",
+            // Deck B (Scratch)
+            DeckCard(
+                modifier = Modifier.weight(1f),
+                title = "DECK B (Scratch)",
+                statusColor = Color.Red,
+                trackName = "Toca para cargar pista",
                 isPlaying = isPlayingB,
-                rotationAngle = if (isPlayingB) angleA else 0f,
+                rotationAngle = if (isPlayingB) angleB else 0f,
                 onTogglePlay = { viewModel.toggleDeckB() }
             )
+        }
+
+        // Sección del Crossfader
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C))
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "CROSSFADER",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = 13.sp
+                    )
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = Color(0xFFFFD700)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Slider(
+                    value = crossfaderValue,
+                    onValueChange = { crossfaderValue = it },
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color(0xFFFFD700),
+                        activeTrackColor = Color(0xFFFFD700),
+                        inactiveTrackColor = Color.DarkGray
+                    )
+                )
+            }
         }
     }
 }
 
 @Composable
-fun TurntableDeck(
+fun DeckCard(
+    modifier: Modifier = Modifier,
     title: String,
+    statusColor: Color,
+    trackName: String,
     isPlaying: Boolean,
     rotationAngle: Float,
     onTogglePlay: () -> Unit
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(title, color = Color.White, style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Box(
-            modifier = Modifier.size(150.dp),
-            contentAlignment = Alignment.Center
+    Card(
+        modifier = modifier.fillMaxHeight(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Canvas(modifier = Modifier.fillMaxSize().rotate(rotationAngle)) {
-                drawCircle(color = Color.Black)
-                drawCircle(color = Color.DarkGray, radius = size.minDimension / 3)
-                drawCircle(color = Color.Red, radius = size.minDimension / 10)
+            // Cabecera de la tornamesa (Título + Indicador de estado)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    color = Color.LightGray,
+                    fontSize = 11.sp
+                )
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(statusColor)
+                )
             }
-        }
 
-        Spacer(modifier = Modifier.height(12.dp))
-        Button(
-            colors = ButtonDefaults.buttonColors(containerColor = if (isPlaying) Color.Red else Color.Green),
-            onClick = onTogglePlay
-        ) {
-            Text(if (isPlaying) "PAUSE" else "PLAY", color = Color.White)
+            // Nombre de la Pista (Cápsula)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF2B2B3D))
+                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = trackName,
+                    color = Color(0xFFFFD700),
+                    fontSize = 10.sp,
+                    maxLines = 1
+                )
+            }
+
+            // Vinilo Giratorio con centro dorado
+            Box(
+                modifier = Modifier.size(110.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize().rotate(rotationAngle)) {
+                    drawCircle(color = Color.Black)
+                    drawCircle(color = Color(0xFF252525), radius = size.minDimension / 2.3f)
+                    drawCircle(color = Color(0xFF151515), radius = size.minDimension / 3f)
+                    drawCircle(color = Color(0xFFFFD700), radius = size.minDimension / 6f)
+                    drawCircle(color = Color.Black, radius = size.minDimension / 18f)
+                }
+            }
+
+            // Botón de Play / Pause circular
+            IconButton(
+                onClick = onTogglePlay,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF2B2B3D))
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = "Play/Pause",
+                    tint = Color(0xFFFFD700)
+                )
+            }
         }
     }
 }
