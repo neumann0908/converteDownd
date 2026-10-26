@@ -11,6 +11,7 @@ import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.media.MediaPlayer
 import android.media.MediaMuxer
+import android.media.audiofx.Equalizer
 import android.media.projection.MediaProjection
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -24,6 +25,10 @@ class DjAudioEngine(private val context: Context) {
 
     private var mediaPlayerA: MediaPlayer? = null
     private var mediaPlayerB: MediaPlayer? = null
+
+    // Instancias del Ecualizador nativo de Android para cada Deck[span_1](start_span)[span_1](end_span)
+    private var equalizerA: Equalizer? = null
+    private var equalizerB: Equalizer? = null
 
     private var audioRecord: AudioRecord? = null
     private var mediaMuxer: MediaMuxer? = null
@@ -41,11 +46,23 @@ class DjAudioEngine(private val context: Context) {
     fun loadTrackA(path: String, onPrepared: () -> Unit = {}) {
         try {
             mediaPlayerA?.release()
+            equalizerA?.release()
+
             mediaPlayerA = MediaPlayer().apply {
                 setDataSource(path)
                 prepare()
                 isLooping = true
-                setOnPreparedListener { onPrepared() }
+                setOnPreparedListener {
+                    // Asociar el Equalizer al audioSessionId del Deck A[span_2](start_span)[span_2](end_span)
+                    try {
+                        equalizerA = Equalizer(0, audioSessionId).apply {
+                            enabled = true
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    onPrepared()
+                }
             }
             isPlayingA = false
         } catch (e: Exception) {
@@ -56,16 +73,76 @@ class DjAudioEngine(private val context: Context) {
     fun loadTrackB(path: String, onPrepared: () -> Unit = {}) {
         try {
             mediaPlayerB?.release()
+            equalizerB?.release()
+
             mediaPlayerB = MediaPlayer().apply {
                 setDataSource(path)
                 prepare()
                 isLooping = true
-                setOnPreparedListener { onPrepared() }
+                setOnPreparedListener {
+                    // Asociar el Equalizer al audioSessionId del Deck B[span_3](start_span)[span_3](end_span)
+                    try {
+                        equalizerB = Equalizer(0, audioSessionId).apply {
+                            enabled = true
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    onPrepared()
+                }
             }
             isPlayingB = false
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    // --- 🎚️ Control de Ecualización de 3 Bandas para Deck A ---
+    fun setEqualizerA(low: Float, mid: Float, high: Float) {
+        equalizerA?.let { eq ->
+            try {
+                val numBands = eq.numberOfBands.toInt()
+                if (numBands >= 3) {
+                    val lowBand = 0.toShort()
+                    val midBand = (numBands / 2).toShort()
+                    val highBand = (numBands - 1).toShort()
+
+                    eq.setBandLevel(lowBand, dbToLevel(low, eq))
+                    eq.setBandLevel(midBand, dbToLevel(mid, eq))
+                    eq.setBandLevel(highBand, dbToLevel(high, eq))
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // --- 🎚️ Control de Ecualización de 3 Bandas para Deck B ---
+    fun setEqualizerB(low: Float, mid: Float, high: Float) {
+        equalizerB?.let { eq ->
+            try {
+                val numBands = eq.numberOfBands.toInt()
+                if (numBands >= 3) {
+                    val lowBand = 0.toShort()
+                    val midBand = (numBands / 2).toShort()
+                    val highBand = (numBands - 1).toShort()
+
+                    eq.setBandLevel(lowBand, dbToLevel(low, eq))
+                    eq.setBandLevel(midBand, dbToLevel(mid, eq))
+                    eq.setBandLevel(highBand, dbToLevel(high, eq))
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun dbToLevel(value: Float, equalizer: Equalizer): Short {
+        val range = equalizer.bandLevelRange
+        val minLevel = range[0].toFloat()
+        val maxLevel = range[1].toFloat()
+        val normalized = (value.coerceIn(-1f, 1f) + 1f) / 2f
+        return (minLevel + normalized * (maxLevel - minLevel)).toInt().toShort()
     }
 
     fun togglePlayA(pathIfNull: String?): Boolean {
@@ -192,7 +269,6 @@ class DjAudioEngine(private val context: Context) {
             .setChannelMask(channelConfig)
             .build()
 
-        // Usamos reflexión para invocar los métodos del Builder y evitar errores en el compilador de GitHub Actions
         val builder = AudioRecord.Builder()
         
         val configMethod = builder.javaClass.getMethod("setAudioPlaybackCaptureConfiguration", AudioPlaybackCaptureConfiguration::class.java)
@@ -298,6 +374,10 @@ class DjAudioEngine(private val context: Context) {
 
     fun release() {
         stopRecording()
+        equalizerA?.release()
+        equalizerB?.release()
+        equalizerA = null
+        equalizerB = null
         mediaPlayerA?.release()
         mediaPlayerB?.release()
         mediaPlayerA = null
