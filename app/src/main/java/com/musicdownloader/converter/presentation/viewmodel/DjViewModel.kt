@@ -2,11 +2,9 @@ package com.musicdownloader.converter.presentation.viewmodel
 
 import android.app.Application
 import android.content.Context
-import android.media.MediaPlayer
-import android.media.MediaRecorder
-import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.musicdownloader.converter.engine.DjAudioEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -16,8 +14,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
-import kotlin.math.cos
-import kotlin.math.sin
 
 data class DjTrack(
     val name: String,
@@ -28,6 +24,9 @@ data class DjTrack(
 class DjViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : AndroidViewModel(context as Application) {
+
+    // --- Instancia del Motor de Audio Independiente ---
+    private val djAudioEngine = DjAudioEngine(context)
 
     // --- Estados de Reproducción y Decks ---
     private val _isPlayingDeckA = MutableStateFlow(false)
@@ -45,17 +44,9 @@ class DjViewModel @Inject constructor(
     private val _libraryTracks = MutableStateFlow<List<DjTrack>>(emptyList())
     val libraryTracks: StateFlow<List<DjTrack>> = _libraryTracks.asStateFlow()
 
-    // --- 🔴 Estado y gestor para la Grabación de Mezclas en Vivo ---
+    // --- 🔴 Estado para la Grabación en Vivo ---
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
-
-    private var mediaRecorder: MediaRecorder? = null
-    private var currentRecordingFile: File? = null
-    private var recordingStartTime: Long = 0L
-
-    // --- Reproductores independientes para Deck A y Deck B ---
-    private var mediaPlayerA: MediaPlayer? = null
-    private var mediaPlayerB: MediaPlayer? = null
 
     init {
         loadLibraryTracks()
@@ -83,176 +74,52 @@ class DjViewModel @Inject constructor(
 
     fun setTrackForDeckA(track: DjTrack) {
         _currentTrackA.value = track
-        try {
-            mediaPlayerA?.release()
-            mediaPlayerA = MediaPlayer().apply {
-                setDataSource(track.path)
-                prepare()
-                isLooping = true
-            }
-            _isPlayingDeckA.value = false
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        djAudioEngine.loadTrackA(track.path)
+        _isPlayingDeckA.value = false
     }
 
     fun setTrackForDeckB(track: DjTrack) {
         _currentTrackB.value = track
-        try {
-            mediaPlayerB?.release()
-            mediaPlayerB = MediaPlayer().apply {
-                setDataSource(track.path)
-                prepare()
-                isLooping = true
-            }
-            _isPlayingDeckB.value = false
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        djAudioEngine.loadTrackB(track.path)
+        _isPlayingDeckB.value = false
     }
 
     fun toggleDeckA() {
-        val track = _currentTrackA.value ?: return
-        if (mediaPlayerA == null) {
-            setTrackForDeckA(track)
-        }
-        try {
-            mediaPlayerA?.let { player ->
-                if (player.isPlaying) {
-                    player.pause()
-                    _isPlayingDeckA.value = false
-                } else {
-                    player.start()
-                    _isPlayingDeckA.value = true
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        val trackPath = _currentTrackA.value?.path ?: return
+        val isPlaying = djAudioEngine.togglePlayA(trackPath)
+        _isPlayingDeckA.value = isPlaying
     }
 
     fun toggleDeckB() {
-        val track = _currentTrackB.value ?: return
-        if (mediaPlayerB == null) {
-            setTrackForDeckB(track)
-        }
-        try {
-            mediaPlayerB?.let { player ->
-                if (player.isPlaying) {
-                    player.pause()
-                    _isPlayingDeckB.value = false
-                } else {
-                    player.start()
-                    _isPlayingDeckB.value = true
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        val trackPath = _currentTrackB.value?.path ?: return
+        val isPlaying = djAudioEngine.togglePlayB(trackPath)
+        _isPlayingDeckB.value = isPlaying
     }
 
     /**
-     * Control del Crossfader mediante curva de potencia igual (Equal-power)
-     * @param value Posición del slider de 0.0 (Todo Deck A) a 1.0 (Todo Deck B)
+     * Control del Crossfader mediante curva de potencia igual (Equal-power) delegada al motor
      */
     fun updateCrossfader(value: Float) {
-        val position = value.coerceIn(0f, 1f)
-        
-        val angleA = (1.0f - position) * (Math.PI / 2.0)
-        val angleB = position * (Math.PI / 2.0)
-        
-        val volA = cos(angleA).toFloat()
-        val volB = sin(angleB).toFloat()
-
-        try {
-            mediaPlayerA?.setVolume(volA, volA)
-            mediaPlayerB?.setVolume(volB, volB)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        djAudioEngine.updateCrossfader(value)
     }
 
-    // --- 🔴 Lógica de Grabación en Vivo (Mix Recorder) Blindada y Optimizada ---
+    // --- 🔴 Lógica de Grabación en Vivo delegada al motor ---
     fun toggleRecording() {
         if (_isRecording.value) {
-            stopRecording()
-        } else {
-            startRecording()
-        }
-    }
-
-    private fun startRecording() {
-        try {
-            val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
-            if (!downloadDir.exists()) {
-                downloadDir.mkdirs()
-            }
-
-            currentRecordingFile = File(downloadDir, "DJ_Mix_${System.currentTimeMillis()}.m4a")
-
-            mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                MediaRecorder(context)
-            } else {
-                @Suppress("DEPRECATION")
-                MediaRecorder()
-            }.apply {
-                // 💡 Usamos VOICE_RECOGNITION para evitar que Android silencie la música de los altavoces
-                setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setOutputFile(currentRecordingFile?.absolutePath)
-                prepare()
-                start()
-            }
-            recordingStartTime = System.currentTimeMillis()
-            _isRecording.value = true
-        } catch (e: Exception) {
-            e.printStackTrace()
-            mediaRecorder?.release()
-            mediaRecorder = null
+            djAudioEngine.stopRecording()
             _isRecording.value = false
-        }
-    }
-
-    private fun stopRecording() {
-        try {
-            val elapsed = System.currentTimeMillis() - recordingStartTime
-            mediaRecorder?.apply {
-                stop()
-                release()
-            }
-            mediaRecorder = null
-            _isRecording.value = false
-
-            // Si la grabación duró menos de 2 segundos, se descarta para evitar archivos vacíos/corruptos
-            if (elapsed < 2000) {
-                currentRecordingFile?.delete()
-            }
-            
-            // Recarga automática de la biblioteca para reflejar la mezcla grabada válida
             loadLibraryTracks()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            mediaRecorder?.release()
-            mediaRecorder = null
-            _isRecording.value = false
-            try { currentRecordingFile?.delete() } catch (_: Exception) {}
+        } else {
+            val started = djAudioEngine.startRecording()
+            _isRecording.value = started
         }
     }
 
     /**
-     * Libera todos los recursos de audio y grabadores al destruir el ViewModel para evitar fugas de memoria.
+     * Libera todos los recursos de audio del motor al destruir el ViewModel.
      */
     override fun onCleared() {
         super.onCleared()
-        try {
-            mediaRecorder?.release()
-        } catch (_: Exception) {}
-        mediaRecorder = null
-
-        mediaPlayerA?.release()
-        mediaPlayerB?.release()
-        mediaPlayerA = null
-        mediaPlayerB = null
+        djAudioEngine.release()
     }
 }
