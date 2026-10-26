@@ -42,9 +42,8 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
 
     var crossfaderValue by remember { mutableStateOf(0.5f) }
     var selectingForDeck by remember { mutableStateOf<String?>(null) }
-    var eqDialogDeck by remember { mutableStateOf<String?>(null) } // 🎚️ Estado para el diálogo de EQ & Tempo ("A" o "B")
+    var eqDialogDeck by remember { mutableStateOf<String?>(null) }
 
-    // Lanzador para solicitar permisos de audio en tiempo de ejecución
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -78,7 +77,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Fila superior: Título y Botón REC con validación de permisos
+            // Fila superior: Título y Botón REC
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -91,7 +90,6 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     fontSize = 14.sp
                 )
 
-                // 🔴 Botón de Grabación en Vivo (Mix Recorder) optimizado
                 IconButton(
                     onClick = {
                         val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
@@ -143,7 +141,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     rotationAngle = if (isPlayingA) angleA else 0f,
                     onTogglePlay = { viewModel.toggleDeckA() },
                     onTrackClick = {
-                        viewModel.loadLibraryTracks() // Refresca la biblioteca al instante
+                        viewModel.loadLibraryTracks()
                         selectingForDeck = "A"
                     },
                     onEqClick = { eqDialogDeck = "A" }
@@ -158,7 +156,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     rotationAngle = if (isPlayingB) angleB else 0f,
                     onTogglePlay = { viewModel.toggleDeckB() },
                     onTrackClick = {
-                        viewModel.loadLibraryTracks() // Refresca la biblioteca al instante
+                        viewModel.loadLibraryTracks()
                         selectingForDeck = "B"
                     },
                     onEqClick = { eqDialogDeck = "B" }
@@ -252,24 +250,26 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             )
         }
 
-        // 🎚️ Diálogo unificado de Ecualizador y Control de Velocidad (Tempo)
+        // Diálogo unificado con Hot Cues, Tempo y Ecualizador
         if (eqDialogDeck != null) {
-            EqualizerAndTempoDialog(
+            DeckControlDialog(
                 deckName = eqDialogDeck!!,
                 onDismiss = { eqDialogDeck = null },
                 onApplyEq = { low, mid, high ->
-                    if (eqDialogDeck == "A") {
-                        viewModel.setEqualizerA(low, mid, high)
-                    } else {
-                        viewModel.setEqualizerB(low, mid, high)
-                    }
+                    if (eqDialogDeck == "A") viewModel.setEqualizerA(low, mid, high)
+                    else viewModel.setEqualizerB(low, mid, high)
                 },
                 onApplyTempo = { speed ->
-                    if (eqDialogDeck == "A") {
-                        viewModel.setTempoDeckA(speed)
-                    } else {
-                        viewModel.setTempoDeckB(speed)
-                    }
+                    if (eqDialogDeck == "A") viewModel.setTempoDeckA(speed)
+                    else viewModel.setTempoDeckB(speed)
+                },
+                onSetCue = { cueIndex ->
+                    if (eqDialogDeck == "A") viewModel.setHotCueA(cueIndex)
+                    else viewModel.setHotCueB(cueIndex)
+                },
+                onJumpCue = { cueIndex ->
+                    if (eqDialogDeck == "A") viewModel.jumpHotCueA(cueIndex)
+                    else viewModel.jumpHotCueB(cueIndex)
                 }
             )
         }
@@ -307,9 +307,8 @@ fun DeckCard(
             ) {
                 Text(text = title, color = Color.LightGray, fontSize = 11.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Botón EQ & Tempo integrado en la cabecera del deck
                     IconButton(onClick = onEqClick, modifier = Modifier.size(24.dp)) {
-                        Icon(imageVector = Icons.Default.Equalizer, contentDescription = "EQ & Tempo", tint = Color(0xFFFFD700))
+                        Icon(imageVector = Icons.Default.Equalizer, contentDescription = "FX & Cues", tint = Color(0xFFFFD700))
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(statusColor))
@@ -356,31 +355,77 @@ fun DeckCard(
 }
 
 @Composable
-fun EqualizerAndTempoDialog(
+fun DeckControlDialog(
     deckName: String,
     onDismiss: () -> Unit,
     onApplyEq: (Float, Float, Float) -> Unit,
-    onApplyTempo: (Float) -> Unit
+    onApplyTempo: (Float) -> Unit,
+    onSetCue: (Int) -> Unit,
+    onJumpCue: (Int) -> Unit
 ) {
     var low by remember { mutableFloatStateOf(0f) }
     var mid by remember { mutableFloatStateOf(0f) }
     var high by remember { mutableFloatStateOf(0f) }
-    var tempo by remember { mutableFloatStateOf(1.0f) } // 1.0x por defecto
+    var tempo by remember { mutableFloatStateOf(1.0f) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF1E1E2C),
         title = {
-            Text(text = "Efectos & Tempo - Deck $deckName", color = Color(0xFFFFD700), fontSize = 14.sp)
+            Text(text = "Controles Pro - Deck $deckName", color = Color(0xFFFFD700), fontSize = 14.sp)
         },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Control de Velocidad / Tempo (Pitch)
+                // 🎯 Puntos Hot Cue (Cue 1 y Cue 2)
+                Text(text = "Puntos Hot Cue", color = Color(0xFFFFD700), fontSize = 12.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Cue 1
+                    Column(modifier = Modifier.weight(1f)) {
+                        Button(
+                            onClick = { onSetCue(1) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Set C1", fontSize = 10.sp, color = Color.White)
+                        }
+                        Button(
+                            onClick = { onJumpCue(1) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Jump C1", fontSize = 10.sp, color = Color.White)
+                        }
+                    }
+                    // Cue 2
+                    Column(modifier = Modifier.weight(1f)) {
+                        Button(
+                            onClick = { onSetCue(2) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Set C2", fontSize = 10.sp, color = Color.White)
+                        }
+                        Button(
+                            onClick = { onJumpCue(2) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Jump C2", fontSize = 10.sp, color = Color.White)
+                        }
+                    }
+                }
+
+                Divider(color = Color.DarkGray, thickness = 1.dp)
+
+                // Control de Velocidad / Tempo
                 Column {
-                    Text(text = "Velocidad (Tempo): ${String.format("%.2f", tempo)}x", color = Color(0xFFFFD700), fontSize = 12.sp)
+                    Text(text = "Velocidad (Tempo): ${String.format("%.2f", tempo)}x", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = tempo,
                         onValueChange = { 
@@ -394,43 +439,30 @@ fun EqualizerAndTempoDialog(
 
                 Divider(color = Color.DarkGray, thickness = 1.dp)
 
-                // Graves (Low)
+                // Ecualizador de 3 Bandas
                 Column {
                     Text(text = "Graves (Low)", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = low,
-                        onValueChange = { 
-                            low = it
-                            onApplyEq(low, mid, high)
-                        },
+                        onValueChange = { low = it; onApplyEq(low, mid, high) },
                         valueRange = -1f..1f,
                         colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
                     )
                 }
-
-                // Medios (Mid)
                 Column {
                     Text(text = "Medios (Mid)", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = mid,
-                        onValueChange = { 
-                            mid = it
-                            onApplyEq(low, mid, high)
-                        },
+                        onValueChange = { mid = it; onApplyEq(low, mid, high) },
                         valueRange = -1f..1f,
                         colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
                     )
                 }
-
-                // Agudos (High)
                 Column {
                     Text(text = "Agudos (High)", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = high,
-                        onValueChange = { 
-                            high = it
-                            onApplyEq(low, mid, high)
-                        },
+                        onValueChange = { high = it; onApplyEq(low, mid, high) },
                         valueRange = -1f..1f,
                         colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
                     )
