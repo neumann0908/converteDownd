@@ -81,7 +81,10 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     isPlaying = isPlayingA,
                     rotationAngle = if (isPlayingA) angleA else 0f,
                     onTogglePlay = { viewModel.toggleDeckA() },
-                    onTrackClick = { selectingForDeck = "A" }
+                    onTrackClick = {
+                        viewModel.loadLibraryTracks() // 👈 Refresca al instante al hacer clic
+                        selectingForDeck = "A"
+                    }
                 )
 
                 DeckCard(
@@ -92,7 +95,10 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     isPlaying = isPlayingB,
                     rotationAngle = if (isPlayingB) angleB else 0f,
                     onTogglePlay = { viewModel.toggleDeckB() },
-                    onTrackClick = { selectingForDeck = "B" }
+                    onTrackClick = {
+                        viewModel.loadLibraryTracks() // 👈 Refresca al instante al hacer clic
+                        selectingForDeck = "B"
+                    }
                 )
             }
 
