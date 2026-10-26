@@ -103,6 +103,15 @@ class DjViewModel @Inject constructor(
         djAudioEngine.setEqualizerB(low, mid, high)
     }
 
+    // --- Conexión directa del Tempo / Velocidad con el motor ---
+    fun setTempoDeckA(speed: Float) {
+        djAudioEngine.setTempoDeckA(speed)
+    }
+
+    fun setTempoDeckB(speed: Float) {
+        djAudioEngine.setTempoDeckB(speed)
+    }
+
     fun toggleRecording() {
         if (_isRecording.value) {
             djAudioEngine.stopRecording()
