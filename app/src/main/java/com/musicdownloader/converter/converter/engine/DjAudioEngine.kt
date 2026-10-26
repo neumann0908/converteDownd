@@ -133,7 +133,7 @@ class DjAudioEngine(private val context: Context) {
             val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
             val bufferSize = if (minBufferSize > 0) minBufferSize * 2 else 4096
 
-            // Configurar AudioRecord con la API de captura interna (Android 10+)
+            // Configurar AudioRecord con la API de captura interna (Android 10+ / API 29+)
             audioRecord = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && mediaProjection != null) {
                 val playbackConf = AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
                     .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
@@ -152,7 +152,7 @@ class DjAudioEngine(private val context: Context) {
                     .setBufferSizeInBytes(bufferSize)
                     .build()
             } else {
-                // Respaldo por si la versión es menor a Android 10 o no hay proyección activa
+                // Respaldo por seguridad si no se pasa MediaProjection
                 @Suppress("DEPRECATION")
                 AudioRecord(
                     android.media.MediaRecorder.AudioSource.DEFAULT,
@@ -163,7 +163,7 @@ class DjAudioEngine(private val context: Context) {
                 )
             }
 
-            // Configurar Codificador AAC para comprimir en .m4a con alta calidad
+            // Configurar Codificador AAC para comprimir en .m4a con alta calidad de estudio
             val format = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, 2).apply {
                 setInteger(MediaFormat.KEY_BIT_RATE, 128000)
                 setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
