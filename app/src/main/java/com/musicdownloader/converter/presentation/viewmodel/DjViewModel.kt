@@ -3,6 +3,8 @@ package com.musicdownloader.converter.presentation.viewmodel
 import android.app.Application
 import android.content.Context
 import android.media.MediaPlayer
+import android.media.MediaRecorder
+import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +29,7 @@ class DjViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : AndroidViewModel(context as Application) {
 
+    // --- Estados de Reproducción y Decks ---
     private val _isPlayingDeckA = MutableStateFlow(false)
     val isPlayingDeckA: StateFlow<Boolean> = _isPlayingDeckA.asStateFlow()
 
@@ -42,7 +45,14 @@ class DjViewModel @Inject constructor(
     private val _libraryTracks = MutableStateFlow<List<DjTrack>>(emptyList())
     val libraryTracks: StateFlow<List<DjTrack>> = _libraryTracks.asStateFlow()
 
-    // Dos reproductores independientes para la mezcla dual
+    // --- 🔴 Estado y gestor para la Grabación de Mezclas en Vivo ---
+    private val _isRecording = MutableStateFlow(false)
+    val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
+
+    private var mediaRecorder: MediaRecorder? = null
+    private var currentRecordingFile: File? = null
+
+    // --- Reproductores independientes para Deck A y Deck B ---
     private var mediaPlayerA: MediaPlayer? = null
     private var mediaPlayerB: MediaPlayer? = null
 
@@ -50,6 +60,9 @@ class DjViewModel @Inject constructor(
         loadLibraryTracks()
     }
 
+    /**
+     * Escanea la carpeta MusicDownloads de forma asíncrona para actualizar la biblioteca.
+     */
     fun loadLibraryTracks() {
         viewModelScope.launch(Dispatchers.IO) {
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
@@ -137,11 +150,13 @@ class DjViewModel @Inject constructor(
         }
     }
 
-    // Control del Crossfader (0.0 = Todo Deck A, 1.0 = Todo Deck B)
+    /**
+     * Control del Crossfader mediante curva de potencia igual (Equal-power)
+     * @param value Posición del slider de 0.0 (Todo Deck A) a 1.0 (Todo Deck B)
+     */
     fun updateCrossfader(value: Float) {
         val position = value.coerceIn(0f, 1f)
         
-        // Curva de crossfade de potencia igual (Equal-power)
         val angleA = (1.0f - position) * (Math.PI / 2.0)
         val angleB = position * (Math.PI / 2.0)
         
@@ -156,8 +171,70 @@ class DjViewModel @Inject constructor(
         }
     }
 
+    // --- 🔴 Lógica de Grabación en Vivo (Mix Recorder) ---
+    fun toggleRecording() {
+        if (_isRecording.value) {
+            stopRecording()
+        } else {
+            startRecording()
+        }
+    }
+
+    private fun startRecording() {
+        try {
+            val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
+            if (!downloadDir.exists()) {
+                downloadDir.mkdirs()
+            }
+
+            currentRecordingFile = File(downloadDir, "DJ_Mix_${System.currentTimeMillis()}.m4a")
+
+            mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                MediaRecorder(context)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaRecorder()
+            }.apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setOutputFile(currentRecordingFile?.absolutePath)
+                prepare()
+                start()
+            }
+            _isRecording.value = true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            _isRecording.value = false
+        }
+    }
+
+    private fun stopRecording() {
+        try {
+            mediaRecorder?.apply {
+                stop()
+                release()
+            }
+            mediaRecorder = null
+            _isRecording.value = false
+            
+            // Recarga automática de la biblioteca para reflejar la mezcla grabada al instante
+            loadLibraryTracks()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Libera todos los recursos de audio y grabadores al destruir el ViewModel para evitar fugas de memoria.
+     */
     override fun onCleared() {
         super.onCleared()
+        try {
+            mediaRecorder?.release()
+        } catch (_: Exception) {}
+        mediaRecorder = null
+
         mediaPlayerA?.release()
         mediaPlayerB?.release()
         mediaPlayerA = null
