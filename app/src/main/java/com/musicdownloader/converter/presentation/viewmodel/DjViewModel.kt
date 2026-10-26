@@ -103,7 +103,7 @@ class DjViewModel @Inject constructor(
         cuePointB2 = null
     }
 
-    fun toggleDeckA() {
+    fn toggleDeckA() {
         val trackPath = _currentTrackA.value?.path ?: return
         val isPlaying = djAudioEngine.togglePlayA(trackPath)
         _isPlayingDeckA.value = isPlaying
@@ -137,10 +137,15 @@ class DjViewModel @Inject constructor(
         djAudioEngine.setTempoDeckB(speed)
     }
 
-    // --- ⚡ Función Auto-Sync: Iguala la velocidad del Deck B con el Deck Master (Deck A) ---
+    // --- ⚡ Función Auto-Sync Avanzada: Iguala velocidad (Tempo) y alinea fase (Posición/seekTo) ---
     fun autoSyncDeckB() {
+        // 1. Iguala la velocidad del Deck B con la velocidad actual del Deck A (Master)
         currentSpeedB = currentSpeedA
         djAudioEngine.setTempoDeckB(currentSpeedA)
+
+        // 2. Obtiene la posición exacta del Deck A y salta (seekTo) el Deck B a ese mismo milisegundo
+        val masterPosition = djAudioEngine.getCurrentPositionA()
+        djAudioEngine.seekToDeckB(masterPosition)
     }
 
     // --- 🎯 Lógica Hot Cue para Deck A ---
