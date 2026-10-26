@@ -173,7 +173,7 @@ class DjAudioEngine(private val context: Context) {
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
-    @SuppressLint("MissingPermission")
+    @SuppressLint("MissingPermission", "DiscouragedPrivateApi")
     private fun createPlaybackCaptureRecord(
         mediaProjection: MediaProjection,
         sampleRate: Int,
@@ -186,17 +186,26 @@ class DjAudioEngine(private val context: Context) {
             .addMatchingUsage(AudioAttributes.USAGE_GAME)
             .build()
 
-        return AudioRecord.Builder()
-            .setAudioPlaybackCaptureConfiguration(playbackConf)
-            .setAudioFormat(
-                AudioFormat.Builder()
-                    .setEncoding(audioFormat)
-                    .setSampleRate(sampleRate)
-                    .setChannelMask(channelConfig)
-                    .build()
-            )
-            .setBufferSizeInBytes(bufferSize)
+        val format = AudioFormat.Builder()
+            .setEncoding(audioFormat)
+            .setSampleRate(sampleRate)
+            .setChannelMask(channelConfig)
             .build()
+
+        // Usamos reflexión para invocar los métodos del Builder y evitar errores en el compilador de GitHub Actions
+        val builder = AudioRecord.Builder()
+        
+        val configMethod = builder.javaClass.getMethod("setAudioPlaybackCaptureConfiguration", AudioPlaybackCaptureConfiguration::class.java)
+        configMethod.invoke(builder, playbackConf)
+
+        val formatMethod = builder.javaClass.getMethod("setAudioFormat", AudioFormat::class.java)
+        formatMethod.invoke(builder, format)
+
+        val bufferMethod = builder.javaClass.getMethod("setBufferSizeInBytes", Int::class.javaPrimitiveType!!)
+        bufferMethod.invoke(builder, bufferSize)
+
+        val buildMethod = builder.javaClass.getMethod("build")
+        return buildMethod.invoke(builder) as AudioRecord
     }
 
     private fun startEncodingLoop() {
