@@ -172,7 +172,7 @@ class DjViewModel @Inject constructor(
         }
     }
 
-    // --- 🔴 Lógica de Grabación en Vivo (Mix Recorder) Blindada ---
+    // --- 🔴 Lógica de Grabación en Vivo (Mix Recorder) Blindada y Optimizada ---
     fun toggleRecording() {
         if (_isRecording.value) {
             stopRecording()
@@ -196,7 +196,8 @@ class DjViewModel @Inject constructor(
                 @Suppress("DEPRECATION")
                 MediaRecorder()
             }.apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
+                // 💡 Usamos VOICE_RECOGNITION para evitar que Android silencie la música de los altavoces
+                setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 setOutputFile(currentRecordingFile?.absolutePath)
