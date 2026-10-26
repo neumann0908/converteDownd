@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,6 +42,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
 
     var crossfaderValue by remember { mutableStateOf(0.5f) }
     var selectingForDeck by remember { mutableStateOf<String?>(null) }
+    var eqDialogDeck by remember { mutableStateOf<String?>(null) } // 🎚️ Estado para el diálogo de EQ ("A" o "B")
 
     // Lanzador para solicitar permisos de audio en tiempo de ejecución
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -143,7 +145,8 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     onTrackClick = {
                         viewModel.loadLibraryTracks() // Refresca la biblioteca al instante
                         selectingForDeck = "A"
-                    }
+                    },
+                    onEqClick = { eqDialogDeck = "A" }
                 )
 
                 DeckCard(
@@ -157,7 +160,8 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     onTrackClick = {
                         viewModel.loadLibraryTracks() // Refresca la biblioteca al instante
                         selectingForDeck = "B"
-                    }
+                    },
+                    onEqClick = { eqDialogDeck = "B" }
                 )
             }
 
@@ -247,6 +251,21 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                 }
             )
         }
+
+        // 🎚️ Diálogo del Ecualizador de 3 Bandas
+        if (eqDialogDeck != null) {
+            EqualizerDialog(
+                deckName = eqDialogDeck!!,
+                onDismiss = { eqDialogDeck = null },
+                onApply = { low, mid, high ->
+                    if (eqDialogDeck == "A") {
+                        viewModel.setEqualizerA(low, mid, high)
+                    } else {
+                        viewModel.setEqualizerB(low, mid, high)
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -259,7 +278,8 @@ fun DeckCard(
     isPlaying: Boolean,
     rotationAngle: Float,
     onTogglePlay: () -> Unit,
-    onTrackClick: () -> Unit
+    onTrackClick: () -> Unit,
+    onEqClick: () -> Unit
 ) {
     Card(
         modifier = modifier.fillMaxHeight(),
@@ -279,7 +299,14 @@ fun DeckCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = title, color = Color.LightGray, fontSize = 11.sp)
-                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(statusColor))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Botón EQ integrado en la cabecera del deck
+                    IconButton(onClick = onEqClick, modifier = Modifier.size(24.dp)) {
+                        Icon(imageVector = Icons.Default.Equalizer, contentDescription = "EQ", tint = Color(0xFFFFD700))
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(statusColor))
+                }
             }
 
             Box(
@@ -319,4 +346,76 @@ fun DeckCard(
             }
         }
     }
+}
+
+@Composable
+fun EqualizerDialog(
+    deckName: String,
+    onDismiss: () -> Unit,
+    onApply: (Float, Float, Float) -> Unit
+) {
+    var low by remember { mutableFloatStateOf(0f) }
+    var mid by remember { mutableFloatStateOf(0f) }
+    var high by remember { mutableFloatStateOf(0f) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1E1E2C),
+        title = {
+            Text(text = "EQ 3 Bandas - Deck $deckName", color = Color(0xFFFFD700), fontSize = 14.sp)
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Graves (Low)
+                Column {
+                    Text(text = "Graves (Low)", color = Color.White, fontSize = 12.sp)
+                    Slider(
+                        value = low,
+                        onValueChange = { 
+                            low = it
+                            onApply(low, mid, high)
+                        },
+                        valueRange = -1f..1f,
+                        colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
+                    )
+                }
+
+                // Medios (Mid)
+                Column {
+                    Text(text = "Medios (Mid)", color = Color.White, fontSize = 12.sp)
+                    Slider(
+                        value = mid,
+                        onValueChange = { 
+                            mid = it
+                            onApply(low, mid, high)
+                        },
+                        valueRange = -1f..1f,
+                        colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
+                    )
+                }
+
+                // Agudos (High)
+                Column {
+                    Text(text = "Agudos (High)", color = Color.White, fontSize = 12.sp)
+                    Slider(
+                        value = high,
+                        onValueChange = { 
+                            high = it
+                            onApply(low, mid, high)
+                        },
+                        valueRange = -1f..1f,
+                        colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cerrar", color = Color(0xFFFFD700))
+            }
+        }
+    )
 }
