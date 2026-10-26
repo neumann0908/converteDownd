@@ -25,10 +25,8 @@ class DjViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : AndroidViewModel(context as Application) {
 
-    // --- Instancia del Motor de Audio Independiente ---
     private val djAudioEngine = DjAudioEngine(context)
 
-    // --- Estados de Reproducción y Decks ---
     private val _isPlayingDeckA = MutableStateFlow(false)
     val isPlayingDeckA: StateFlow<Boolean> = _isPlayingDeckA.asStateFlow()
 
@@ -44,7 +42,6 @@ class DjViewModel @Inject constructor(
     private val _libraryTracks = MutableStateFlow<List<DjTrack>>(emptyList())
     val libraryTracks: StateFlow<List<DjTrack>> = _libraryTracks.asStateFlow()
 
-    // --- 🔴 Estado para la Grabación en Vivo ---
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
@@ -52,9 +49,6 @@ class DjViewModel @Inject constructor(
         loadLibraryTracks()
     }
 
-    /**
-     * Escanea la carpeta MusicDownloads de forma asíncrona para actualizar la biblioteca.
-     */
     fun loadLibraryTracks() {
         viewModelScope.launch(Dispatchers.IO) {
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
@@ -96,14 +90,19 @@ class DjViewModel @Inject constructor(
         _isPlayingDeckB.value = isPlaying
     }
 
-    /**
-     * Control del Crossfader mediante curva de potencia igual (Equal-power) delegada al motor
-     */
     fun updateCrossfader(value: Float) {
         djAudioEngine.updateCrossfader(value)
     }
 
-    // --- 🔴 Lógica de Grabación en Vivo delegada al motor ---
+    // --- Conexión directa del Ecualizador con el motor ---
+    fun setEqualizerA(low: Float, mid: Float, high: Float) {
+        djAudioEngine.setEqualizerA(low, mid, high)
+    }
+
+    fun setEqualizerB(low: Float, mid: Float, high: Float) {
+        djAudioEngine.setEqualizerB(low, mid, high)
+    }
+
     fun toggleRecording() {
         if (_isRecording.value) {
             djAudioEngine.stopRecording()
@@ -115,9 +114,6 @@ class DjViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Libera todos los recursos de audio del motor al destruir el ViewModel.
-     */
     override fun onCleared() {
         super.onCleared()
         djAudioEngine.release()
