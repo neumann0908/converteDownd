@@ -1,4 +1,4 @@
-package com.musicdownloader.converter.presentation.viewmodel
+package com.musicdownloader.converter.engine
 
 import android.content.Context
 import android.media.MediaPlayer
@@ -10,11 +10,9 @@ import kotlin.math.sin
 
 class DjAudioEngine(private val context: Context) {
 
-    // Reproductores independientes para Deck A y Deck B
     private var mediaPlayerA: MediaPlayer? = null
     private var mediaPlayerB: MediaPlayer? = null
 
-    // Gestor de grabación interna (lo evolucionaremos a MediaMuxer en el siguiente paso)
     private var mediaRecorder: MediaRecorder? = null
     private var currentRecordingFile: File? = null
     private var recordingStartTime: Long = 0L
@@ -24,9 +22,6 @@ class DjAudioEngine(private val context: Context) {
     var isPlayingB: Boolean = false
         private set
 
-    /**
-     * Carga una pista en el Deck A
-     */
     fun loadTrackA(path: String, onPrepared: () -> Unit = {}) {
         try {
             mediaPlayerA?.release()
@@ -42,9 +37,6 @@ class DjAudioEngine(private val context: Context) {
         }
     }
 
-    /**
-     * Carga una pista en el Deck B
-     */
     fun loadTrackB(path: String, onPrepared: () -> Unit = {}) {
         try {
             mediaPlayerB?.release()
@@ -96,9 +88,6 @@ class DjAudioEngine(private val context: Context) {
         return isPlayingB
     }
 
-    /**
-     * Control del Crossfader con curva Equal-Power
-     */
     fun updateCrossfader(value: Float) {
         val position = value.coerceIn(0f, 1f)
         val angleA = (1.0f - position) * (Math.PI / 2.0)
@@ -115,10 +104,7 @@ class DjAudioEngine(private val context: Context) {
         }
     }
 
-    /**
-     * Inicia la grabación de la sesión
-     */
-    fun startRecording(onFileReady: (File) -> Unit): Boolean {
+    fun startRecording(): Boolean {
         return try {
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
             if (!downloadDir.exists()) downloadDir.mkdirs()
@@ -147,9 +133,6 @@ class DjAudioEngine(private val context: Context) {
         }
     }
 
-    /**
-     * Detiene la grabación y devuelve el archivo si es válido
-     */
     fun stopRecording(): File? {
         try {
             val elapsed = System.currentTimeMillis() - recordingStartTime
@@ -179,9 +162,6 @@ class DjAudioEngine(private val context: Context) {
         mediaRecorder = null
     }
 
-    /**
-     * Libera todos los recursos del motor
-     */
     fun release() {
         releaseRecorder()
         mediaPlayerA?.release()
