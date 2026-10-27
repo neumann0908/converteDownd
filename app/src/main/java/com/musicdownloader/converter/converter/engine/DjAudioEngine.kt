@@ -57,8 +57,16 @@ class DjAudioEngine(private val context: Context) {
     private var isDrumsMutedB = false
     private var isBassMutedB = false
 
+    // --- ⚡ Bucles Automáticos (Auto-Loops) ---
+    private var loopThreadA: Thread? = null
+    private var isLoopingActiveA = false
+
+    private var loopThreadB: Thread? = null
+    private var isLoopingActiveB = false
+
     fun loadTrackA(path: String, onPrepared: () -> Unit = {}) {
         try {
+            stopAutoLoopA()
             mediaPlayerA?.release()
             equalizerA?.release()
             reverbA?.release()
@@ -93,6 +101,7 @@ class DjAudioEngine(private val context: Context) {
 
     fun loadTrackB(path: String, onPrepared: () -> Unit = {}) {
         try {
+            stopAutoLoopB()
             mediaPlayerB?.release()
             equalizerB?.release()
             reverbB?.release()
@@ -226,11 +235,11 @@ class DjAudioEngine(private val context: Context) {
         reverbB?.enabled = enabled
     }
 
-    // --- ⚡ FX Pad: Low-Pass / High-Pass Filter ---[span_1](start_span)[span_1](end_span)
+    // --- ⚡ FX Pad: Low-Pass / High-Pass Filter ---
     fun toggleFilterA(mode: String) {
         when (mode) {
-            "LP" -> setEqualizerA(0.8f, 0.2f, -1f) // Low-Pass: Realza graves y corta agudos
-            "HP" -> setEqualizerA(-1f, -0.5f, 0.8f) // High-Pass: Corta graves y realza agudos
+            "LP" -> setEqualizerA(0.8f, 0.2f, -1f)
+            "HP" -> setEqualizerA(-1f, -0.5f, 0.8f)
             else -> setEqualizerA(0f, 0f, 0f)
         }
     }
@@ -243,7 +252,7 @@ class DjAudioEngine(private val context: Context) {
         }
     }
 
-    // --- ⚡ FX Pad: Backspin / Brake (Efecto de frenado estilo vinilo) ---[span_2](start_span)[span_2](end_span)
+    // --- ⚡ FX Pad: Backspin / Brake ---
     fun triggerBrakeA() {
         thread {
             try {
@@ -276,6 +285,79 @@ class DjAudioEngine(private val context: Context) {
                 e.printStackTrace()
             }
         }
+    }
+
+    // --- ⚡ Bucles Automáticos (Auto-Loops) ---
+    fun startAutoLoopA(beats: Int, bpm: Int) {
+        stopAutoLoopA()
+        if (bpm <= 0) return
+        val beatDurationMs = (60000.0 / bpm).toLong()
+        val loopDurationMs = beatDurationMs * beats
+
+        isLoopingActiveA = true
+        loopThreadA = thread(start = true) {
+            try {
+                while (isLoopingActiveA) {
+                    val player = mediaPlayerA ?: break
+                    if (!player.isPlaying) break
+                    val startPos = player.currentPosition
+                    
+                    val segment = 50L
+                    val steps = loopDurationMs / segment
+                    for (i in 0 until steps) {
+                        if (!isLoopingActiveA || !player.isPlaying) break
+                        Thread.sleep(segment)
+                    }
+                    if (isLoopingActiveA && player.isPlaying) {
+                        player.seekTo(startPos)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun stopAutoLoopA() {
+        isLoopingActiveA = false
+        loopThreadA?.interrupt()
+        loopThreadA = null
+    }
+
+    fun startAutoLoopB(beats: Int, bpm: Int) {
+        stopAutoLoopB()
+        if (bpm <= 0) return
+        val beatDurationMs = (60000.0 / bpm).toLong()
+        val loopDurationMs = beatDurationMs * beats
+
+        isLoopingActiveB = true
+        loopThreadB = thread(start = true) {
+            try {
+                while (isLoopingActiveB) {
+                    val player = mediaPlayerB ?: break
+                    if (!player.isPlaying) break
+                    val startPos = player.currentPosition
+                    
+                    val segment = 50L
+                    val steps = loopDurationMs / segment
+                    for (i in 0 until steps) {
+                        if (!isLoopingActiveB || !player.isPlaying) break
+                        Thread.sleep(segment)
+                    }
+                    if (isLoopingActiveB && player.isPlaying) {
+                        player.seekTo(startPos)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun stopAutoLoopB() {
+        isLoopingActiveB = false
+        loopThreadB?.interrupt()
+        loopThreadB = null
     }
 
     fun setTempoDeckA(speed: Float) {
@@ -567,6 +649,8 @@ class DjAudioEngine(private val context: Context) {
 
     fun release() {
         stopRecording()
+        stopAutoLoopA()
+        stopAutoLoopB()
         equalizerA?.release()
         equalizerB?.release()
         reverbA?.release()
@@ -581,4 +665,3 @@ class DjAudioEngine(private val context: Context) {
         mediaPlayerB = null
     }
 }
-
