@@ -79,21 +79,21 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF13131A))
-            .padding(16.dp)
+            .padding(12.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // 🎛️ Cabecera Pro Rediseñada con botón CUE / Split Audio (Punto 12)
+            // 🎛️ Cabecera Pro Rediseñada en Dos Filas Simétricas
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Alignment.SpaceBetween.let { Arrangement.SpaceBetween },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -102,101 +102,97 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                         style = MaterialTheme.typography.titleMedium,
                         fontSize = 13.sp
                     )
+                }
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                // Fila de Botones Superiores Distribuidos Uniformemente
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = { viewModel.toggleSplitAudio() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isSplitAudio) Color(0xFFFF9800) else Color(0xFF3B3B4F)
+                        ),
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.weight(1f).height(30.dp)
                     ) {
-                        // 🎧 Botón Split Audio / Preescucha (Punto 12)[span_0](start_span)[span_0](end_span)
-                        Button(
-                            onClick = { viewModel.toggleSplitAudio() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isSplitAudio) Color(0xFFFF9800) else Color(0xFF3B3B4F)
-                            ),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                            modifier = Modifier.height(30.dp)
-                        ) {
-                            Text(
-                                text = if (isSplitAudio) "SPLIT ON" else "CUE CPL",
-                                fontSize = 9.sp,
-                                color = if (isSplitAudio) Color.Black else Color.White
-                            )
-                        }
+                        Text(
+                            text = if (isSplitAudio) "SPLIT ON" else "CUE CPL",
+                            fontSize = 9.sp,
+                            color = if (isSplitAudio) Color.Black else Color.White
+                        )
+                    }
 
-                        // ⚡ Botón Sampler Pads
-                        Button(
-                            onClick = { showSamplerDialog = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                            modifier = Modifier.height(30.dp)
-                        ) {
-                            Text(text = "PADS", fontSize = 10.sp, color = Color(0xFFFFD700))
-                        }
+                    Button(
+                        onClick = { showSamplerDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.weight(1f).height(30.dp)
+                    ) {
+                        Text(text = "PADS", fontSize = 10.sp, color = Color(0xFFFFD700))
+                    }
 
-                        // ⚡ Botón de Modo Automix Inteligente
-                        Button(
-                            onClick = { viewModel.toggleAutomix() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isAutomix) Color(0xFF00E676) else Color(0xFF2B2B3D)
-                            ),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                            modifier = Modifier.height(30.dp)
-                        ) {
-                            Text(
-                                text = if (isAutomix) "AUTO ON" else "AUTOMIX",
-                                fontSize = 9.sp,
-                                color = if (isAutomix) Color.Black else Color.White
-                            )
-                        }
+                    Button(
+                        onClick = { viewModel.toggleAutomix() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isAutomix) Color(0xFF00E676) else Color(0xFF3B3B4F)
+                        ),
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.weight(1f).height(30.dp)
+                    ) {
+                        Text(
+                            text = if (isAutomix) "AUTO ON" else "AUTOMIX",
+                            fontSize = 9.sp,
+                            color = if (isAutomix) Color.Black else Color.White
+                        )
+                    }
 
-                        // ⚡ Botón de Grabación (REC) simétrico
-                        Button(
-                            onClick = {
-                                val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-                                if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
-                                    viewModel.toggleRecording()
-                                } else {
-                                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isRecording) Color.Red else Color(0xFF2B2B3D)
-                            ),
-                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-                            modifier = Modifier.height(30.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(if (isRecording) Color.White else Color.Red)
-                                )
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Text(
-                                    text = "REC",
-                                    color = Color.White,
-                                    fontSize = 9.sp
-                                )
+                    Button(
+                        onClick = {
+                            val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                            if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+                                viewModel.toggleRecording()
+                            } else {
+                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                             }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isRecording) Color.Red else Color(0xFF2B2B3D)
+                        ),
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.weight(1f).height(30.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isRecording) Color.White else Color.Red)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(text = "REC", color = Color.White, fontSize = 9.sp)
                         }
                     }
                 }
             }
 
+            // Decks A y B con Distribución Limpia
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 DeckCard(
                     modifier = Modifier.weight(1f),
-                    title = "DECK A (Master)",
+                    title = "DECK A",
+                    subtitle = "(Master)",
                     statusColor = Color.Green,
                     track = trackA,
                     isPlaying = isPlayingA,
@@ -214,7 +210,8 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
 
                 DeckCard(
                     modifier = Modifier.weight(1f),
-                    title = "DECK B (Sync)",
+                    title = "DECK B",
+                    subtitle = "(Sync)",
                     statusColor = Color.Red,
                     track = trackB,
                     isPlaying = isPlayingB,
@@ -232,13 +229,14 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                 )
             }
 
+            // Crossfader Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C))
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(
@@ -246,10 +244,9 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "CROSSFADER", color = Color.White, fontSize = 13.sp)
-                        Icon(imageVector = Icons.Default.MusicNote, contentDescription = null, tint = Color(0xFFFFD700))
+                        Text(text = "CROSSFADER", color = Color.White, fontSize = 12.sp)
+                        Icon(imageVector = Icons.Default.MusicNote, contentDescription = null, tint = Color(0xFFFFD700), modifier = Modifier.size(16.dp))
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
                     Slider(
                         value = crossfaderValue,
                         onValueChange = { 
@@ -277,8 +274,8 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 300.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .heightIn(max = 280.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         if (libraryTracks.isEmpty()) {
                             Text(text = "No hay canciones descargadas", color = Color.LightGray, fontSize = 12.sp)
@@ -299,20 +296,21 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Row(
-                                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                        modifier = Modifier.fillMaxWidth().padding(10.dp),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
                                             text = track.name,
                                             color = Color.White,
-                                            fontSize = 12.sp,
-                                            modifier = Modifier.weight(1f)
+                                            fontSize = 11.sp,
+                                            modifier = Modifier.weight(1f),
+                                            maxLines = 1
                                         )
                                         Text(
-                                            text = "${track.bpm} BPM | ${track.musicalKey}",
+                                            text = "${track.bpm}BPM | ${track.musicalKey}",
                                             color = Color(0xFFFFD700),
-                                            fontSize = 11.sp
+                                            fontSize = 10.sp
                                         )
                                     }
                                 }
@@ -349,6 +347,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
 fun DeckCard(
     modifier: Modifier = Modifier,
     title: String,
+    subtitle: String,
     statusColor: Color,
     track: DjTrack?,
     isPlaying: Boolean,
@@ -363,65 +362,74 @@ fun DeckCard(
 ) {
     Card(
         modifier = modifier.fillMaxHeight(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
+                .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
+            // 🎛️ Cabecera de Deck Estructurada para evitar desplazamientos
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = title, color = Color.LightGray, fontSize = 11.sp)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // 🎧 Botón CUE individual por Deck (Punto 12)
+                // Título y Subtítulo compactos en columna para no invadir espacio
+                Column {
+                    Text(text = title, color = Color.White, fontSize = 10.sp, style = MaterialTheme.typography.labelSmall)
+                    Text(text = subtitle, color = Color.LightGray, fontSize = 8.sp)
+                }
+
+                // Controles derechos alineados y compactos
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
                     Button(
                         onClick = onCueClick,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isCueActive) Color(0xFFFF9800) else Color(0xFF3B3B4F)
                         ),
-                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                        modifier = Modifier.height(24.dp)
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+                        modifier = Modifier.height(22.dp).width(36.dp)
                     ) {
-                        Text(text = "CUE", fontSize = 9.sp, color = if (isCueActive) Color.Black else Color.White)
+                        Text(text = "CUE", fontSize = 8.sp, color = if (isCueActive) Color.Black else Color.White)
                     }
-                    Spacer(modifier = Modifier.width(4.dp))
+
                     IconButton(onClick = onEqClick, modifier = Modifier.size(24.dp)) {
-                        Icon(imageVector = Icons.Default.Equalizer, contentDescription = "FX & Stems", tint = Color(0xFFFFD700))
+                        Icon(imageVector = Icons.Default.Equalizer, contentDescription = null, tint = Color(0xFFFFD700), modifier = Modifier.size(16.dp))
                     }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(statusColor))
+
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(statusColor))
                 }
             }
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(6.dp))
                     .background(Color(0xFF2B2B3D))
                     .clickable { onTrackClick() }
-                    .padding(vertical = 8.dp, horizontal = 6.dp),
+                    .padding(vertical = 6.dp, horizontal = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = track?.name ?: "Toca para cargar pista",
+                        text = track?.name ?: "Cargar pista",
                         color = Color(0xFFFFD700),
-                        fontSize = 10.sp,
+                        fontSize = 9.sp,
                         maxLines = 1
                     )
                     if (track != null) {
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(1.dp))
                         Text(
-                            text = "BPM: ${track.bpm} | Key: ${track.musicalKey}",
-                            color = Color.LightGray,
-                            fontSize = 9.sp
+                            text = "${track.bpm}BPM | ${track.musicalKey}",
+                            color = Color.LightGraph.let { Color.LightGray },
+                            fontSize = 8.sp
                         )
                     }
                 }
@@ -431,15 +439,17 @@ fun DeckCard(
                 Button(
                     onClick = onSyncClick,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
-                    modifier = Modifier.fillMaxWidth().height(28.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp),
                     contentPadding = PaddingValues(0.dp)
                 ) {
-                    Text("SYNC (AUTO)", fontSize = 10.sp, color = Color.Black)
+                    Text("SYNC (AUTO)", fontSize = 9.sp, color = Color.Black)
                 }
             }
 
             Box(
-                modifier = Modifier.size(100.dp),
+                modifier = Modifier.size(76.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Canvas(modifier = Modifier.fillMaxSize().rotate(rotationAngle)) {
@@ -453,12 +463,16 @@ fun DeckCard(
 
             IconButton(
                 onClick = onTogglePlay,
-                modifier = Modifier.size(44.dp).clip(CircleShape).background(Color(0xFF2B2B3D))
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF2B2B3D))
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = "Play/Pause",
-                    tint = Color(0xFFFFD700)
+                    contentDescription = null,
+                    tint = Color(0xFFFFD700),
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -485,25 +499,17 @@ fun SamplerPadDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF1E1E2C),
         title = {
-            Text(text = "Banco de Samples (Sampler Pad)", color = Color(0xFFFFD700), fontSize = 14.sp)
+            Text(text = "Banco de Samples", color = Color(0xFFFFD700), fontSize = 14.sp)
         },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    text = "Dispara efectos de sonido en tiempo real con latencia cero",
-                    color = Color.LightGray,
-                    fontSize = 11.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-
-                val rows = samples.chunked(2)
-                rows.forEach { rowItems ->
+                samples.chunked(2).forEach { rowItems ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         rowItems.forEach { (name, color) ->
                             Button(
@@ -511,14 +517,13 @@ fun SamplerPadDialog(
                                 colors = ButtonDefaults.buttonColors(containerColor = color),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(50.dp),
-                                shape = RoundedCornerShape(12.dp)
+                                    .height(40.dp),
+                                shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text(
                                     text = name,
-                                    fontSize = 11.sp,
-                                    color = Color.Black,
-                                    style = MaterialTheme.typography.labelMedium
+                                    fontSize = 10.sp,
+                                    color = Color.Black
                                 )
                             }
                         }
@@ -554,8 +559,6 @@ fun DeckControlDialog(
     var echoActive by remember { mutableStateOf(false) }
     var filterMode by remember { mutableStateOf("OFF") }
 
-    val scrollState = rememberScrollState()
-
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF1E1E2C),
@@ -567,11 +570,11 @@ fun DeckControlDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 420.dp)
-                    .verticalScroll(scrollState),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // ⚡ Key Shift & Master Tempo (Punto 13)
-                Text(text = "Tonalidad (Key Shift & Master Tempo)", color = Color(0xFFFFD700), fontSize = 12.sp)
+                Text(text = "Tonalidad (Key Shift & Master Tempo)", color = Color(0xFFFFD700), fontSize = 11.sp)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -580,7 +583,7 @@ fun DeckControlDialog(
                     Text(
                         text = "Key Shift: ${if (keyShift > 0) "+$keyShift" else keyShift.toInt()} semitonos",
                         color = Color.White,
-                        fontSize = 11.sp
+                        fontSize = 10.sp
                     )
                     Button(
                         onClick = {
@@ -613,13 +616,13 @@ fun DeckControlDialog(
                     colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
                 )
 
-                Divider(color = Color.DarkGray, thickness = 1.dp)
+                Divider(color = Color.DarkGray, thickness = 0.5.dp)
 
-                // ⚡ FX Pad (Echo, Filter, Brake)
-                Text(text = "Efectos en Vivo (FX Pad)", color = Color(0xFFFFD700), fontSize = 12.sp)
+                // Efectos FX
+                Text(text = "Efectos en Vivo (FX Pad)", color = Color(0xFFFFD700), fontSize = 11.sp)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Button(
                         onClick = { 
@@ -628,7 +631,9 @@ fun DeckControlDialog(
                             else viewModel.toggleEchoB(echoActive)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = if (echoActive) Color(0xFF00E676) else Color(0xFF3B3B4F)),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(30.dp)
                     ) {
                         Text(if (echoActive) "Echo ON" else "Echo", fontSize = 9.sp, color = if (echoActive) Color.Black else Color.White)
                     }
@@ -640,7 +645,9 @@ fun DeckControlDialog(
                             else viewModel.toggleFilterB(filterMode)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = if (filterMode != "OFF") Color(0xFFFF9800) else Color(0xFF3B3B4F)),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(30.dp)
                     ) {
                         Text("Filter: $filterMode", fontSize = 9.sp, color = Color.White)
                     }
@@ -651,16 +658,18 @@ fun DeckControlDialog(
                             else viewModel.triggerBrakeB()
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(30.dp)
                     ) {
                         Text("Brake", fontSize = 9.sp, color = Color.White)
                     }
                 }
 
-                Divider(color = Color.DarkGray, thickness = 1.dp)
+                Divider(color = Color.DarkGray, thickness = 0.5.dp)
 
-                // ⚡ Bucles Automáticos (Auto-Loops)
-                Text(text = "Bucles Automáticos (Auto-Loops)", color = Color(0xFFFFD700), fontSize = 12.sp)
+                // Auto-Loops
+                Text(text = "Bucles Automáticos (Auto-Loops)", color = Color(0xFFFFD700), fontSize = 11.sp)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -672,37 +681,31 @@ fun DeckControlDialog(
                         val isActive = activeLoopBeats == beats
                         Button(
                             onClick = {
-                                val newActiveState = if (isActive) null else beats
-                                activeLoopBeats = newActiveState
-                                val enabled = newActiveState != null
-                                if (deckName == "A") {
-                                    viewModel.toggleAutoLoopA(beats, currentBpm, enabled)
-                                } else {
-                                    viewModel.toggleAutoLoopB(beats, currentBpm, enabled)
-                                }
+                                activeLoopBeats = if (isActive) null else beats
+                                val enabled = activeLoopBeats != null
+                                if (deckName == "A") viewModel.toggleAutoLoopA(beats, currentBpm, enabled)
+                                else viewModel.toggleAutoLoopB(beats, currentBpm, enabled)
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isActive) Color(0xFF00E676) else Color(0xFF3B3B4F)
                             ),
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(28.dp),
                             contentPadding = PaddingValues(0.dp)
                         ) {
-                            Text(
-                                text = "${beats}B",
-                                fontSize = 10.sp,
-                                color = if (isActive) Color.Black else Color.White
-                            )
+                            Text("${beats}B", fontSize = 9.sp, color = if (isActive) Color.Black else Color.White)
                         }
                     }
                 }
 
-                Divider(color = Color.DarkGray, thickness = 1.dp)
+                Divider(color = Color.DarkGray, thickness = 0.5.dp)
 
-                // 🎛️ Neural Mix / Stem Isolation
-                Text(text = "Aislamiento de Stems (Neural Mix)", color = Color(0xFFFFD700), fontSize = 12.sp)
+                // Stems
+                Text(text = "Aislamiento de Stems (Neural Mix)", color = Color(0xFFFFD700), fontSize = 11.sp)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Button(
                         onClick = { 
@@ -711,9 +714,11 @@ fun DeckControlDialog(
                             else viewModel.toggleStemVocalsB(vocalsMuted)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = if (vocalsMuted) Color.Red else Color(0xFF3B3B4F)),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(30.dp)
                     ) {
-                        Text(if (vocalsMuted) "Vocals OFF" else "Vocals", fontSize = 9.sp, color = Color.White)
+                        Text(if (vocalsMuted) "Vocals OFF" else "Vocals", fontSize = 8.sp, color = Color.White)
                     }
 
                     Button(
@@ -723,9 +728,11 @@ fun DeckControlDialog(
                             else viewModel.toggleStemDrumsB(drumsMuted)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = if (drumsMuted) Color.Red else Color(0xFF3B3B4F)),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(30.dp)
                     ) {
-                        Text(if (drumsMuted) "Drums OFF" else "Drums", fontSize = 9.sp, color = Color.White)
+                        Text(if (drumsMuted) "Drums OFF" else "Drums", fontSize = 8.sp, color = Color.White)
                     }
 
                     Button(
@@ -735,59 +742,69 @@ fun DeckControlDialog(
                             else viewModel.toggleStemBassB(bassMuted)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = if (bassMuted) Color.Red else Color(0xFF3B3B4F)),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(30.dp)
                     ) {
-                        Text(if (bassMuted) "Bass OFF" else "Bass", fontSize = 9.sp, color = Color.White)
+                        Text(if (bassMuted) "Bass OFF" else "Bass", fontSize = 8.sp, color = Color.White)
                     }
                 }
 
-                Divider(color = Color.DarkGray, thickness = 1.dp)
+                Divider(color = Color.DarkGray, thickness = 0.5.dp)
 
                 // Hot Cues
-                Text(text = "Puntos Hot Cue", color = Color(0xFFFFD700), fontSize = 12.sp)
+                Text(text = "Puntos Hot Cue", color = Color(0xFFFFD700), fontSize = 11.sp)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Button(
                             onClick = { if (deckName == "A") viewModel.setHotCueA(1) else viewModel.setHotCueB(1) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(26.dp)
                         ) {
-                            Text("Set C1", fontSize = 10.sp, color = Color.White)
+                            Text("Set C1", fontSize = 9.sp, color = Color.White)
                         }
                         Button(
                             onClick = { if (deckName == "A") viewModel.jumpHotCueA(1) else viewModel.jumpHotCueB(1) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(26.dp)
                         ) {
-                            Text("Jump C1", fontSize = 10.sp, color = Color.White)
+                            Text("Jump C1", fontSize = 9.sp, color = Color.White)
                         }
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Button(
                             onClick = { if (deckName == "A") viewModel.setHotCueA(2) else viewModel.setHotCueB(2) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(26.dp)
                         ) {
-                            Text("Set C2", fontSize = 10.sp, color = Color.White)
+                            Text("Set C2", fontSize = 9.sp, color = Color.White)
                         }
                         Button(
                             onClick = { if (deckName == "A") viewModel.jumpHotCueA(2) else viewModel.jumpHotCueB(2) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(26.dp)
                         ) {
-                            Text("Jump C2", fontSize = 10.sp, color = Color.White)
+                            Text("Jump C2", fontSize = 9.sp, color = Color.White)
                         }
                     }
                 }
 
-                Divider(color = Color.DarkGray, thickness = 1.dp)
+                Divider(color = Color.DarkGray, thickness = 0.5.dp)
 
                 // Tempo
                 Column {
-                    Text(text = "Velocidad (Tempo): ${String.format("%.2f", tempo)}x", color = Color.White, fontSize = 11.sp)
+                    Text(text = "Velocidad (Tempo): ${String.format("%.2f", tempo)}x", color = Color.White, fontSize = 10.sp)
                     Slider(
                         value = tempo,
                         onValueChange = { 
@@ -800,11 +817,9 @@ fun DeckControlDialog(
                     )
                 }
 
-                Divider(color = Color.DarkGray, thickness = 1.dp)
-
                 // EQ de 3 Bandas
                 Column {
-                    Text(text = "Graves (Low)", color = Color.White, fontSize = 11.sp)
+                    Text(text = "Graves (Low)", color = Color.White, fontSize = 10.sp)
                     Slider(
                         value = low,
                         onValueChange = { low = it; if (deckName == "A") viewModel.setEqualizerA(low, mid, high) else viewModel.setEqualizerB(low, mid, high) },
@@ -813,7 +828,7 @@ fun DeckControlDialog(
                     )
                 }
                 Column {
-                    Text(text = "Medios (Mid)", color = Color(0xFFFFD700), fontSize = 11.sp)
+                    Text(text = "Medios (Mid)", color = Color(0xFFFFD700), fontSize = 10.sp)
                     Slider(
                         value = mid,
                         onValueChange = { mid = it; if (deckName == "A") viewModel.setEqualizerA(low, mid, high) else viewModel.setEqualizerB(low, mid, high) },
@@ -822,7 +837,7 @@ fun DeckControlDialog(
                     )
                 }
                 Column {
-                    Text(text = "Agudos (High)", color = Color.White, fontSize = 11.sp)
+                    Text(text = "Agudos (High)", color = Color.White, fontSize = 10.sp)
                     Slider(
                         value = high,
                         onValueChange = { high = it; if (deckName == "A") viewModel.setEqualizerA(low, mid, high) else viewModel.setEqualizerB(low, mid, high) },
