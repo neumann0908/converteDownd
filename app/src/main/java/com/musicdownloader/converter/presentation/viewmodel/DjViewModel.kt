@@ -5,7 +5,6 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
-import android.media.MediaPlayer
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.musicdownloader.converter.engine.DjAudioEngine
@@ -22,6 +21,7 @@ import java.io.File
 import javax.inject.Inject
 import kotlin.math.PI
 import kotlin.math.sin
+import kotlin.random.Random
 
 data class DjTrack(
     val name: String,
@@ -162,48 +162,73 @@ class DjViewModel @Inject constructor(
         _isPlayingDeckB.value = false
     }
 
-    // --- ⚡ Sampler Pad (Sintetizador Dinámico PCM de Latencia Cero) ---
+    // --- ⚡ Sampler Pad (Sintetizador de Alta Fidelidad con Modelado Físico y Saturación tanh) ---
     fun playSample(sampleName: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val sampleRate = 44100
                 val durationMs = when (sampleName) {
-                    "Air Horn" -> 400
-                    "Scratch" -> 250
-                    "Laser" -> 300
-                    "Kick" -> 200
-                    "Snare" -> 200
-                    "Vocals" -> 500
-                    "BASS DROP" -> 800
-                    "Siren" -> 600
+                    "Air Horn" -> 350
+                    "Scratch" -> 220
+                    "Laser" -> 250
+                    "Kick" -> 320
+                    "Snare" -> 260
+                    "Vocals" -> 400
+                    "BASS DROP" -> 750
+                    "Siren" -> 500
                     else -> 300
                 }
-                
+
                 val numSamples = (sampleRate * durationMs) / 1000
                 val sample = ByteArray(numSamples * 2)
 
-                // Frecuencias base profesionales para cada efecto del pad
-                val baseFreq = when (sampleName) {
-                    "Air Horn" -> 466.16 // Nota Bb4
-                    "Scratch" -> 600.0
-                    "Laser" -> 880.0
-                    "Kick" -> 120.0
-                    "Snare" -> 350.0
-                    "Vocals" -> 523.25 // Nota C5
-                    "BASS DROP" -> 60.0
-                    "Siren" -> 440.0
-                    else -> 400.0
-                }
-
                 for (i in 0 until numSamples) {
                     val t = i.toDouble() / sampleRate
-                    // Modulación de frecuencia y envolvente para dar realismo electrónico
-                    val freq = if (sampleName == "Laser") baseFreq - (i * 1.5) else baseFreq
-                    val envelope = 1.0 - (i.toDouble() / numSamples)
-                    
-                    val wave = sin(2.0 * PI * freq * t) * envelope
+                    val progress = i.toDouble() / numSamples
+                    val envelope = 1.0 - progress
+
+                    var wave = when (sampleName) {
+                        "Kick" -> {
+                            val freq = 42.0 + 98.0 * kotlin.math.exp(-progress * 14.0)
+                            val transient = if (i < (sampleRate * 0.006)) (Random.nextDouble() * 2.0 - 1.0) * kotlin.math.exp(-i / 40.0) else 0.0
+                            val body = sin(2.0 * PI * freq * t)
+                            (body * (envelope * envelope)) + (transient * 0.45)
+                        }
+                        "Snare" -> {
+                            val tone1 = sin(2.0 * PI * 190.0 * t) * kotlin.math.exp(-progress * 12.0)
+                            val tone2 = sin(2.0 * PI * 340.0 * t) * kotlin.math.exp(-progress * 18.0)
+                            val noise = (Random.nextDouble() * 2.0 - 1.0)
+                            val noiseEnv = kotlin.math.exp(-progress * 9.0)
+                            ((tone1 + tone2) * 0.35 + noise * 0.65 * noiseEnv) * envelope
+                        }
+                        "BASS DROP" -> {
+                            val freq = 26.0 + 74.0 * (1.0 - progress)
+                            sin(2.0 * PI * freq * t) * (envelope * 1.3)
+                        }
+                        "Scratch" -> {
+                            val freq = 220.0 + sin(t * 80.0) * 450.0 * (1.0 - progress)
+                            sin(2.0 * PI * freq * t) * envelope
+                        }
+                        "Air Horn" -> {
+                            (sin(2.0 * PI * 466.16 * t) + sin(2.0 * PI * 587.33 * t) + sin(2.0 * PI * 698.46 * t)) / 3.0 * envelope
+                        }
+                        "Laser" -> {
+                            val freq = 1500.0 * (1.0 - progress * 1.3)
+                            sin(2.0 * PI * freq * t) * envelope
+                        }
+                        "Siren" -> {
+                            val freq = 420.0 + sin(t * 30.0) * 200.0
+                            sin(2.0 * PI * freq * t) * envelope
+                        }
+                        else -> {
+                            sin(2.0 * PI * 440.0 * t) * envelope
+                        }
+                    }
+
+                    // Saturación analógica soft-clipping con tanh para calidez y pegada
+                    wave = kotlin.math.tanh(wave * 1.6)
+
                     val valShort = (wave * 32767).toInt().toShort()
-                    
                     sample[2 * i] = (valShort.toInt() and 0x00ff).toByte()
                     sample[2 * i + 1] = ((valShort.toInt() and 0xff00) ushr 8).toByte()
                 }
