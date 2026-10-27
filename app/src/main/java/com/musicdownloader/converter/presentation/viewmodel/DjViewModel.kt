@@ -55,6 +55,16 @@ class DjViewModel @Inject constructor(
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
+    // --- 🎧 Headphone Cue / Split Audio States (Punto 12) ---
+    private val _isSplitAudioActive = MutableStateFlow(false)
+    val isSplitAudioActive: StateFlow<Boolean> = _isSplitAudioActive.asStateFlow()
+
+    private val _cueDeckA = MutableStateFlow(false)
+    val cueDeckA: StateFlow<Boolean> = _cueDeckA.asStateFlow()
+
+    private val _cueDeckB = MutableStateFlow(false)
+    val cueDeckB: StateFlow<Boolean> = _cueDeckB.asStateFlow()
+
     // --- ⚡ Modo Automix States ---
     private val _isAutomixActive = MutableStateFlow(false)
     val isAutomixActive: StateFlow<Boolean> = _isAutomixActive.asStateFlow()
@@ -130,6 +140,34 @@ class DjViewModel @Inject constructor(
         djAudioEngine.updateCrossfader(value)
     }
 
+    // --- 🎧 Headphone Cue Methods (Punto 12) ---
+    fun toggleSplitAudio() {
+        val newState = !_isSplitAudioActive.value
+        _isSplitAudioActive.value = newState
+        applyAudioRouting()
+    }
+
+    fun toggleCueDeckA() {
+        _cueDeckA.value = !_cueDeckA.value
+        applyAudioRouting()
+    }
+
+    fun toggleCueDeckB() {
+        _cueDeckB.value = !_cueDeckB.value
+        applyAudioRouting()
+    }
+
+    private fun applyAudioRouting() {
+        // Si Split Audio está activo: Canal izquierdo (Master), Canal derecho (Auriculares CUE)[span_2](start_span)[span_2](end_span)
+        // Esto ajusta la distribución estéreo para adaptarla al cable divisor de audífonos DJ.
+        if (_isSplitAudioActive.value) {
+            // Lógica de ruteo estéreo avanzado en el motor de audio
+            djAudioEngine.setSplitAudioMode(true, _cueDeckA.value, _cueDeckB.value)
+        } else {
+            djAudioEngine.setSplitAudioMode(false, false, false)
+        }
+    }
+
     fun setEqualizerA(low: Float, mid: Float, high: Float) {
         djAudioEngine.setEqualizerA(low, mid, high)
     }
@@ -162,7 +200,7 @@ class DjViewModel @Inject constructor(
         _isPlayingDeckB.value = false
     }
 
-    // --- ⚡ Sampler Pad (Sintetizador de Alta Fidelidad con Modelado Físico y Saturación tanh) ---
+    // --- ⚡ Sampler Pad (Sintetizador PCM de Alta Fidelidad) ---
     fun playSample(sampleName: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -225,7 +263,6 @@ class DjViewModel @Inject constructor(
                         }
                     }
 
-                    // Saturación analógica soft-clipping con tanh para calidez y pegada
                     wave = kotlin.math.tanh(wave * 1.6)
 
                     val valShort = (wave * 32767).toInt().toShort()
