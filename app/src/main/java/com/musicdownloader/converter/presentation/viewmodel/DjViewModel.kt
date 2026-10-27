@@ -156,6 +156,13 @@ class DjViewModel @Inject constructor(
         _isPlayingDeckB.value = false
     }
 
+    // --- ⚡ Sampler Pad (Banco de Efectos de Sonido) ---
+    fun playSample(sampleName: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            djAudioEngine.playSoundEffect(sampleName)
+        }
+    }
+
     // --- ⚡ Auto-Loops Methods ---
     fun toggleAutoLoopA(beats: Int, bpm: Int, active: Boolean) {
         if (active) djAudioEngine.startAutoLoopA(beats, bpm)
@@ -185,7 +192,6 @@ class DjViewModel @Inject constructor(
             delay(500L)
             var tracks = _libraryTracks.value
             
-            // Si la biblioteca interna está vacía, buscamos directamente en la carpeta de descargas
             if (tracks.isEmpty()) {
                 val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
                 if (downloadDir.exists() && downloadDir.isDirectory) {
@@ -206,7 +212,6 @@ class DjViewModel @Inject constructor(
                 return@launch
             }
 
-            // Si nada está sonando, iniciamos el Deck A con la primera pista de la biblioteca
             if (!_isPlayingDeckA.value && !_isPlayingDeckB.value) {
                 automixQueueIndex = 0
                 setTrackForDeckA(tracks[automixQueueIndex % tracks.size])
@@ -214,13 +219,11 @@ class DjViewModel @Inject constructor(
                 automixQueueIndex++
             }
 
-            // Ciclo inteligente de monitoreo autónomo para fiestas
             while (_isAutomixActive.value) {
-                delay(12000L) // Intervalo de rotación inteligente
+                delay(12000L)
                 val currentTracks = _libraryTracks.value.ifEmpty { tracks }
                 if (currentTracks.isEmpty()) continue
 
-                // Si Deck A está sonando y Deck B está libre, preparamos transición hacia Deck B
                 if (_isPlayingDeckA.value && !_isPlayingDeckB.value) {
                     val nextTrack = currentTracks[automixQueueIndex % currentTracks.size]
                     automixQueueIndex++
@@ -228,23 +231,19 @@ class DjViewModel @Inject constructor(
                     setTrackForDeckB(nextTrack)
                     toggleDeckB()
 
-                    // Crossfade gradual autónomo de Deck A hacia Deck B
                     for (i in 1..10) {
                         val progress = i / 10f
                         updateCrossfader(progress)
                         delay(250L)
                     }
                     if (_isPlayingDeckA.value) toggleDeckA()
-                } 
-                // Si Deck B está sonando y Deck A está libre, preparamos transición hacia Deck A
-                else if (_isPlayingDeckB.value && !_isPlayingDeckA.value) {
+                } else if (_isPlayingDeckB.value && !_isPlayingDeckA.value) {
                     val nextTrack = currentTracks[automixQueueIndex % currentTracks.size]
                     automixQueueIndex++
 
                     setTrackForDeckA(nextTrack)
                     toggleDeckA()
 
-                    // Crossfade gradual autónomo de Deck B hacia Deck A
                     for (i in 1..10) {
                         val progress = 1.0f - (i / 10f)
                         updateCrossfader(progress)
