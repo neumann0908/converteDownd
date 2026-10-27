@@ -41,6 +41,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
     val trackB by viewModel.currentTrackB.collectAsState()
     val libraryTracks by viewModel.libraryTracks.collectAsState()
     val isRecording by viewModel.isRecording.collectAsState()
+    val isAutomix by viewModel.isAutomixActive.collectAsState()
 
     var crossfaderValue by remember { mutableStateOf(0.5f) }
     var selectingForDeck by remember { mutableStateOf<String?>(null) }
@@ -91,36 +92,54 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     fontSize = 14.sp
                 )
 
-                IconButton(
-                    onClick = {
-                        val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-                        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
-                            viewModel.toggleRecording()
-                        } else {
-                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        }
-                    },
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isRecording) Color.Red else Color(0xFF2B2B3D))
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    // ⚡ Botón de Modo Automix Inteligente[span_0](start_span)[span_0](end_span)
+                    Button(
+                        onClick = { viewModel.toggleAutomix() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isAutomix) Color(0xFF00E676) else Color(0xFF2B2B3D)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier.height(28.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(if (isRecording) Color.White else Color.Red)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (isRecording) "REC ON" else "REC",
-                            color = Color.White,
-                            fontSize = 11.sp
+                            text = if (isAutomix) "AUTOMIX ON" else "AUTOMIX",
+                            fontSize = 10.sp,
+                            color = if (isAutomix) Color.Black else Color.White
                         )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                            if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+                                viewModel.toggleRecording()
+                            } else {
+                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        },
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isRecording) Color.Red else Color(0xFF2B2B3D))
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isRecording) Color.White else Color.Red)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isRecording) "REC ON" else "REC",
+                                color = Color.White,
+                                fontSize = 11.sp
+                            )
+                        }
                     }
                 }
             }
