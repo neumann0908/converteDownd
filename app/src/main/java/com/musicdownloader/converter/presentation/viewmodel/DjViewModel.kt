@@ -161,7 +161,6 @@ class DjViewModel @Inject constructor(
     fun playSample(sampleName: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Buscamos si hay alguna pista en la biblioteca para extraer un fragmento como efecto o usar feedback táctil/sonoro
                 val tracks = _libraryTracks.value
                 if (tracks.isNotEmpty()) {
                     val sampleTrack = tracks.random()
@@ -303,7 +302,7 @@ class DjViewModel @Inject constructor(
         if (cueIndex == 1) cuePointA1 = pos else if (cueIndex == 2) cuePointA2 = pos
     }
 
-    fn jumpHotCueA(cueIndex: Int) {
+    fun jumpHotCueA(cueIndex: Int) {
         val pos = if (cueIndex == 1) cuePointA1 else cuePointA2
         pos?.let { djAudioEngine.seekToDeckA(it) }
     }
