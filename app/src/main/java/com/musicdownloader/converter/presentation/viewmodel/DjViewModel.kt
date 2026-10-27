@@ -148,6 +148,17 @@ class DjViewModel @Inject constructor(
         _isPlayingDeckB.value = false
     }
 
+    // --- ⚡ Auto-Loops Methods ---
+    fun toggleAutoLoopA(beats: Int, bpm: Int, active: Boolean) {
+        if (active) djAudioEngine.startAutoLoopA(beats, bpm)
+        else djAudioEngine.stopAutoLoopA()
+    }
+
+    fun toggleAutoLoopB(beats: Int, bpm: Int, active: Boolean) {
+        if (active) djAudioEngine.startAutoLoopB(beats, bpm)
+        else djAudioEngine.stopAutoLoopB()
+    }
+
     fun setTempoDeckA(speed: Float) {
         currentSpeedA = speed
         djAudioEngine.setTempoDeckA(speed)
