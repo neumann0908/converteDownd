@@ -133,6 +133,21 @@ class DjViewModel @Inject constructor(
     fun toggleStemDrumsB(muted: Boolean) { djAudioEngine.toggleStemDrumsB(muted) }
     fun toggleStemBassB(muted: Boolean) { djAudioEngine.toggleStemBassB(muted) }
 
+    // --- 🎛️ FX Pad Methods (Echo, Filter, Brake) ---
+    fun toggleEchoA(enabled: Boolean) { djAudioEngine.toggleEchoA(enabled) }
+    fun toggleFilterA(mode: String) { djAudioEngine.toggleFilterA(mode) }
+    fun triggerBrakeA() {
+        djAudioEngine.triggerBrakeA()
+        _isPlayingDeckA.value = false
+    }
+
+    fun toggleEchoB(enabled: Boolean) { djAudioEngine.toggleEchoB(enabled) }
+    fun toggleFilterB(mode: String) { djAudioEngine.toggleFilterB(mode) }
+    fun triggerBrakeB() {
+        djAudioEngine.triggerBrakeB()
+        _isPlayingDeckB.value = false
+    }
+
     fun setTempoDeckA(speed: Float) {
         currentSpeedA = speed
         djAudioEngine.setTempoDeckA(speed)
