@@ -2,6 +2,7 @@ package com.musicdownloader.converter.presentation.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.media.MediaPlayer
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.musicdownloader.converter.engine.DjAudioEngine
@@ -156,10 +157,30 @@ class DjViewModel @Inject constructor(
         _isPlayingDeckB.value = false
     }
 
-    // --- ⚡ Sampler Pad (Banco de Efectos de Sonido) ---
+    // --- ⚡ Sampler Pad (Efectos de Sonido Instantáneos) ---
     fun playSample(sampleName: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            djAudioEngine.playSoundEffect(sampleName)
+            try {
+                // Buscamos si hay alguna pista en la biblioteca para extraer un fragmento como efecto o usar feedback táctil/sonoro
+                val tracks = _libraryTracks.value
+                if (tracks.isNotEmpty()) {
+                    val sampleTrack = tracks.random()
+                    val mediaPlayer = MediaPlayer().apply {
+                        setDataSource(sampleTrack.path)
+                        prepare()
+                        start()
+                    }
+                    mediaFileCleanup(mediaPlayer)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun mediaFileCleanup(player: MediaPlayer) {
+        player.setOnCompletionListener { mp ->
+            mp.release()
         }
     }
 
@@ -282,7 +303,7 @@ class DjViewModel @Inject constructor(
         if (cueIndex == 1) cuePointA1 = pos else if (cueIndex == 2) cuePointA2 = pos
     }
 
-    fun jumpHotCueA(cueIndex: Int) {
+    fn jumpHotCueA(cueIndex: Int) {
         val pos = if (cueIndex == 1) cuePointA1 else cuePointA2
         pos?.let { djAudioEngine.seekToDeckA(it) }
     }
