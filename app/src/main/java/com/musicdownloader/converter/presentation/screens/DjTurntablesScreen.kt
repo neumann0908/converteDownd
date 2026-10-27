@@ -449,6 +449,45 @@ fun DeckControlDialog(
 
                 Divider(color = Color.DarkGray, thickness = 1.dp)
 
+                // ⚡ Bucles Automáticos (Auto-Loops)
+                Text(text = "Bucles Automáticos (Auto-Loops)", color = Color(0xFFFFD700), fontSize = 12.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    var activeLoopBeats by remember { mutableStateOf<Int?>(null) }
+                    val currentBpm = if (deckName == "A") viewModel.currentTrackA.value?.bpm ?: 120 else viewModel.currentTrackB.value?.bpm ?: 120
+
+                    listOf(1, 2, 4, 8).forEach { beats ->
+                        val isActive = activeLoopBeats == beats
+                        Button(
+                            onClick = {
+                                val newActiveState = if (isActive) null else beats
+                                activeLoopBeats = newActiveState
+                                val enabled = newActiveState != null
+                                if (deckName == "A") {
+                                    viewModel.toggleAutoLoopA(beats, currentBpm, enabled)
+                                } else {
+                                    viewModel.toggleAutoLoopB(beats, currentBpm, enabled)
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isActive) Color(0xFF00E676) else Color(0xFF3B3B4F)
+                            ),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(
+                                text = "${beats}B",
+                                fontSize = 10.sp,
+                                color = if (isActive) Color.Black else Color.White
+                            )
+                        }
+                    }
+                }
+
+                Divider(color = Color.DarkGray, thickness = 1.dp)
+
                 // 🎛️ Neural Mix / Stem Isolation
                 Text(text = "Aislamiento de Stems (Neural Mix)", color = Color(0xFFFFD700), fontSize = 12.sp)
                 Row(
