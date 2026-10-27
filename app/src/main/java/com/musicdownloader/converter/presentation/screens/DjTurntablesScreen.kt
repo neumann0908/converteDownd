@@ -46,6 +46,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
     var crossfaderValue by remember { mutableStateOf(0.5f) }
     var selectingForDeck by remember { mutableStateOf<String?>(null) }
     var eqDialogDeck by remember { mutableStateOf<String?>(null) }
+    var showSamplerDialog by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -92,23 +93,34 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     fontSize = 14.sp
                 )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    // ⚡ Botón de Modo Automix Inteligente[span_0](start_span)[span_0](end_span)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    // ⚡ Botón Sampler Pads
+                    Button(
+                        onClick = { showSamplerDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                        modifier = Modifier.height(28.dp)
+                    ) {
+                        Text(text = "PADS", fontSize = 10.sp, color = Color(0xFFFFD700))
+                    }
+
+                    // ⚡ Botón de Modo Automix Inteligente
                     Button(
                         onClick = { viewModel.toggleAutomix() },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isAutomix) Color(0xFF00E676) else Color(0xFF2B2B3D)
                         ),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
                         modifier = Modifier.height(28.dp)
                     ) {
                         Text(
-                            text = if (isAutomix) "AUTOMIX ON" else "AUTOMIX",
+                            text = if (isAutomix) "AUTO ON" else "AUTOMIX",
                             fontSize = 10.sp,
                             color = if (isAutomix) Color.Black else Color.White
                         )
                     }
 
+                    // ⚡ Botón de Grabación (REC)
                     IconButton(
                         onClick = {
                             val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
@@ -121,7 +133,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .background(if (isRecording) Color.Red else Color(0xFF2B2B3D))
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -133,11 +145,11 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                                     .clip(CircleShape)
                                     .background(if (isRecording) Color.White else Color.Red)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = if (isRecording) "REC ON" else "REC",
+                                text = if (isRecording) "REC" else "REC",
                                 color = Color.White,
-                                fontSize = 11.sp
+                                fontSize = 10.sp
                             )
                         }
                     }
@@ -288,6 +300,13 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                 onDismiss = { eqDialogDeck = null }
             )
         }
+
+        if (showSamplerDialog) {
+            SamplerPadDialog(
+                viewModel = viewModel,
+                onDismiss = { showSamplerDialog = false }
+            )
+        }
     }
 }
 
@@ -395,6 +414,75 @@ fun DeckCard(
             }
         }
     }
+}
+
+@Composable
+fun SamplerPadDialog(
+    viewModel: DjViewModel,
+    onDismiss: () -> Unit
+) {
+    val samples = listOf(
+        "Air Horn" to Color(0xFFFF9800),
+        "Scratch" to Color(0xFF00E676),
+        "Laser" to Color(0xFF00B0FF),
+        "Kick" to Color(0xFFE53935),
+        "Snare" to Color(0xFF9C27B0),
+        "Vocals" to Color(0xFFFFD700),
+        "BASS DROP" to Color(0xFFE91E63),
+        "Siren" to Color(0xFF3F51B5)
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1E1E2C),
+        title = {
+            Text(text = "Banco de Samples (Sampler Pad)", color = Color(0xFFFFD700), fontSize = 14.sp)
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Dispara efectos de sonido en tiempo real con latencia cero",
+                    color = Color.LightGray,
+                    fontSize = 11.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                val rows = samples.chunked(2)
+                rows.forEach { rowItems ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowItems.forEach { (name, color) ->
+                            Button(
+                                onClick = { viewModel.playSample(name) },
+                                colors = ButtonDefaults.buttonColors(containerColor = color),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(50.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    text = name,
+                                    fontSize = 11.sp,
+                                    color = Color.Black,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cerrar", color = Color(0xFFFFD700))
+            }
+        }
+    )
 }
 
 @Composable
