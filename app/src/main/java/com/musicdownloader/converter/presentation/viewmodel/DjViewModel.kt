@@ -2,6 +2,9 @@ package com.musicdownloader.converter.presentation.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioTrack
 import android.media.MediaPlayer
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,6 +20,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
+import kotlin.math.PI
+import kotlin.math.sin
 
 data class DjTrack(
     val name: String,
@@ -157,29 +162,75 @@ class DjViewModel @Inject constructor(
         _isPlayingDeckB.value = false
     }
 
-    // --- ⚡ Sampler Pad (Efectos de Sonido Instantáneos) ---
+    // --- ⚡ Sampler Pad (Sintetizador Dinámico PCM de Latencia Cero) ---
     fun playSample(sampleName: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val tracks = _libraryTracks.value
-                if (tracks.isNotEmpty()) {
-                    val sampleTrack = tracks.random()
-                    val mediaPlayer = MediaPlayer().apply {
-                        setDataSource(sampleTrack.path)
-                        prepare()
-                        start()
-                    }
-                    mediaFileCleanup(mediaPlayer)
+                val sampleRate = 44100
+                val durationMs = when (sampleName) {
+                    "Air Horn" -> 400
+                    "Scratch" -> 250
+                    "Laser" -> 300
+                    "Kick" -> 200
+                    "Snare" -> 200
+                    "Vocals" -> 500
+                    "BASS DROP" -> 800
+                    "Siren" -> 600
+                    else -> 300
                 }
+                
+                val numSamples = (sampleRate * durationMs) / 1000
+                val sample = ByteArray(numSamples * 2)
+
+                // Frecuencias base profesionales para cada efecto del pad
+                val baseFreq = when (sampleName) {
+                    "Air Horn" -> 466.16 // Nota Bb4
+                    "Scratch" -> 600.0
+                    "Laser" -> 880.0
+                    "Kick" -> 120.0
+                    "Snare" -> 350.0
+                    "Vocals" -> 523.25 // Nota C5
+                    "BASS DROP" -> 60.0
+                    "Siren" -> 440.0
+                    else -> 400.0
+                }
+
+                for (i in 0 until numSamples) {
+                    val t = i.toDouble() / sampleRate
+                    // Modulación de frecuencia y envolvente para dar realismo electrónico
+                    val freq = if (sampleName == "Laser") baseFreq - (i * 1.5) else baseFreq
+                    val envelope = 1.0 - (i.toDouble() / numSamples)
+                    
+                    val wave = sin(2.0 * PI * freq * t) * envelope
+                    val valShort = (wave * 32767).toInt().toShort()
+                    
+                    sample[2 * i] = (valShort.toInt() and 0x00ff).toByte()
+                    sample[2 * i + 1] = ((valShort.toInt() and 0xff00) ushr 8).toByte()
+                }
+
+                val audioTrack = AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build()
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(sample.size)
+                    .setTransferMode(AudioTrack.MODE_STATIC)
+                    .build()
+
+                audioTrack.write(sample, 0, sample.size)
+                audioTrack.play()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-        }
-    }
-
-    private fun mediaFileCleanup(player: MediaPlayer) {
-        player.setOnCompletionListener { mp ->
-            mp.release()
         }
     }
 
