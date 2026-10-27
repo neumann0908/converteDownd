@@ -107,7 +107,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 🎧 Botón Split Audio / Preescucha (Punto 12)[span_3](start_span)[span_3](end_span)
+                        // 🎧 Botón Split Audio / Preescucha (Punto 12)[span_0](start_span)[span_0](end_span)
                         Button(
                             onClick = { viewModel.toggleSplitAudio() },
                             colors = ButtonDefaults.buttonColors(
@@ -544,6 +544,8 @@ fun DeckControlDialog(
     var mid by remember { mutableFloatStateOf(0f) }
     var high by remember { mutableFloatStateOf(0f) }
     var tempo by remember { mutableFloatStateOf(1.0f) }
+    var keyShift by remember { mutableFloatStateOf(0f) }
+    var masterTempoActive by remember { mutableStateOf(false) }
 
     var vocalsMuted by remember { mutableStateOf(false) }
     var drumsMuted by remember { mutableStateOf(false) }
@@ -568,6 +570,51 @@ fun DeckControlDialog(
                     .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // ⚡ Key Shift & Master Tempo (Punto 13)
+                Text(text = "Tonalidad (Key Shift & Master Tempo)", color = Color(0xFFFFD700), fontSize = 12.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Key Shift: ${if (keyShift > 0) "+$keyShift" else keyShift.toInt()} semitonos",
+                        color = Color.White,
+                        fontSize = 11.sp
+                    )
+                    Button(
+                        onClick = {
+                            masterTempoActive = !masterTempoActive
+                            if (deckName == "A") viewModel.toggleMasterTempoA(masterTempoActive)
+                            else viewModel.toggleMasterTempoB(masterTempoActive)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (masterTempoActive) Color(0xFF00E676) else Color(0xFF3B3B4F)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                        modifier = Modifier.height(26.dp)
+                    ) {
+                        Text(
+                            text = if (masterTempoActive) "PITCH LOCK ON" else "PITCH LOCK",
+                            fontSize = 9.sp,
+                            color = if (masterTempoActive) Color.Black else Color.White
+                        )
+                    }
+                }
+                Slider(
+                    value = keyShift,
+                    onValueChange = { 
+                        keyShift = it
+                        if (deckName == "A") viewModel.setKeyShiftA(keyShift)
+                        else viewModel.setKeyShiftB(keyShift)
+                    },
+                    valueRange = -6f..6f,
+                    steps = 11,
+                    colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
+                )
+
+                Divider(color = Color.DarkGray, thickness = 1.dp)
+
                 // ⚡ FX Pad (Echo, Filter, Brake)
                 Text(text = "Efectos en Vivo (FX Pad)", color = Color(0xFFFFD700), fontSize = 12.sp)
                 Row(
