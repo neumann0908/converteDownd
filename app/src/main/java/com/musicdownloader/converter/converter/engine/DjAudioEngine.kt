@@ -56,6 +56,15 @@ class DjAudioEngine(private val context: Context) {
     private var cueAActive: Boolean = false
     private var cueBActive: Boolean = false
 
+    // --- 🎛️ Parámetros de Tempo, Key Shift y Master Tempo (Punto 13) ---
+    private var speedA: Float = 1.0f
+    private var pitchA: Float = 1.0f
+    private var isMasterTempoA: Boolean = false
+
+    private var speedB: Float = 1.0f
+    private var pitchB: Float = 1.0f
+    private var isMasterTempoB: Boolean = false
+
     // --- 🎛️ Estados de Stems para Deck A ---
     private var isVocalsMutedA = false
     private var isDrumsMutedA = false
@@ -82,6 +91,9 @@ class DjAudioEngine(private val context: Context) {
             isVocalsMutedA = false
             isDrumsMutedA = false
             isBassMutedA = false
+            speedA = 1.0f
+            pitchA = 1.0f
+            isMasterTempoA = false
 
             mediaPlayerA = MediaPlayer().apply {
                 setDataSource(path)
@@ -118,6 +130,9 @@ class DjAudioEngine(private val context: Context) {
             isVocalsMutedB = false
             isDrumsMutedB = false
             isBassMutedB = false
+            speedB = 1.0f
+            pitchB = 1.0f
+            isMasterTempoB = false
 
             mediaPlayerB = MediaPlayer().apply {
                 setDataSource(path)
@@ -202,7 +217,6 @@ class DjAudioEngine(private val context: Context) {
     private fun applyVolumes() {
         try {
             if (isSplitEnabled) {
-                // Canal Izquierdo (Master) / Canal Derecho (Auriculares CUE)
                 val leftVolA = volumeA
                 val rightVolA = if (cueAActive) 1.0f else 0.0f
                 mediaPlayerA?.setVolume(leftVolA, rightVolA)
@@ -211,9 +225,69 @@ class DjAudioEngine(private val context: Context) {
                 val rightVolB = if (cueBActive) 1.0f else 0.0f
                 mediaPlayerB?.setVolume(leftVolB, rightVolB)
             } else {
-                // Modo Estéreo Normal
                 mediaPlayerA?.setVolume(volumeA, volumeA)
                 mediaPlayerB?.setVolume(volumeB, volumeB)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // --- 🎛️ Control de Tonalidad (Key Shift & Master Tempo - Punto 13) ---
+    fun setTempoDeckA(speed: Float) {
+        speedA = speed.coerceIn(0.5f, 2.0f)
+        updatePlaybackParamsA()
+    }
+
+    fun setKeyShiftA(semitones: Float) {
+        pitchA = Math.pow(2.0, semitones.toDouble() / 12.0).toFloat()
+        updatePlaybackParamsA()
+    }
+
+    fun toggleMasterTempoA(enabled: Boolean) {
+        isMasterTempoA = enabled
+        updatePlaybackParamsA()
+    }
+
+    private fun updatePlaybackParamsA() {
+        try {
+            mediaPlayerA?.let { player ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val params = player.playbackParams ?: PlaybackParams()
+                    params.speed = speedA
+                    params.pitch = if (isMasterTempoA) 1.0f else pitchA
+                    player.playbackParams = params
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun setTempoDeckB(speed: Float) {
+        speedB = speed.coerceIn(0.5f, 2.0f)
+        updatePlaybackParamsB()
+    }
+
+    fun setKeyShiftB(semitones: Float) {
+        pitchB = Math.pow(2.0, semitones.toDouble() / 12.0).toFloat()
+        updatePlaybackParamsB()
+    }
+
+    fun toggleMasterTempoB(enabled: Boolean) {
+        isMasterTempoB = enabled
+        updatePlaybackParamsB()
+    }
+
+    private fun updatePlaybackParamsB() {
+        try {
+            mediaPlayerB?.let { player ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val params = player.playbackParams ?: PlaybackParams()
+                    params.speed = speedB
+                    params.pitch = if (isMasterTempoB) 1.0f else pitchB
+                    player.playbackParams = params
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -297,10 +371,10 @@ class DjAudioEngine(private val context: Context) {
         thread {
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    mediaPlayerA?.playbackParams = mediaPlayerA?.playbackParams?.apply { speed = 0.1f } ?: PlaybackParams().apply { speed = 0.1f }
+                    mediaPlayerA?.playbackParams = PlaybackParams().apply { speed = 0.1f }
                     Thread.sleep(300)
                     mediaPlayerA?.pause()
-                    mediaPlayerA?.playbackParams = mediaPlayerA?.playbackParams?.apply { speed = 1.0f } ?: PlaybackParams().apply { speed = 1.0f }
+                    updatePlaybackParamsA()
                 } else {
                     mediaPlayerA?.pause()
                 }
@@ -314,10 +388,10 @@ class DjAudioEngine(private val context: Context) {
         thread {
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    mediaPlayerB?.playbackParams = mediaPlayerB?.playbackParams?.apply { speed = 0.1f } ?: PlaybackParams().apply { speed = 0.1f }
+                    mediaPlayerB?.playbackParams = PlaybackParams().apply { speed = 0.1f }
                     Thread.sleep(300)
                     mediaPlayerB?.pause()
-                    mediaPlayerB?.playbackParams = mediaPlayerB?.playbackParams?.apply { speed = 1.0f } ?: PlaybackParams().apply { speed = 1.0f }
+                    updatePlaybackParamsB()
                 } else {
                     mediaPlayerB?.pause()
                 }
@@ -398,34 +472,6 @@ class DjAudioEngine(private val context: Context) {
         isLoopingActiveB = false
         loopThreadB?.interrupt()
         loopThreadB = null
-    }
-
-    fun setTempoDeckA(speed: Float) {
-        try {
-            mediaPlayerA?.let { player ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    val params = player.playbackParams ?: PlaybackParams()
-                    params.speed = speed.coerceIn(0.5f, 2.0f)
-                    player.playbackParams = params
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    fun setTempoDeckB(speed: Float) {
-        try {
-            mediaPlayerB?.let { player ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    val params = player.playbackParams ?: PlaybackParams()
-                    params.speed = speed.coerceIn(0.5f, 2.0f)
-                    player.playbackParams = params
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
     }
 
     fun seekToDeckA(positionMs: Int) {
