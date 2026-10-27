@@ -42,6 +42,11 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
     val libraryTracks by viewModel.libraryTracks.collectAsState()
     val isRecording by viewModel.isRecording.collectAsState()
     val isAutomix by viewModel.isAutomixActive.collectAsState()
+    
+    // Estados Headphone Cue (Punto 12)
+    val isSplitAudio by viewModel.isSplitAudioActive.collectAsState()
+    val cueA by viewModel.cueDeckA.collectAsState()
+    val cueB by viewModel.cueDeckB.collectAsState()
 
     var crossfaderValue by remember { mutableStateOf(0.5f) }
     var selectingForDeck by remember { mutableStateOf<String?>(null) }
@@ -81,7 +86,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // 🎛️ Cabecera Pro Rediseñada: Simétrica y completamente visible
+            // 🎛️ Cabecera Pro Rediseñada con botón CUE / Split Audio (Punto 12)
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -98,16 +103,31 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                         fontSize = 13.sp
                     )
 
-                    // Fila de controles principales simétricos y sin cortes
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // 🎧 Botón Split Audio / Preescucha (Punto 12)[span_3](start_span)[span_3](end_span)
+                        Button(
+                            onClick = { viewModel.toggleSplitAudio() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSplitAudio) Color(0xFFFF9800) else Color(0xFF3B3B4F)
+                            ),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Text(
+                                text = if (isSplitAudio) "SPLIT ON" else "CUE CPL",
+                                fontSize = 9.sp,
+                                color = if (isSplitAudio) Color.Black else Color.White
+                            )
+                        }
+
                         // ⚡ Botón Sampler Pads
                         Button(
                             onClick = { showSamplerDialog = true },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                             modifier = Modifier.height(30.dp)
                         ) {
                             Text(text = "PADS", fontSize = 10.sp, color = Color(0xFFFFD700))
@@ -119,12 +139,12 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isAutomix) Color(0xFF00E676) else Color(0xFF2B2B3D)
                             ),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                             modifier = Modifier.height(30.dp)
                         ) {
                             Text(
                                 text = if (isAutomix) "AUTO ON" else "AUTOMIX",
-                                fontSize = 10.sp,
+                                fontSize = 9.sp,
                                 color = if (isAutomix) Color.Black else Color.White
                             )
                         }
@@ -142,7 +162,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isRecording) Color.Red else Color(0xFF2B2B3D)
                             ),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
                             modifier = Modifier.height(30.dp)
                         ) {
                             Row(
@@ -155,11 +175,11 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                                         .clip(CircleShape)
                                         .background(if (isRecording) Color.White else Color.Red)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
                                 Text(
-                                    text = if (isRecording) "REC" else "REC",
+                                    text = "REC",
                                     color = Color.White,
-                                    fontSize = 10.sp
+                                    fontSize = 9.sp
                                 )
                             }
                         }
@@ -181,6 +201,8 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     track = trackA,
                     isPlaying = isPlayingA,
                     rotationAngle = if (isPlayingA) angleA else 0f,
+                    isCueActive = cueA,
+                    onCueClick = { viewModel.toggleCueDeckA() },
                     onTogglePlay = { viewModel.toggleDeckA() },
                     onTrackClick = {
                         viewModel.loadLibraryTracks()
@@ -197,6 +219,8 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     track = trackB,
                     isPlaying = isPlayingB,
                     rotationAngle = if (isPlayingB) angleB else 0f,
+                    isCueActive = cueB,
+                    onCueClick = { viewModel.toggleCueDeckB() },
                     onTogglePlay = { viewModel.toggleDeckB() },
                     onTrackClick = {
                         viewModel.loadLibraryTracks()
@@ -329,6 +353,8 @@ fun DeckCard(
     track: DjTrack?,
     isPlaying: Boolean,
     rotationAngle: Float,
+    isCueActive: Boolean,
+    onCueClick: () -> Unit,
     onTogglePlay: () -> Unit,
     onTrackClick: () -> Unit,
     onEqClick: () -> Unit,
@@ -354,6 +380,18 @@ fun DeckCard(
             ) {
                 Text(text = title, color = Color.LightGray, fontSize = 11.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // 🎧 Botón CUE individual por Deck (Punto 12)
+                    Button(
+                        onClick = onCueClick,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isCueActive) Color(0xFFFF9800) else Color(0xFF3B3B4F)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                        modifier = Modifier.height(24.dp)
+                    ) {
+                        Text(text = "CUE", fontSize = 9.sp, color = if (isCueActive) Color.Black else Color.White)
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
                     IconButton(onClick = onEqClick, modifier = Modifier.size(24.dp)) {
                         Icon(imageVector = Icons.Default.Equalizer, contentDescription = "FX & Stems", tint = Color(0xFFFFD700))
                     }
