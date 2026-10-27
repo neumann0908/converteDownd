@@ -391,6 +391,9 @@ fun DeckControlDialog(
     var drumsMuted by remember { mutableStateOf(false) }
     var bassMuted by remember { mutableStateOf(false) }
 
+    var echoActive by remember { mutableStateOf(false) }
+    var filterMode by remember { mutableStateOf("OFF") }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF1E1E2C),
@@ -402,6 +405,50 @@ fun DeckControlDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // ⚡ FX Pad (Echo, Filter, Brake)
+                Text(text = "Efectos en Vivo (FX Pad)", color = Color(0xFFFFD700), fontSize = 12.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Button(
+                        onClick = { 
+                            echoActive = !echoActive
+                            if (deckName == "A") viewModel.toggleEchoA(echoActive)
+                            else viewModel.toggleEchoB(echoActive)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (echoActive) Color(0xFF00E676) else Color(0xFF3B3B4F)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (echoActive) "Echo ON" else "Echo", fontSize = 9.sp, color = if (echoActive) Color.Black else Color.White)
+                    }
+
+                    Button(
+                        onClick = { 
+                            filterMode = if (filterMode == "OFF") "LP" else if (filterMode == "LP") "HP" else "OFF"
+                            if (deckName == "A") viewModel.toggleFilterA(filterMode)
+                            else viewModel.toggleFilterB(filterMode)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (filterMode != "OFF") Color(0xFFFF9800) else Color(0xFF3B3B4F)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Filter: $filterMode", fontSize = 9.sp, color = Color.White)
+                    }
+
+                    Button(
+                        onClick = { 
+                            if (deckName == "A") viewModel.triggerBrakeA()
+                            else viewModel.triggerBrakeB()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Brake", fontSize = 9.sp, color = Color.White)
+                    }
+                }
+
+                Divider(color = Color.DarkGray, thickness = 1.dp)
+
                 // 🎛️ Neural Mix / Stem Isolation
                 Text(text = "Aislamiento de Stems (Neural Mix)", color = Color(0xFFFFD700), fontSize = 12.sp)
                 Row(
