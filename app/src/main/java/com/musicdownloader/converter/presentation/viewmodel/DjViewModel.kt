@@ -167,11 +167,12 @@ class DjViewModel @Inject constructor(
         else djAudioEngine.stopAutoLoopB()
     }
 
-    // --- ⚡ Modo Automix (Mezcla Automática Inteligente) ---[span_1](start_span)[span_1](end_span)
+    // --- ⚡ Modo Automix (Mezcla Automática Inteligente) ---
     fun toggleAutomix() {
         val newState = !_isAutomixActive.value
         _isAutomixActive.value = newState
         if (newState) {
+            loadLibraryTracks()
             startAutomixLoop()
         } else {
             stopAutomixLoop()
@@ -181,24 +182,42 @@ class DjViewModel @Inject constructor(
     private fun startAutomixLoop() {
         automixJob?.cancel()
         automixJob = viewModelScope.launch(Dispatchers.IO) {
-            val tracks = _libraryTracks.value
+            delay(500L)
+            var tracks = _libraryTracks.value
+            
+            // Si la biblioteca interna está vacía, buscamos directamente en la carpeta de descargas
+            if (tracks.isEmpty()) {
+                val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
+                if (downloadDir.exists() && downloadDir.isDirectory) {
+                    tracks = downloadDir.listFiles { file ->
+                        file.isFile && (file.extension.equals("mp3", ignoreCase = true) ||
+                                file.extension.equals("m4a", ignoreCase = true) ||
+                                file.extension.equals("webm", ignoreCase = true) ||
+                                file.extension.equals("wav", ignoreCase = true))
+                    }?.map { 
+                        DjTrack(name = it.name, path = it.absolutePath, bpm = 120, musicalKey = "4A")
+                    } ?: emptyList()
+                    _libraryTracks.value = tracks
+                }
+            }
+
             if (tracks.isEmpty()) {
                 _isAutomixActive.value = false
                 return@launch
             }
 
             // Si nada está sonando, iniciamos el Deck A con la primera pista de la biblioteca
-            if (!_isPlayingDeckA.value && !_isPlayingDeckB.value && _currentTrackA.value == null) {
+            if (!_isPlayingDeckA.value && !_isPlayingDeckB.value) {
                 automixQueueIndex = 0
                 setTrackForDeckA(tracks[automixQueueIndex % tracks.size])
                 toggleDeckA()
                 automixQueueIndex++
             }
 
-            // Ciclo inteligente de monitoreo autónomo para fiestas[span_2](start_span)[span_2](end_span)
+            // Ciclo inteligente de monitoreo autónomo para fiestas
             while (_isAutomixActive.value) {
-                delay(15000L) // Comprobación de transición cada 15 segundos o rotación por tiempo/fin
-                val currentTracks = _libraryTracks.value
+                delay(12000L) // Intervalo de rotación inteligente
+                val currentTracks = _libraryTracks.value.ifEmpty { tracks }
                 if (currentTracks.isEmpty()) continue
 
                 // Si Deck A está sonando y Deck B está libre, preparamos transición hacia Deck B
@@ -209,11 +228,11 @@ class DjViewModel @Inject constructor(
                     setTrackForDeckB(nextTrack)
                     toggleDeckB()
 
-                    // Crossfade gradual autónomo de Deck A hacia Deck B[span_3](start_span)[span_3](end_span)
+                    // Crossfade gradual autónomo de Deck A hacia Deck B
                     for (i in 1..10) {
                         val progress = i / 10f
                         updateCrossfader(progress)
-                        delay(300L)
+                        delay(250L)
                     }
                     if (_isPlayingDeckA.value) toggleDeckA()
                 } 
@@ -225,11 +244,11 @@ class DjViewModel @Inject constructor(
                     setTrackForDeckA(nextTrack)
                     toggleDeckA()
 
-                    // Crossfade gradual autónomo de Deck B hacia Deck A[span_4](start_span)[span_4](end_span)
+                    // Crossfade gradual autónomo de Deck B hacia Deck A
                     for (i in 1..10) {
                         val progress = 1.0f - (i / 10f)
                         updateCrossfader(progress)
-                        delay(300L)
+                        delay(250L)
                     }
                     if (_isPlayingDeckB.value) toggleDeckB()
                 }
