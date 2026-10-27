@@ -125,13 +125,13 @@ class DjViewModel @Inject constructor(
     }
 
     fun toggleDeckA() {
-        val trackPath = _currentTrackA.value?.path ?: return
+        val trackPath = _currentTrackA.value?.path
         val isPlaying = djAudioEngine.togglePlayA(trackPath)
         _isPlayingDeckA.value = isPlaying
     }
 
     fun toggleDeckB() {
-        val trackPath = _currentTrackB.value?.path ?: return
+        val trackPath = _currentTrackB.value?.path
         val isPlaying = djAudioEngine.togglePlayB(trackPath)
         _isPlayingDeckB.value = isPlaying
     }
@@ -158,14 +158,38 @@ class DjViewModel @Inject constructor(
     }
 
     private fun applyAudioRouting() {
-        // Si Split Audio está activo: Canal izquierdo (Master), Canal derecho (Auriculares CUE)[span_2](start_span)[span_2](end_span)
-        // Esto ajusta la distribución estéreo para adaptarla al cable divisor de audífonos DJ.
         if (_isSplitAudioActive.value) {
-            // Lógica de ruteo estéreo avanzado en el motor de audio
             djAudioEngine.setSplitAudioMode(true, _cueDeckA.value, _cueDeckB.value)
         } else {
             djAudioEngine.setSplitAudioMode(false, false, false)
         }
+    }
+
+    // --- 🎛️ Key Shift & Master Tempo Methods (Punto 13) ---
+    fun setTempoDeckA(speed: Float) {
+        currentSpeedA = speed
+        djAudioEngine.setTempoDeckA(speed)
+    }
+
+    fun setKeyShiftA(semitones: Float) {
+        djAudioEngine.setKeyShiftA(semitones)
+    }
+
+    fun toggleMasterTempoA(enabled: Boolean) {
+        djAudioEngine.toggleMasterTempoA(enabled)
+    }
+
+    fun setTempoDeckB(speed: Float) {
+        currentSpeedB = speed
+        djAudioEngine.setTempoDeckB(speed)
+    }
+
+    fun setKeyShiftB(semitones: Float) {
+        djAudioEngine.setKeyShiftB(semitones)
+    }
+
+    fun toggleMasterTempoB(enabled: Boolean) {
+        djAudioEngine.toggleMasterTempoB(enabled)
     }
 
     fun setEqualizerA(low: Float, mid: Float, high: Float) {
@@ -391,16 +415,6 @@ class DjViewModel @Inject constructor(
     private fun stopAutomixLoop() {
         automixJob?.cancel()
         automixJob = null
-    }
-
-    fun setTempoDeckA(speed: Float) {
-        currentSpeedA = speed
-        djAudioEngine.setTempoDeckA(speed)
-    }
-
-    fun setTempoDeckB(speed: Float) {
-        currentSpeedB = speed
-        djAudioEngine.setTempoDeckB(speed)
     }
 
     fun autoSyncDeckB() {
