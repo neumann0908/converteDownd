@@ -81,76 +81,87 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
+            // 🎛️ Cabecera Pro Rediseñada: Simétrica y completamente visible
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "CONSOLA DJ PRO - DUAL DECK",
-                    color = Color(0xFFFFD700),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 14.sp
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "CONSOLA DJ PRO",
+                        color = Color(0xFFFFD700),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontSize = 13.sp
+                    )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    // ⚡ Botón Sampler Pads
-                    Button(
-                        onClick = { showSamplerDialog = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
-                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-                        modifier = Modifier.height(28.dp)
+                    // Fila de controles principales simétricos y sin cortes
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "PADS", fontSize = 10.sp, color = Color(0xFFFFD700))
-                    }
-
-                    // ⚡ Botón de Modo Automix Inteligente
-                    Button(
-                        onClick = { viewModel.toggleAutomix() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isAutomix) Color(0xFF00E676) else Color(0xFF2B2B3D)
-                        ),
-                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-                        modifier = Modifier.height(28.dp)
-                    ) {
-                        Text(
-                            text = if (isAutomix) "AUTO ON" else "AUTOMIX",
-                            fontSize = 10.sp,
-                            color = if (isAutomix) Color.Black else Color.White
-                        )
-                    }
-
-                    // ⚡ Botón de Grabación (REC)
-                    IconButton(
-                        onClick = {
-                            val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-                            if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
-                                viewModel.toggleRecording()
-                            } else {
-                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                            }
-                        },
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isRecording) Color.Red else Color(0xFF2B2B3D))
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                        // ⚡ Botón Sampler Pads
+                        Button(
+                            onClick = { showSamplerDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                            modifier = Modifier.height(30.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isRecording) Color.White else Color.Red)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = "PADS", fontSize = 10.sp, color = Color(0xFFFFD700))
+                        }
+
+                        // ⚡ Botón de Modo Automix Inteligente
+                        Button(
+                            onClick = { viewModel.toggleAutomix() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isAutomix) Color(0xFF00E676) else Color(0xFF2B2B3D)
+                            ),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) {
                             Text(
-                                text = if (isRecording) "REC" else "REC",
-                                color = Color.White,
-                                fontSize = 10.sp
+                                text = if (isAutomix) "AUTO ON" else "AUTOMIX",
+                                fontSize = 10.sp,
+                                color = if (isAutomix) Color.Black else Color.White
                             )
+                        }
+
+                        // ⚡ Botón de Grabación (REC) simétrico
+                        Button(
+                            onClick = {
+                                val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                                if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+                                    viewModel.toggleRecording()
+                                } else {
+                                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isRecording) Color.Red else Color(0xFF2B2B3D)
+                            ),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isRecording) Color.White else Color.Red)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isRecording) "REC" else "REC",
+                                    color = Color.White,
+                                    fontSize = 10.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -717,7 +728,7 @@ fun DeckControlDialog(
                     )
                 }
                 Column {
-                    Text(text = "Medios (Mid)", color = Color.White, fontSize = 11.sp)
+                    Text(text = "Medios (Mid)", color = Color(0xFFFFD700), fontSize = 11.sp)
                     Slider(
                         value = mid,
                         onValueChange = { mid = it; if (deckName == "A") viewModel.setEqualizerA(low, mid, high) else viewModel.setEqualizerB(low, mid, high) },
