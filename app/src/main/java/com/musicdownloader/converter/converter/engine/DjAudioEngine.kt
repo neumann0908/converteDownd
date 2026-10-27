@@ -13,6 +13,7 @@ import android.media.MediaPlayer
 import android.media.MediaMuxer
 import android.media.PlaybackParams
 import android.media.audiofx.Equalizer
+import android.media.audiofx.PresetReverb
 import android.media.projection.MediaProjection
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -29,6 +30,9 @@ class DjAudioEngine(private val context: Context) {
 
     private var equalizerA: Equalizer? = null
     private var equalizerB: Equalizer? = null
+
+    private var reverbA: PresetReverb? = null
+    private var reverbB: PresetReverb? = null
 
     private var audioRecord: AudioRecord? = null
     private var mediaMuxer: MediaMuxer? = null
@@ -57,6 +61,7 @@ class DjAudioEngine(private val context: Context) {
         try {
             mediaPlayerA?.release()
             equalizerA?.release()
+            reverbA?.release()
             isVocalsMutedA = false
             isDrumsMutedA = false
             isBassMutedA = false
@@ -69,6 +74,10 @@ class DjAudioEngine(private val context: Context) {
                     try {
                         equalizerA = Equalizer(0, audioSessionId).apply {
                             enabled = true
+                        }
+                        reverbA = PresetReverb(0, audioSessionId).apply {
+                            preset = PresetReverb.PRESET_LARGEHALL
+                            enabled = false
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -86,6 +95,7 @@ class DjAudioEngine(private val context: Context) {
         try {
             mediaPlayerB?.release()
             equalizerB?.release()
+            reverbB?.release()
             isVocalsMutedB = false
             isDrumsMutedB = false
             isBassMutedB = false
@@ -98,6 +108,10 @@ class DjAudioEngine(private val context: Context) {
                     try {
                         equalizerB = Equalizer(0, audioSessionId).apply {
                             enabled = true
+                        }
+                        reverbB = PresetReverb(0, audioSessionId).apply {
+                            preset = PresetReverb.PRESET_LARGEHALL
+                            enabled = false
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -201,6 +215,67 @@ class DjAudioEngine(private val context: Context) {
         val midVal = if (isVocalsMutedB) -1f else 0f
         val highVal = if (isDrumsMutedB) -1f else 0f
         setEqualizerB(lowVal, midVal, highVal)
+    }
+
+    // --- ⚡ FX Pad: Echo / Reverb ---
+    fun toggleEchoA(enabled: Boolean) {
+        reverbA?.enabled = enabled
+    }
+
+    fun toggleEchoB(enabled: Boolean) {
+        reverbB?.enabled = enabled
+    }
+
+    // --- ⚡ FX Pad: Low-Pass / High-Pass Filter ---[span_1](start_span)[span_1](end_span)
+    fun toggleFilterA(mode: String) {
+        when (mode) {
+            "LP" -> setEqualizerA(0.8f, 0.2f, -1f) // Low-Pass: Realza graves y corta agudos
+            "HP" -> setEqualizerA(-1f, -0.5f, 0.8f) // High-Pass: Corta graves y realza agudos
+            else -> setEqualizerA(0f, 0f, 0f)
+        }
+    }
+
+    fun toggleFilterB(mode: String) {
+        when (mode) {
+            "LP" -> setEqualizerB(0.8f, 0.2f, -1f)
+            "HP" -> setEqualizerB(-1f, -0.5f, 0.8f)
+            else -> setEqualizerB(0f, 0f, 0f)
+        }
+    }
+
+    // --- ⚡ FX Pad: Backspin / Brake (Efecto de frenado estilo vinilo) ---[span_2](start_span)[span_2](end_span)
+    fun triggerBrakeA() {
+        thread {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    mediaPlayerA?.playbackParams = mediaPlayerA?.playbackParams?.apply { speed = 0.1f } ?: PlaybackParams().apply { speed = 0.1f }
+                    Thread.sleep(300)
+                    mediaPlayerA?.pause()
+                    mediaPlayerA?.playbackParams = mediaPlayerA?.playbackParams?.apply { speed = 1.0f } ?: PlaybackParams().apply { speed = 1.0f }
+                } else {
+                    mediaPlayerA?.pause()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun triggerBrakeB() {
+        thread {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    mediaPlayerB?.playbackParams = mediaPlayerB?.playbackParams?.apply { speed = 0.1f } ?: PlaybackParams().apply { speed = 0.1f }
+                    Thread.sleep(300)
+                    mediaPlayerB?.pause()
+                    mediaPlayerB?.playbackParams = mediaPlayerB?.playbackParams?.apply { speed = 1.0f } ?: PlaybackParams().apply { speed = 1.0f }
+                } else {
+                    mediaPlayerB?.pause()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun setTempoDeckA(speed: Float) {
@@ -494,11 +569,16 @@ class DjAudioEngine(private val context: Context) {
         stopRecording()
         equalizerA?.release()
         equalizerB?.release()
+        reverbA?.release()
+        reverbB?.release()
         equalizerA = null
         equalizerB = null
+        reverbA = null
+        reverbB = null
         mediaPlayerA?.release()
         mediaPlayerB?.release()
         mediaPlayerA = null
         mediaPlayerB = null
     }
 }
+
