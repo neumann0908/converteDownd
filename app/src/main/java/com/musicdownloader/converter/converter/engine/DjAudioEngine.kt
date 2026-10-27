@@ -47,6 +47,15 @@ class DjAudioEngine(private val context: Context) {
     var isPlayingB: Boolean = false
         private set
 
+    // --- 🎛️ Volúmenes base calculados por el Crossfader ---
+    private var volumeA: Float = 0.5f
+    private var volumeB: Float = 0.5f
+
+    // --- 🎧 Headphone Cue / Split Audio States ---
+    private var isSplitEnabled: Boolean = false
+    private var cueAActive: Boolean = false
+    private var cueBActive: Boolean = false
+
     // --- 🎛️ Estados de Stems para Deck A ---
     private var isVocalsMutedA = false
     private var isDrumsMutedA = false
@@ -94,6 +103,7 @@ class DjAudioEngine(private val context: Context) {
                 }
             }
             isPlayingA = false
+            applyVolumes()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -129,6 +139,7 @@ class DjAudioEngine(private val context: Context) {
                 }
             }
             isPlayingB = false
+            applyVolumes()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -178,6 +189,35 @@ class DjAudioEngine(private val context: Context) {
         val maxLevel = range[1].toFloat()
         val normalized = (value.coerceIn(-1f, 1f) + 1f) / 2f
         return (minLevel + normalized * (maxLevel - minLevel)).toInt().toShort()
+    }
+
+    // --- 🎧 Configuración de Split Audio / Headphone Cue ---
+    fun setSplitAudioMode(enabled: Boolean, cueA: Boolean, cueB: Boolean) {
+        isSplitEnabled = enabled
+        cueAActive = cueA
+        cueBActive = cueB
+        applyVolumes()
+    }
+
+    private fun applyVolumes() {
+        try {
+            if (isSplitEnabled) {
+                // Canal Izquierdo (Master) / Canal Derecho (Auriculares CUE)
+                val leftVolA = volumeA
+                val rightVolA = if (cueAActive) 1.0f else 0.0f
+                mediaPlayerA?.setVolume(leftVolA, rightVolA)
+
+                val leftVolB = volumeB
+                val rightVolB = if (cueBActive) 1.0f else 0.0f
+                mediaPlayerB?.setVolume(leftVolB, rightVolB)
+            } else {
+                // Modo Estéreo Normal
+                mediaPlayerA?.setVolume(volumeA, volumeA)
+                mediaPlayerB?.setVolume(volumeB, volumeB)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     // --- 🎛️ Control de Stems para Deck A ---
@@ -461,15 +501,10 @@ class DjAudioEngine(private val context: Context) {
         val angleA = (1.0f - position) * (Math.PI / 2.0)
         val angleB = position * (Math.PI / 2.0)
 
-        val volA = cos(angleA).toFloat()
-        val volB = sin(angleB).toFloat()
+        volumeA = cos(angleA).toFloat()
+        volumeB = sin(angleB).toFloat()
 
-        try {
-            mediaPlayerA?.setVolume(volA, volA)
-            mediaPlayerB?.setVolume(volB, volB)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        applyVolumes()
     }
 
     fun startRecording(mediaProjection: MediaProjection? = null): Boolean {
