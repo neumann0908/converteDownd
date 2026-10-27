@@ -8,6 +8,8 @@ import com.musicdownloader.converter.engine.DjAudioEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,6 +48,12 @@ class DjViewModel @Inject constructor(
 
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
+
+    // --- ⚡ Modo Automix States ---
+    private val _isAutomixActive = MutableStateFlow(false)
+    val isAutomixActive: StateFlow<Boolean> = _isAutomixActive.asStateFlow()
+    private var automixJob: Job? = null
+    private var automixQueueIndex = 0
 
     private var currentSpeedA: Float = 1.0f
     private var currentSpeedB: Float = 1.0f
@@ -159,6 +167,81 @@ class DjViewModel @Inject constructor(
         else djAudioEngine.stopAutoLoopB()
     }
 
+    // --- ⚡ Modo Automix (Mezcla Automática Inteligente) ---[span_1](start_span)[span_1](end_span)
+    fun toggleAutomix() {
+        val newState = !_isAutomixActive.value
+        _isAutomixActive.value = newState
+        if (newState) {
+            startAutomixLoop()
+        } else {
+            stopAutomixLoop()
+        }
+    }
+
+    private fun startAutomixLoop() {
+        automixJob?.cancel()
+        automixJob = viewModelScope.launch(Dispatchers.IO) {
+            val tracks = _libraryTracks.value
+            if (tracks.isEmpty()) {
+                _isAutomixActive.value = false
+                return@launch
+            }
+
+            // Si nada está sonando, iniciamos el Deck A con la primera pista de la biblioteca
+            if (!_isPlayingDeckA.value && !_isPlayingDeckB.value && _currentTrackA.value == null) {
+                automixQueueIndex = 0
+                setTrackForDeckA(tracks[automixQueueIndex % tracks.size])
+                toggleDeckA()
+                automixQueueIndex++
+            }
+
+            // Ciclo inteligente de monitoreo autónomo para fiestas[span_2](start_span)[span_2](end_span)
+            while (_isAutomixActive.value) {
+                delay(15000L) // Comprobación de transición cada 15 segundos o rotación por tiempo/fin
+                val currentTracks = _libraryTracks.value
+                if (currentTracks.isEmpty()) continue
+
+                // Si Deck A está sonando y Deck B está libre, preparamos transición hacia Deck B
+                if (_isPlayingDeckA.value && !_isPlayingDeckB.value) {
+                    val nextTrack = currentTracks[automixQueueIndex % currentTracks.size]
+                    automixQueueIndex++
+                    
+                    setTrackForDeckB(nextTrack)
+                    toggleDeckB()
+
+                    // Crossfade gradual autónomo de Deck A hacia Deck B[span_3](start_span)[span_3](end_span)
+                    for (i in 1..10) {
+                        val progress = i / 10f
+                        updateCrossfader(progress)
+                        delay(300L)
+                    }
+                    if (_isPlayingDeckA.value) toggleDeckA()
+                } 
+                // Si Deck B está sonando y Deck A está libre, preparamos transición hacia Deck A
+                else if (_isPlayingDeckB.value && !_isPlayingDeckA.value) {
+                    val nextTrack = currentTracks[automixQueueIndex % currentTracks.size]
+                    automixQueueIndex++
+
+                    setTrackForDeckA(nextTrack)
+                    toggleDeckA()
+
+                    // Crossfade gradual autónomo de Deck B hacia Deck A[span_4](start_span)[span_4](end_span)
+                    for (i in 1..10) {
+                        val progress = 1.0f - (i / 10f)
+                        updateCrossfader(progress)
+                        delay(300L)
+                    }
+                    if (_isPlayingDeckB.value) toggleDeckB()
+                }
+            }
+        }
+    }
+
+    private fun stopAutomixLoop() {
+        automixJob?.cancel()
+        automixJob = null
+    }
+
     fun setTempoDeckA(speed: Float) {
         currentSpeedA = speed
         djAudioEngine.setTempoDeckA(speed)
@@ -209,6 +292,7 @@ class DjViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        stopAutomixLoop()
         djAudioEngine.release()
     }
 }
