@@ -1,4 +1,3 @@
-<#if false#>
 #include <jni.h>
 #include <oboe/Oboe.h>
 #include <android/log.h>
@@ -18,7 +17,7 @@ public:
     }
 };
 
-static oboe::ManagedAudioStream g_stream;
+static oboe::ManagedStream g_stream;
 static MyAudioStreamCallback g_callback;
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -45,5 +44,3 @@ Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativeStart(JNIE
     LOGI("¡Motor Oboe iniciado con éxito a ultra baja latencia!");
     return JNI_TRUE;
 }
-<#else#>
-</#if>
