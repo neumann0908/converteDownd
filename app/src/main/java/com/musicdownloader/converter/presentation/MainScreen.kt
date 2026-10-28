@@ -5,11 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.GridOn // <-- Ícono para la cuadrícula del Beat Studio
+import androidx.compose.material.icons.filled.GridOn // Cuadrícula para Beat Studio (Motor 1)
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.GraphicEq // 🎙️ Ícono de ecualizador/onda para el Sampler Studio (Motor 2)
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -29,9 +30,13 @@ import com.musicdownloader.converter.presentation.viewmodel.DjViewModel
 import com.musicdownloader.converter.presentation.ui.MiniPlayerBar
 import com.musicdownloader.converter.presentation.viewmodel.PlayerViewModel
 
-// 🎛️ Importaciones de nuestro nuevo Beat Studio Pro
+// 🎛️ Importaciones del Motor 1: Beat Studio (Drum Engine)
 import com.musicdownloader.converter.beatstudio.presentation.drum.BeatStudioScreen
 import com.musicdownloader.converter.beatstudio.presentation.drum.DrumStudioViewModel
+
+// 🎙️ Importaciones del Motor 2: Sampler Studio (Sampler Engine)
+import com.musicdownloader.converter.beatstudio.presentation.sampler.SamplerStudioScreen
+import com.musicdownloader.converter.beatstudio.presentation.sampler.SamplerStudioViewModel
 
 sealed class Screen(val route: String, val title: String, val icon: @Composable () -> Unit) {
     object Download : Screen("download", "Descargar", { Icon(Icons.Default.Download, contentDescription = null) })
@@ -40,8 +45,11 @@ sealed class Screen(val route: String, val title: String, val icon: @Composable 
     object Player : Screen("player", "Player", { Icon(Icons.Default.PlayCircle, contentDescription = null) })
     object DjTurntables : Screen("dj_turntables", "DJ Pro", { Icon(Icons.Default.MusicNote, contentDescription = null) })
     
-    // 🥁 FASE 1: Nueva pantalla integrada quirúrgicamente en el sistema de navegación principal
+    // 🥁 Motor 1: Drum Studio
     object BeatStudio : Screen("beat_studio", "Beat Studio", { Icon(Icons.Default.GridOn, contentDescription = null) })
+
+    // 🎙️ Motor 2: Sampler Studio (Muestreo profesional integrado)
+    object SamplerStudio : Screen("sampler_studio", "Sampler", { Icon(Icons.Default.GraphicEq, contentDescription = null) })
 }
 
 @Composable
@@ -59,7 +67,8 @@ fun MainScreen(
         Screen.Playlists,
         Screen.Player,
         Screen.DjTurntables,
-        Screen.BeatStudio // <--- ¡Añadido aquí para que aparezca el botón en la barra inferior!
+        Screen.BeatStudio,
+        Screen.SamplerStudio // <--- ¡Motor 2 añadido formalmente a la barra de navegación inferior!
     )
 
     Scaffold(
@@ -134,10 +143,16 @@ fun MainScreen(
                 DjTurntablesScreen(viewModel = djViewModel)
             }
 
-            // 🎛️ FASE 1: Ruta oficial del Beat Studio conectada a su ViewModel con Hilt
+            // 🎛️ Motor 1: Beat Studio
             composable(Screen.BeatStudio.route) {
                 val drumStudioViewModel: DrumStudioViewModel = hiltViewModel()
                 BeatStudioScreen(viewModel = drumStudioViewModel)
+            }
+
+            // 🎙️ Motor 2: Sampler Studio (Conectado con su ViewModel de Hilt)
+            composable(Screen.SamplerStudio.route) {
+                val samplerStudioViewModel: SamplerStudioViewModel = hiltViewModel()
+                SamplerStudioScreen(viewModel = samplerStudioViewModel)
             }
         }
     }
