@@ -33,7 +33,7 @@ fun BeatStudioScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF13131A)) // Fondo Pro Oscuro
-            .padding(16.dp)
+            .padding(12.dp)
     ) {
         // --- CAJA SUPERIOR: TÍTULO, BPM Y PLAY ---
         Row(
@@ -41,7 +41,7 @@ fun BeatStudioScreen(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color(0xFF1E1E2C))
-                .padding(16.dp),
+                .padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -49,24 +49,24 @@ fun BeatStudioScreen(
                 Text(
                     text = "BEAT STUDIO PRO",
                     color = Color(0xFFFFD700), // Dorado Pro
-                    fontSize = 18.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "Kit: ${state.currentKit}",
                     color = Color.LightGray,
-                    fontSize = 11.sp
+                    fontSize = 10.sp
                 )
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "${state.bpm} BPM", color = Color.White, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.width(12.dp))
+                Text(text = "${state.bpm} BPM", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Spacer(modifier = Modifier.width(8.dp))
 
                 IconButton(
                     onClick = { viewModel.togglePlayPause() },
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(42.dp)
                         .background(Color(0xFFFFD700), CircleShape)
                 ) {
                     Icon(
@@ -78,16 +78,16 @@ fun BeatStudioScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // --- BARRA DE CONFIGURACIÓN AVANZADA (PASOS Y KITS) ---
+        // --- BARRA DE CONFIGURACIÓN AVANZADA (PASOS, KITS Y DUPLICAR) ---
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Selector de Pasos (16, 32, 64)
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 listOf(16, 32, 64).forEach { count ->
                     SmallChipButton(
                         text = "${count}p",
@@ -98,9 +98,17 @@ fun BeatStudioScreen(
                 }
             }
 
+            // Botón de Duplicar Patrón
+            SmallChipButton(
+                text = "Duplicar",
+                isActive = false,
+                activeColor = Color(0xFF00E676),
+                onClick = { viewModel.duplicatePattern() }
+            )
+
             // Selector Rápido de Kits
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                listOf("Standard 808", "Trap", "Lo-Fi").forEach { kit ->
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                listOf("Standard 808", "Trap").forEach { kit ->
                     SmallChipButton(
                         text = kit.take(4),
                         isActive = state.currentKit.contains(kit),
@@ -111,12 +119,12 @@ fun BeatStudioScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // --- CUADRÍCULA DE RITMOS (TRACKS Y PASOS) ---
         LazyColumn(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             itemsIndexed(state.tracks) { trackIndex, track ->
                 TrackRow(
@@ -136,56 +144,102 @@ fun BeatStudioScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // --- PANEL DE FUNCIÓN DIFERENCIAL (CONTROL DE PISTA SELECCIONADA) ---
+        // --- PANEL DE FUNCIÓN DIFERENCIAL PROFUNDA (VOL, PITCH, PAN, ADSR, EFECTOS) ---
         if (selectedTrack != null) {
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = "EDICIÓN DIFERENCIAL: ${selectedTrack.name}",
-                        color = Color(selectedTrack.colorHex),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // Controles deslizantes de Volumen, Pitch y Pan
+                Column(modifier = Modifier.padding(10.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Volumen
+                        Text(
+                            text = "EDICIÓN: ${selectedTrack.name}",
+                            color = Color(selectedTrack.colorHex),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+                        Text(
+                            text = "Swing: ${(state.swing * 100).toInt()}%",
+                            color = Color.LightGray,
+                            fontSize = 10.sp
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Fila 1 de Perillas: Volumen, Pitch y Pan
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Vol: ${(selectedTrack.volume * 100).toInt()}%", color = Color.White, fontSize = 10.sp)
+                            Text(text = "Vol: ${(selectedTrack.volume * 100).toInt()}%", color = Color.White, fontSize = 9.sp)
                             Slider(
                                 value = selectedTrack.volume,
                                 onValueChange = { viewModel.updateVolume(selectedTrack.id, it) },
                                 valueRange = 0f..1f,
-                                colors = SliderDefaults.colors(thumbColor = Color(selectedTrack.colorHex), activeTrackColor = Color(selectedTrack.colorHex))
+                                modifier = Modifier.height(24.dp)
                             )
                         }
-                        // Pitch (Tono)
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Pitch: ${String.format("%.2f", selectedTrack.pitch)}x", color = Color.White, fontSize = 10.sp)
+                            Text(text = "Pitch: ${String.format("%.2f", selectedTrack.pitch)}x", color = Color.White, fontSize = 9.sp)
                             Slider(
                                 value = selectedTrack.pitch,
                                 onValueChange = { viewModel.updatePitch(selectedTrack.id, it) },
                                 valueRange = 0.5f..2.0f,
-                                colors = SliderDefaults.colors(thumbColor = Color(selectedTrack.colorHex), activeTrackColor = Color(selectedTrack.colorHex))
+                                modifier = Modifier.height(24.dp)
                             )
                         }
-                        // Pan (Panorama)
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Pan: ${String.format("%.1f", selectedTrack.pan)}", color = Color.White, fontSize = 10.sp)
+                            Text(text = "Pan: ${String.format("%.1f", selectedTrack.pan)}", color = Color.White, fontSize = 9.sp)
                             Slider(
                                 value = selectedTrack.pan,
                                 onValueChange = { viewModel.updatePan(selectedTrack.id, it) },
                                 valueRange = -1.0f..1.0f,
-                                colors = SliderDefaults.colors(thumbColor = Color(selectedTrack.colorHex), activeTrackColor = Color(selectedTrack.colorHex))
+                                modifier = Modifier.height(24.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    // Fila 2 de Perillas: ADSR (Ataque) y Efectos (Reverb/Delay)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Attack: ${String.format("%.2f", selectedTrack.attack)}s", color = Color.White, fontSize = 9.sp)
+                            Slider(
+                                value = selectedTrack.attack,
+                                onValueChange = { viewModel.updateAdsr(selectedTrack.id, it, selectedTrack.decay, selectedTrack.sustain, selectedTrack.release) },
+                                valueRange = 0.001f..0.5f,
+                                modifier = Modifier.height(24.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Reverb: ${(selectedTrack.reverb * 100).toInt()}%", color = Color.White, fontSize = 9.sp)
+                            Slider(
+                                value = selectedTrack.reverb,
+                                onValueChange = { viewModel.updateEffects(selectedTrack.id, it, selectedTrack.delay) },
+                                valueRange = 0f..1f,
+                                modifier = Modifier.height(24.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Delay: ${(selectedTrack.delay * 100).toInt()}%", color = Color.White, fontSize = 9.sp)
+                            Slider(
+                                value = selectedTrack.delay,
+                                onValueChange = { viewModel.updateEffects(selectedTrack.id, selectedTrack.reverb, it) },
+                                valueRange = 0f..1f,
+                                modifier = Modifier.height(24.dp)
                             )
                         }
                     }
@@ -210,28 +264,28 @@ fun TrackRow(
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) Color(0xFF28283D) else Color(0xFF1E1E2C)
         ),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(6.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onTrackSelect() }
     ) {
         Row(
-            modifier = Modifier.padding(8.dp),
+            modifier = Modifier.padding(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Nombre del instrumento y controles Mute/Solo compactos
             Column(
-                modifier = Modifier.width(100.dp)
+                modifier = Modifier.width(90.dp)
             ) {
                 Text(
                     text = track.name,
                     color = Color(track.colorHex),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp
+                    fontSize = 10.sp
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     SmallChipButton(
                         text = "M",
@@ -248,11 +302,11 @@ fun TrackRow(
                 }
             }
 
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(2.dp))
 
             // Botoncitos de la secuencia en fila (dinámicos según stepCount)
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier.weight(1f)
             ) {
                 items(stepCount) { stepIndex ->
@@ -261,8 +315,8 @@ fun TrackRow(
 
                     Box(
                         modifier = Modifier
-                            .size(width = if (stepCount > 32) 16.dp else if (stepCount > 16) 20.dp else 24.dp, height = 32.dp)
-                            .clip(RoundedCornerShape(3.dp))
+                            .size(width = if (stepCount > 32) 14.dp else if (stepCount > 16) 18.dp else 22.dp, height = 28.dp)
+                            .clip(RoundedCornerShape(2.dp))
                             .background(
                                 when {
                                     isActive -> Color(track.colorHex)
@@ -272,9 +326,9 @@ fun TrackRow(
                                 }
                             )
                             .border(
-                                width = if (isPlayingStep) 1.5.dp else 0.5.dp,
+                                width = if (isPlayingStep) 1.2.dp else 0.4.dp,
                                 color = if (isPlayingStep) Color.White else Color.Gray.copy(alpha = 0.3f),
-                                shape = RoundedCornerShape(3.dp)
+                                shape = RoundedCornerShape(2.dp)
                             )
                             .clickable { onStepClick(stepIndex) }
                     )
@@ -284,7 +338,6 @@ fun TrackRow(
     }
 }
 
-// Botón auxiliar compacto para chips y selectores
 @Composable
 fun SmallChipButton(
     text: String,
@@ -294,11 +347,10 @@ fun SmallChipButton(
 ) {
     Box(
         modifier = Modifier
-            .height(24.dp)
-            .padding(horizontal = 4.dp)
+            .height(22.dp)
             .clip(RoundedCornerShape(4.dp))
             .background(if (isActive) activeColor else Color(0xFF13131A))
-            .border(0.5.dp, Color.Gray.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+            .border(0.5.dp, Color.Gray.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
