@@ -27,6 +27,7 @@ fun BeatStudioScreen(
     viewModel: DrumStudioViewModel
 ) {
     val state by viewModel.uiState.collectAsState()
+    val selectedTrack = state.tracks.getOrNull(state.selectedTrackIndex)
 
     Column(
         modifier = Modifier
@@ -34,7 +35,7 @@ fun BeatStudioScreen(
             .background(Color(0xFF13131A)) // Fondo Pro Oscuro
             .padding(16.dp)
     ) {
-        // --- LA CAJA SUPERIOR: TÍTULO Y BOTÓN PLAY ---
+        // --- CAJA SUPERIOR: TÍTULO, BPM Y PLAY ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -52,9 +53,9 @@ fun BeatStudioScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Drum Engine / Step Sequencer",
+                    text = "Kit: ${state.currentKit}",
                     color = Color.LightGray,
-                    fontSize = 12.sp
+                    fontSize = 11.sp
                 )
             }
 
@@ -62,7 +63,6 @@ fun BeatStudioScreen(
                 Text(text = "${state.bpm} BPM", color = Color.White, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // Botón mágico de Play y Stop
                 IconButton(
                     onClick = { viewModel.togglePlayPause() },
                     modifier = Modifier
@@ -78,17 +78,51 @@ fun BeatStudioScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // --- LA CUADRÍCULA DE RITMOS (LOS 16 PASOS) ---
+        // --- BARRA DE CONFIGURACIÓN AVANZADA (PASOS Y KITS) ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Selector de Pasos (16, 32, 64)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf(16, 32, 64).forEach { count ->
+                    SmallChipButton(
+                        text = "${count}p",
+                        isActive = state.stepCount == count,
+                        activeColor = Color(0xFFFFD700),
+                        onClick = { viewModel.setStepCount(count) }
+                    )
+                }
+            }
+
+            // Selector Rápido de Kits
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf("Standard 808", "Trap", "Lo-Fi").forEach { kit ->
+                    SmallChipButton(
+                        text = kit.take(4),
+                        isActive = state.currentKit.contains(kit),
+                        activeColor = Color(0xFF00E676),
+                        onClick = { viewModel.switchKit("Kit $kit") }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // --- CUADRÍCULA DE RITMOS (TRACKS Y PASOS) ---
         LazyColumn(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             itemsIndexed(state.tracks) { trackIndex, track ->
                 TrackRow(
                     track = track,
                     currentStep = if (state.isPlaying) state.currentStep else -1,
+                    stepCount = state.stepCount,
                     onStepClick = { stepIndex ->
                         viewModel.toggleStep(track.id, stepIndex)
                     },
@@ -99,6 +133,65 @@ fun BeatStudioScreen(
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // --- PANEL DE FUNCIÓN DIFERENCIAL (CONTROL DE PISTA SELECCIONADA) ---
+        if (selectedTrack != null) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = "EDICIÓN DIFERENCIAL: ${selectedTrack.name}",
+                        color = Color(selectedTrack.colorHex),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Controles deslizantes de Volumen, Pitch y Pan
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Volumen
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Vol: ${(selectedTrack.volume * 100).toInt()}%", color = Color.White, fontSize = 10.sp)
+                            Slider(
+                                value = selectedTrack.volume,
+                                onValueChange = { viewModel.updateVolume(selectedTrack.id, it) },
+                                valueRange = 0f..1f,
+                                colors = SliderDefaults.colors(thumbColor = Color(selectedTrack.colorHex), activeTrackColor = Color(selectedTrack.colorHex))
+                            )
+                        }
+                        // Pitch (Tono)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Pitch: ${String.format("%.2f", selectedTrack.pitch)}x", color = Color.White, fontSize = 10.sp)
+                            Slider(
+                                value = selectedTrack.pitch,
+                                onValueChange = { viewModel.updatePitch(selectedTrack.id, it) },
+                                valueRange = 0.5f..2.0f,
+                                colors = SliderDefaults.colors(thumbColor = Color(selectedTrack.colorHex), activeTrackColor = Color(selectedTrack.colorHex))
+                            )
+                        }
+                        // Pan (Panorama)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Pan: ${String.format("%.1f", selectedTrack.pan)}", color = Color.White, fontSize = 10.sp)
+                            Slider(
+                                value = selectedTrack.pan,
+                                onValueChange = { viewModel.updatePan(selectedTrack.id, it) },
+                                valueRange = -1.0f..1.0f,
+                                colors = SliderDefaults.colors(thumbColor = Color(selectedTrack.colorHex), activeTrackColor = Color(selectedTrack.colorHex))
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -106,6 +199,7 @@ fun BeatStudioScreen(
 fun TrackRow(
     track: DrumTrack,
     currentStep: Int,
+    stepCount: Int,
     onStepClick: (Int) -> Unit,
     isSelected: Boolean,
     onTrackSelect: () -> Unit,
@@ -127,26 +221,24 @@ fun TrackRow(
         ) {
             // Nombre del instrumento y controles Mute/Solo compactos
             Column(
-                modifier = Modifier.width(110.dp)
+                modifier = Modifier.width(100.dp)
             ) {
                 Text(
                     text = track.name,
                     color = Color(track.colorHex),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
+                    fontSize = 11.sp
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Botón Mute (M)
                     SmallChipButton(
                         text = "M",
                         isActive = track.isMuted,
                         activeColor = Color.Red,
                         onClick = onMuteClick
                     )
-                    // Botón Solo (S)
                     SmallChipButton(
                         text = "S",
                         isActive = track.isSolo,
@@ -158,19 +250,19 @@ fun TrackRow(
 
             Spacer(modifier = Modifier.width(4.dp))
 
-            // Los 16 botoncitos en fila
+            // Botoncitos de la secuencia en fila (dinámicos según stepCount)
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                items(16) { stepIndex ->
-                    val isActive = track.steps[stepIndex]
+                items(stepCount) { stepIndex ->
+                    val isActive = track.steps.getOrElse(stepIndex) { false }
                     val isPlayingStep = currentStep == stepIndex
 
                     Box(
                         modifier = Modifier
-                            .size(width = 24.dp, height = 34.dp)
-                            .clip(RoundedCornerShape(4.dp))
+                            .size(width = if (stepCount > 32) 16.dp else if (stepCount > 16) 20.dp else 24.dp, height = 32.dp)
+                            .clip(RoundedCornerShape(3.dp))
                             .background(
                                 when {
                                     isActive -> Color(track.colorHex)
@@ -182,7 +274,7 @@ fun TrackRow(
                             .border(
                                 width = if (isPlayingStep) 1.5.dp else 0.5.dp,
                                 color = if (isPlayingStep) Color.White else Color.Gray.copy(alpha = 0.3f),
-                                shape = RoundedCornerShape(4.dp)
+                                shape = RoundedCornerShape(3.dp)
                             )
                             .clickable { onStepClick(stepIndex) }
                     )
@@ -192,7 +284,7 @@ fun TrackRow(
     }
 }
 
-// Pequeño botón auxiliar para Mute y Solo
+// Botón auxiliar compacto para chips y selectores
 @Composable
 fun SmallChipButton(
     text: String,
@@ -202,7 +294,8 @@ fun SmallChipButton(
 ) {
     Box(
         modifier = Modifier
-            .size(22.dp)
+            .height(24.dp)
+            .padding(horizontal = 4.dp)
             .clip(RoundedCornerShape(4.dp))
             .background(if (isActive) activeColor else Color(0xFF13131A))
             .border(0.5.dp, Color.Gray.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
@@ -212,8 +305,9 @@ fun SmallChipButton(
         Text(
             text = text,
             color = if (isActive) Color.Black else Color.LightGray,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 4.dp)
         )
     }
 }
