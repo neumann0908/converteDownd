@@ -33,7 +33,7 @@ fun SamplerStudioScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF13131A)) // Fondo Pro Oscuro DAW
-            .padding(12.dp)
+            .padding(10.dp)
     ) {
         // --- CAJA SUPERIOR: TÍTULO Y ESTADO DE MUESTRA ---
         Row(
@@ -41,7 +41,7 @@ fun SamplerStudioScreen(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color(0xFF1E1E2C))
-                .padding(12.dp),
+                .padding(10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -49,7 +49,7 @@ fun SamplerStudioScreen(
                 Text(
                     text = "SAMPLER ENGINE PRO",
                     color = Color(0xFF00E676), // Verde Pro Sampler
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
@@ -61,26 +61,26 @@ fun SamplerStudioScreen(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Botón Cargar Archivo (WAV, MP3, FLAC)[span_0](start_span)[span_0](end_span)
+                // Botón Cargar Archivo (WAV, MP3, FLAC)[span_4](start_span)[span_4](end_span)
                 IconButton(
-                    onClick = { viewModel.importAudioFile("DrumLoop_Pro.wav", 4000L) },
-                    modifier = Modifier.size(36.dp).background(Color(0xFF28283D), CircleShape)
+                    onClick = { viewModel.importAudioFile("AudioSample_Pro.wav", 5000L) },
+                    modifier = Modifier.size(34.dp).background(Color(0xFF28283D), CircleShape)
                 ) {
-                    Icon(Icons.Default.FolderOpen, contentDescription = "Importar", tint = Color(0xFFFFD700), modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.FolderOpen, contentDescription = "Importar", tint = Color(0xFFFFD700), modifier = Modifier.size(16.dp))
                 }
                 Spacer(modifier = Modifier.width(6.dp))
 
-                // Botón Micrófono (Grabar sample)[span_1](start_span)[span_1](end_span)
+                // Botón Micrófono (Grabar sample)[span_5](start_span)[span_5](end_span)
                 IconButton(
                     onClick = { viewModel.toggleRecording() },
-                    modifier = Modifier.size(36.dp).background(if (state.isRecording) Color.Red else Color(0xFF28283D), CircleShape)
+                    modifier = Modifier.size(34.dp).background(if (state.isRecording) Color.Red else Color(0xFF28283D), CircleShape)
                 ) {
-                    Icon(Icons.Default.Mic, contentDescription = "Grabar", tint = Color.White, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Mic, contentDescription = "Grabar", tint = Color.White, modifier = Modifier.size(16.dp))
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         // --- PANEL DE AUTO CHOP INTELIGENTE (Función Diferencial) ---
         Card(
@@ -88,14 +88,14 @@ fun SamplerStudioScreen(
             shape = RoundedCornerShape(10.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(8.dp)) {
                 Text(
                     text = "AUTO CHOP INTELIGENTE",
                     color = Color(0xFFFFD700),
-                    fontSize = 10.sp,
+                    fontSize = 9.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -116,37 +116,81 @@ fun SamplerStudioScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
-        // --- VISUALIZADOR DE ONDA Y PADS DE REPRODUCCIÓN ---
+        // --- 🌊 VISUALIZADOR DE ONDA Y AJUSTE DE PUNTOS START / END ---
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth().height(95.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(8.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "Inicio: ${track.startPoint}ms", color = Color(0xFF00E676), fontSize = 9.sp)
+                    Text(text = "Fin: ${track.endPoint}ms", color = Color.Red, fontSize = 9.sp)
+                }
+
+                // Sliders de Start y End para control visual de onda[span_6](start_span)[span_6](end_span)[span_7](start_span)[span_7](end_span)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Slider(
+                        value = track.startPoint.toFloat(),
+                        onValueChange = { viewModel.updateStartEndPoints(it.toLong(), track.endPoint) },
+                        valueRange = 0f..(if (track.totalDurationMs > 0) track.totalDurationMs.toFloat() else 1000f),
+                        modifier = Modifier.weight(1f).height(16.dp)
+                    )
+                    Slider(
+                        value = track.endPoint.toFloat(),
+                        onValueChange = { viewModel.updateStartEndPoints(track.startPoint, it.toLong()) },
+                        valueRange = 0f..(if (track.totalDurationMs > 0) track.totalDurationMs.toFloat() else 1000f),
+                        modifier = Modifier.weight(1f).height(16.dp)
+                    )
+                }
+
+                Text(
+                    text = if (track.slices.isEmpty()) "Importa una muestra o graba audio" else "${track.slices.size} fragmentos activos en pads",
+                    color = Color.Gray,
+                    fontSize = 8.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // --- MATRIZ DE PADS DE REPRODUCCIÓN ---
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(10.dp))
                 .background(Color(0xFF181822))
-                .border(1.dp, Color(0xFF28283D), RoundedCornerShape(12.dp))
-                .padding(8.dp),
+                .border(1.dp, Color(0xFF28283D), RoundedCornerShape(10.dp))
+                .padding(6.dp),
             contentAlignment = Alignment.Center
         ) {
             if (track.slices.isEmpty()) {
                 Text(
-                    text = "Importa un archivo o graba para ver la forma de onda",
+                    text = "Sin fragmentos generados. Usa Auto Chop o carga un audio",
                     color = Color.Gray,
-                    fontSize = 11.sp
+                    fontSize = 10.sp
                 )
             } else {
-                // Matriz de Pads para disparar cada fragmento (*slice*)[span_2](start_span)[span_2](end_span)
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(4),
                     modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     items(track.slices) { slice ->
                         SamplerPadCard(
                             sliceId = slice.id,
                             pitch = slice.pitchShift,
+                            volume = slice.volume,
                             isReversed = slice.isReversed,
                             onPadClick = { viewModel.toggleSliceReverse(slice.id) },
                             onPitchChange = { newPitch -> viewModel.updateSlicePitch(slice.id, newPitch) }
@@ -156,22 +200,22 @@ fun SamplerStudioScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
-        // --- PANEL INFERIOR: EFECTOS, LOOP Y ENVOLVENTE ADSR ---
+        // --- PANEL INFERIOR: EFECTOS, LOOP Y ENVOLVENTE ADSR COMPLETA ---
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(10.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "EFECTOS & ADSR", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(text = "ADSR & EFECTOS PRO", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         SmallChipToggle("Loop", track.isLooping) { viewModel.toggleLoop() }
                         SmallChipToggle("Norm", track.isNormalized) { viewModel.toggleNormalization() }
                     }
@@ -179,26 +223,42 @@ fun SamplerStudioScreen(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                // Controles ADSR completos (Attack, Decay, Sustain, Release)[span_8](start_span)[span_8](end_span)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Ataque: ${String.format("%.2f", track.attack)}s", color = Color.LightGray, fontSize = 9.sp)
+                        Text(text = "A: ${String.format("%.2f", track.attack)}s", color = Color.LightGray, fontSize = 8.sp)
                         Slider(
                             value = track.attack,
                             onValueChange = { viewModel.updateSamplerAdsr(it, track.decay, track.sustain, track.release) },
                             valueRange = 0.001f..0.5f,
-                            modifier = Modifier.height(22.dp)
+                            modifier = Modifier.height(16.dp)
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Decay: ${String.format("%.2f", track.decay)}s", color = Color.LightGray, fontSize = 9.sp)
+                        Text(text = "D: ${String.format("%.2f", track.decay)}s", color = Color.LightGray, fontSize = 8.sp)
                         Slider(
                             value = track.decay,
                             onValueChange = { viewModel.updateSamplerAdsr(track.attack, it, track.sustain, track.release) },
                             valueRange = 0.01f..1.0f,
-                            modifier = Modifier.height(22.dp)
+                            modifier = Modifier.height(16.dp)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "S: ${String.format("%.2f", track.sustain)}", color = Color.LightGray, fontSize = 8.sp)
+                        Slider(
+                            value = track.sustain,
+                            onValueChange = { viewModel.updateSamplerAdsr(track.attack, track.decay, it, track.release) },
+                            valueRange = 0f..1.0f,
+                            modifier = Modifier.height(16.dp)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "R: ${String.format("%.2f", track.release)}s", color = Color.LightGray, fontSize = 8.sp)
+                        Slider(
+                            value = track.release,
+                            onValueChange = { viewModel.updateSamplerAdsr(track.attack, track.decay, track.sustain, it) },
+                            valueRange = 0.01f..2.0f,
+                            modifier = Modifier.height(16.dp)
                         )
                     }
                 }
@@ -207,13 +267,12 @@ fun SamplerStudioScreen(
     }
 }
 
-// 🛠️ ¡CORREGIDO AQUÍ AGREGANDO LA PALABRA CLAVE "fun"!
 @Composable
 fun RowScope.AutoChopButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .weight(1f)
-            .height(26.dp)
+            .height(24.dp)
             .clip(RoundedCornerShape(4.dp))
             .background(if (isSelected) Color(0xFF00E676) else Color(0xFF13131A))
             .clickable { onClick() },
@@ -222,7 +281,7 @@ fun RowScope.AutoChopButton(text: String, isSelected: Boolean, onClick: () -> Un
         Text(
             text = text,
             color = if (isSelected) Color.Black else Color.LightGray,
-            fontSize = 9.sp,
+            fontSize = 8.sp,
             fontWeight = FontWeight.Bold
         )
     }
@@ -232,19 +291,20 @@ fun RowScope.AutoChopButton(text: String, isSelected: Boolean, onClick: () -> Un
 fun SamplerPadCard(
     sliceId: Int,
     pitch: Float,
+    volume: Float,
     isReversed: Boolean,
     onPadClick: () -> Unit,
     onPitchChange: (Float) -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF28283D)),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(6.dp),
         modifier = Modifier
-            .height(75.dp)
+            .height(65.dp)
             .clickable { onPadClick() }
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(6.dp),
+            modifier = Modifier.fillMaxSize().padding(4.dp),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -252,10 +312,11 @@ fun SamplerPadCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = "Pad ${sliceId + 1}", color = Color(0xFF00E676), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                if (isReversed) Text(text = "REV", color = Color.Red, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                Text(text = "Pad ${sliceId + 1}", color = Color(0xFF00E676), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                if (isReversed) Text(text = "REV", color = Color.Red, fontSize = 7.sp, fontWeight = FontWeight.Bold)
             }
-            Text(text = "Pitch: ${String.format("%.1f", pitch)}x", color = Color.White, fontSize = 9.sp)
+            Text(text = "Vol: ${String.format("%.1f", volume)}x", color = Color.LightGray, fontSize = 8.sp)
+            Text(text = "Pitch: ${String.format("%.1f", pitch)}x", color = Color.White, fontSize = 8.sp)
         }
     }
 }
@@ -264,7 +325,7 @@ fun SamplerPadCard(
 fun SmallChipToggle(text: String, isActive: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .height(20.dp)
+            .height(18.dp)
             .padding(horizontal = 2.dp)
             .clip(RoundedCornerShape(4.dp))
             .background(if (isActive) Color(0xFF00E676) else Color(0xFF13131A))
@@ -274,9 +335,9 @@ fun SmallChipToggle(text: String, isActive: Boolean, onClick: () -> Unit) {
         Text(
             text = text,
             color = if (isActive) Color.Black else Color.LightGray,
-            fontSize = 8.sp,
+            fontSize = 7.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 4.dp)
+            modifier = Modifier.padding(horizontal = 3.dp)
         )
     }
 }
