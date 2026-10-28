@@ -43,7 +43,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
     val isRecording by viewModel.isRecording.collectAsState()
     val isAutomix by viewModel.isAutomixActive.collectAsState()
     
-    // Estados Headphone Cue (Punto 12)
+    // Estados Headphone Cue (Punto 12)[span_0](start_span)[span_0](end_span)
     val isSplitAudio by viewModel.isSplitAudioActive.collectAsState()
     val cueA by viewModel.cueDeckA.collectAsState()
     val cueB by viewModel.cueDeckB.collectAsState()
@@ -93,7 +93,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Alignment.SpaceBetween.let { Arrangement.SpaceBetween },
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -428,7 +428,7 @@ fun DeckCard(
                         Spacer(modifier = Modifier.height(1.dp))
                         Text(
                             text = "${track.bpm}BPM | ${track.musicalKey}",
-                            color = Color.LightGraph.let { Color.LightGray },
+                            color = Color.LightGray,
                             fontSize = 8.sp
                         )
                     }
