@@ -43,7 +43,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
     val isRecording by viewModel.isRecording.collectAsState()
     val isAutomix by viewModel.isAutomixActive.collectAsState()
     
-    // Estados Headphone Cue (Punto 12)[span_0](start_span)[span_0](end_span)
+    // Estados Headphone Cue (Punto 12)
     val isSplitAudio by viewModel.isSplitAudioActive.collectAsState()
     val cueA by viewModel.cueDeckA.collectAsState()
     val cueB by viewModel.cueDeckB.collectAsState()
@@ -181,7 +181,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                 }
             }
 
-            // Decks A y B con Distribución Limpia y Centrada
+            // Decks A y B con Alineación Absoluta y Simétrica
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -205,7 +205,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                         selectingForDeck = "A"
                     },
                     onEqClick = { eqDialogDeck = "A" },
-                    showSyncButton = false
+                    showSyncButton = false // Espacio reservado invisible para perfecta alineación
                 )
 
                 DeckCard(
@@ -224,7 +224,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                         selectingForDeck = "B"
                     },
                     onEqClick = { eqDialogDeck = "B" },
-                    showSyncButton = true,
+                    showSyncButton = true, // Muestra el botón SYNC activo
                     onSyncClick = { viewModel.autoSyncDeckB() }
                 )
             }
@@ -369,10 +369,10 @@ fun DeckCard(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally, // 🎯 Centrado absoluto horizontal
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // 🎛️ Cabecera de Deck Centrada y Alineada
+            // 🎛️ Cabecera de Deck Alineada
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -406,7 +406,7 @@ fun DeckCard(
                 }
             }
 
-            // Selector de Pista Centrado
+            // Selector de Pista Estándar y Centrado
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -434,6 +434,9 @@ fun DeckCard(
                 }
             }
 
+            // 🎯 BLOQUE DE SYNC / ESPACIADOR SIMÉTRICO ESTÁNDAR
+            // Si el deck no tiene botón SYNC, colocamos un Spacer idéntico a la altura del botón (24.dp)
+            // para garantizar que los vinilos y los controles queden perfectamente alineados a la misma altura.
             if (showSyncButton) {
                 Button(
                     onClick = onSyncClick,
@@ -445,11 +448,13 @@ fun DeckCard(
                 ) {
                     Text("SYNC (AUTO)", fontSize = 9.sp, color = Color.Black)
                 }
+            } else {
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // 🎶 Vinilo Ampliado y Centrado Profesional (115.dp)
+            // 🎶 Vinilo Centrado y Proporcional (110.dp)
             Box(
-                modifier = Modifier.size(115.dp),
+                modifier = Modifier.size(110.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Canvas(modifier = Modifier.fillMaxSize().rotate(rotationAngle)) {
@@ -842,7 +847,7 @@ fun DeckControlDialog(
                     Slider(
                         value = high,
                         onValueChange = { high = it; if (deckName == "A") viewModel.setEqualizerA(low, mid, high) else viewModel.setEqualizerB(low, mid, high) },
-                        valueRange = -1f..1f,
+                        valueRange - -1f..1f,
                         colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
                     )
                 }
