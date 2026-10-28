@@ -7,6 +7,9 @@ sealed class Screen(val route: String) {
     object Player : Screen("player_screen")
     object History : Screen("history_screen")
     
-    // Nueva ruta añadida para la consola DJ Pro
+    // Consola DJ Pro existente
     object DjTurntables : Screen("dj_turntables")
+
+    // 🎛️ FASE 1: Nueva ruta añadida quirúrgicamente para el Beat Studio Pro
+    object BeatStudio : Screen("beat_studio")
 }
