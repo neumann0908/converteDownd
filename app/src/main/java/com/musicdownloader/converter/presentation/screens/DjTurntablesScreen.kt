@@ -8,6 +8,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -25,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,7 +45,6 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
     val isRecording by viewModel.isRecording.collectAsState()
     val isAutomix by viewModel.isAutomixActive.collectAsState()
     
-    // Estados Headphone Cue (Punto 12)
     val isSplitAudio by viewModel.isSplitAudioActive.collectAsState()
     val cueA by viewModel.cueDeckA.collectAsState()
     val cueB by viewModel.cueDeckB.collectAsState()
@@ -86,7 +87,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // 🎛️ Cabecera Pro Rediseñada en Dos Filas Simétricas
+            // Cabecera Pro
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -104,7 +105,6 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     )
                 }
 
-                // Fila de Botones Superiores Distribuidos Uniformemente
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -181,7 +181,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                 }
             }
 
-            // Decks A y B con Alineación Absoluta y Simétrica
+            // Decks A y B con Vinilos Dorado y Platinum + Scratch Táctil Real
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -192,8 +192,9 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                 DeckCard(
                     modifier = Modifier.weight(1f),
                     title = "DECK A",
-                    subtitle = "(Master)",
+                    subtitle = "(Master - Gold)",
                     statusColor = Color.Green,
+                    vinylTheme = VinylTheme.GOLD,
                     track = trackA,
                     isPlaying = isPlayingA,
                     rotationAngle = if (isPlayingA) angleA else 0f,
@@ -205,14 +206,17 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                         selectingForDeck = "A"
                     },
                     onEqClick = { eqDialogDeck = "A" },
-                    showSyncButton = false
+                    showSyncButton = false,
+                    onScratchStart = { viewModel.startScratchA() },
+                    onScratchDelta = { delta -> viewModel.updateScratchA(delta) }
                 )
 
                 DeckCard(
                     modifier = Modifier.weight(1f),
                     title = "DECK B",
-                    subtitle = "(Sync)",
+                    subtitle = "(Sync - Platinum)",
                     statusColor = Color.Red,
+                    vinylTheme = VinylTheme.PLATINUM,
                     track = trackB,
                     isPlaying = isPlayingB,
                     rotationAngle = if (isPlayingB) angleB else 0f,
@@ -225,7 +229,9 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     },
                     onEqClick = { eqDialogDeck = "B" },
                     showSyncButton = true,
-                    onSyncClick = { viewModel.autoSyncDeckB() }
+                    onSyncClick = { viewModel.autoSyncDeckB() },
+                    onScratchStart = { viewModel.startScratchB() },
+                    onScratchDelta = { delta -> viewModel.updateScratchB(delta) }
                 )
             }
 
@@ -343,12 +349,17 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
     }
 }
 
+enum class VinylTheme {
+    GOLD, PLATINUM
+}
+
 @Composable
 fun DeckCard(
     modifier: Modifier = Modifier,
     title: String,
     subtitle: String,
     statusColor: Color,
+    vinylTheme: VinylTheme,
     track: DjTrack?,
     isPlaying: Boolean,
     rotationAngle: Float,
@@ -358,7 +369,9 @@ fun DeckCard(
     onTrackClick: () -> Unit,
     onEqClick: () -> Unit,
     showSyncButton: Boolean = false,
-    onSyncClick: () -> Unit = {}
+    onSyncClick: () -> Unit = {},
+    onScratchStart: () -> Unit,
+    onScratchDelta: (Float) -> Unit
 ) {
     Card(
         modifier = modifier.fillMaxHeight(),
@@ -372,7 +385,7 @@ fun DeckCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // 🎛️ Cabecera de Deck Alineada
+            // Cabecera de Deck Alineada
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -406,7 +419,7 @@ fun DeckCard(
                 }
             }
 
-            // Selector de Pista Estándar y Centrado
+            // Selector de Pista
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -434,7 +447,7 @@ fun DeckCard(
                 }
             }
 
-            // 🎯 BLOQUE DE SYNC / ESPACIADOR SIMÉTRICO ESTÁNDAR
+            // Bloque SYNC / Espaciador Simétrico
             if (showSyncButton) {
                 Button(
                     onClick = onSyncClick,
@@ -450,16 +463,31 @@ fun DeckCard(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // 🎶 Vinilo Centrado y Proporcional (110.dp)
+            // 🎶 Vinilo Interactivo con Touch Scratching Real y Temática (Gold / Platinum) (Punto 14)[span_7](start_span)[span_7](end_span)
+            val primaryRingColor = if (vinylTheme == VinylTheme.GOLD) Color(0xFFDAA520) else Color(0xFF90A4AE)
+            val centerLabelColor = if (vinylTheme == VinylTheme.GOLD) Color(0xFFFFD700) else Color(0xFFE0E0E0)
+
             Box(
-                modifier = Modifier.size(110.dp),
+                modifier = Modifier
+                    .size(110.dp)
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { onScratchStart() },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                onScratchDelta(dragAmount.x + dragAmount.y)
+                            }
+                        )
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Canvas(modifier = Modifier.fillMaxSize().rotate(rotationAngle)) {
                     drawCircle(color = Color.Black)
                     drawCircle(color = Color(0xFF252525), radius = size.minDimension / 2.3f)
+                    drawCircle(color = primaryRingColor, radius = size.minDimension / 2.8f, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f))
                     drawCircle(color = Color(0xFF151515), radius = size.minDimension / 3f)
-                    drawCircle(color = Color(0xFFFFD700), radius = size.minDimension / 6f)
+                    drawCircle(color = primaryRingColor, radius = size.minDimension / 3.8f, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f))
+                    drawCircle(color = centerLabelColor, radius = size.minDimension / 6f)
                     drawCircle(color = Color.Black, radius = size.minDimension / 18f)
                 }
             }
@@ -577,7 +605,7 @@ fun DeckControlDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // ⚡ Key Shift & Master Tempo (Punto 13)
+                // Tonalidad (Key Shift & Master Tempo)
                 Text(text = "Tonalidad (Key Shift & Master Tempo)", color = Color(0xFFFFD700), fontSize = 11.sp)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -635,9 +663,7 @@ fun DeckControlDialog(
                             else viewModel.toggleEchoB(echoActive)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = if (echoActive) Color(0xFF00E676) else Color(0xFF3B3B4F)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(30.dp)
+                        modifier = Modifier.weight(1f).height(30.dp)
                     ) {
                         Text(if (echoActive) "Echo ON" else "Echo", fontSize = 9.sp, color = if (echoActive) Color.Black else Color.White)
                     }
@@ -649,9 +675,7 @@ fun DeckControlDialog(
                             else viewModel.toggleFilterB(filterMode)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = if (filterMode != "OFF") Color(0xFFFF9800) else Color(0xFF3B3B4F)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(30.dp)
+                        modifier = Modifier.weight(1f).height(30.dp)
                     ) {
                         Text("Filter: $filterMode", fontSize = 9.sp, color = Color.White)
                     }
@@ -662,9 +686,7 @@ fun DeckControlDialog(
                             else viewModel.triggerBrakeB()
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(30.dp)
+                        modifier = Modifier.weight(1f).height(30.dp)
                     ) {
                         Text("Brake", fontSize = 9.sp, color = Color.White)
                     }
@@ -693,9 +715,7 @@ fun DeckControlDialog(
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isActive) Color(0xFF00E676) else Color(0xFF3B3B4F)
                             ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(28.dp),
+                            modifier = Modifier.weight(1f).height(28.dp),
                             contentPadding = PaddingValues(0.dp)
                         ) {
                             Text("${beats}B", fontSize = 9.sp, color = if (isActive) Color.Black else Color.White)
@@ -718,9 +738,7 @@ fun DeckControlDialog(
                             else viewModel.toggleStemVocalsB(vocalsMuted)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = if (vocalsMuted) Color.Red else Color(0xFF3B3B4F)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(30.dp)
+                        modifier = Modifier.weight(1f).height(30.dp)
                     ) {
                         Text(if (vocalsMuted) "Vocals OFF" else "Vocals", fontSize = 8.sp, color = Color.White)
                     }
@@ -732,9 +750,7 @@ fun DeckControlDialog(
                             else viewModel.toggleStemDrumsB(drumsMuted)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = if (drumsMuted) Color.Red else Color(0xFF3B3B4F)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(30.dp)
+                        modifier = Modifier.weight(1f).height(30.dp)
                     ) {
                         Text(if (drumsMuted) "Drums OFF" else "Drums", fontSize = 8.sp, color = Color.White)
                     }
@@ -746,9 +762,7 @@ fun DeckControlDialog(
                             else viewModel.toggleStemBassB(bassMuted)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = if (bassMuted) Color.Red else Color(0xFF3B3B4F)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(30.dp)
+                        modifier = Modifier.weight(1f).height(30.dp)
                     ) {
                         Text(if (bassMuted) "Bass OFF" else "Bass", fontSize = 8.sp, color = Color.White)
                     }
@@ -766,18 +780,14 @@ fun DeckControlDialog(
                         Button(
                             onClick = { if (deckName == "A") viewModel.setHotCueA(1) else viewModel.setHotCueB(1) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(26.dp)
+                            modifier = Modifier.fillMaxWidth().height(26.dp)
                         ) {
                             Text("Set C1", fontSize = 9.sp, color = Color.White)
                         }
                         Button(
                             onClick = { if (deckName == "A") viewModel.jumpHotCueA(1) else viewModel.jumpHotCueB(1) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(26.dp)
+                            modifier = Modifier.fillMaxWidth().height(26.dp)
                         ) {
                             Text("Jump C1", fontSize = 9.sp, color = Color.White)
                         }
@@ -786,18 +796,14 @@ fun DeckControlDialog(
                         Button(
                             onClick = { if (deckName == "A") viewModel.setHotCueA(2) else viewModel.setHotCueB(2) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(26.dp)
+                            modifier = Modifier.fillMaxWidth().height(26.dp)
                         ) {
                             Text("Set C2", fontSize = 9.sp, color = Color.White)
                         }
                         Button(
                             onClick = { if (deckName == "A") viewModel.jumpHotCueA(2) else viewModel.jumpHotCueB(2) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(26.dp)
+                            modifier = Modifier.fillMaxWidth().height(26.dp)
                         ) {
                             Text("Jump C2", fontSize = 9.sp, color = Color.White)
                         }
