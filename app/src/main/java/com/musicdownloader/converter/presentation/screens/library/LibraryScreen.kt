@@ -1,6 +1,7 @@
 package com.musicdownloader.converter.presentation.screens.library
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,7 +48,6 @@ fun LibraryScreen(
     var endSecStr by remember { mutableStateOf("30") }
     var customNameStr by remember { mutableStateOf("") }
 
-    // Estados para la funcionalidad de agregar a playlist
     var showPlaylistDialog by remember { mutableStateOf(false) }
     var songNameToAdd by remember { mutableStateOf("") }
     var songPathToAdd by remember { mutableStateOf("") }
@@ -55,7 +56,11 @@ fun LibraryScreen(
         viewModel.loadDownloadedFiles()
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF13131A))
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -69,12 +74,13 @@ fun LibraryScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Mi Biblioteca",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
+                    text = "MI BIBLIOTECA PRO",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFFD700)
                 )
                 IconButton(onClick = { viewModel.loadDownloadedFiles() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Actualizar")
+                    Icon(Icons.Default.Refresh, contentDescription = "Actualizar", tint = Color(0xFFFFD700))
                 }
             }
 
@@ -84,10 +90,19 @@ fun LibraryScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
-                placeholder = { Text("Buscar canción...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                placeholder = { Text("Buscar canción...", color = Color.LightGray) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFFFD700)) },
                 singleLine = true,
-                shape = MaterialTheme.shapes.medium
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFF1E1E2C),
+                    unfocusedContainerColor = Color(0xFF1E1E2C),
+                    disabledContainerColor = Color(0xFF1E1E2C),
+                    focusedBorderColor = Color(0xFFFFD700),
+                    unfocusedBorderColor = Color(0xFF3B3B4F),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
             )
 
             if (audioList.isEmpty()) {
@@ -97,12 +112,13 @@ fun LibraryScreen(
                 ) {
                     Text(
                         text = "No se encontraron canciones.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color.LightGray,
+                        fontSize = 13.sp
                     )
                 }
             } else {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(audioList) { audio ->
@@ -131,7 +147,6 @@ fun LibraryScreen(
             }
         }
 
-        // Diálogo para seleccionar la playlist destino
         if (showPlaylistDialog) {
             AddSongToPlaylistDialog(
                 songName = songNameToAdd,
@@ -143,11 +158,12 @@ fun LibraryScreen(
         if (errorMessage != null) {
             AlertDialog(
                 onDismissRequest = { viewModel.clearError() },
-                title = { Text("Error al Recortar") },
-                text = { Text(errorMessage ?: "") },
+                containerColor = Color(0xFF1E1E2C),
+                title = { Text("Error al Recortar", color = Color(0xFFFFD700)) },
+                text = { Text(errorMessage ?: "", color = Color.White) },
                 confirmButton = {
                     TextButton(onClick = { viewModel.clearError() }) {
-                        Text("Aceptar")
+                        Text("Aceptar", color = Color(0xFFFFD700))
                     }
                 }
             )
@@ -159,35 +175,67 @@ fun LibraryScreen(
                     viewModel.stopPreview()
                     audioToTrim = null 
                 },
-                title = { Text("Recortar Audio") },
+                containerColor = Color(0xFF1E1E2C),
+                title = { Text("Recortar Audio", color = Color(0xFFFFD700)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             text = audioToTrim!!.name,
                             fontWeight = FontWeight.Bold,
+                            color = Color.White,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         OutlinedTextField(
                             value = customNameStr,
                             onValueChange = { customNameStr = it },
-                            label = { Text("Nombre del archivo") },
+                            label = { Text("Nombre del archivo", color = Color.LightGray) },
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF2B2B3D),
+                                unfocusedContainerColor = Color(0xFF2B2B3D),
+                                focusedBorderColor = Color(0xFFFFD700),
+                                unfocusedBorderColor = Color(0xFF3B3B4F),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedLabelColor = Color(0xFFFFD700),
+                                unfocusedLabelColor = Color.LightGray
+                            )
                         )
                         OutlinedTextField(
                             value = startSecStr,
                             onValueChange = { startSecStr = it },
-                            label = { Text("Segundo de inicio") },
+                            label = { Text("Segundo de inicio", color = Color.LightGray) },
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF2B2B3D),
+                                unfocusedContainerColor = Color(0xFF2B2B3D),
+                                focusedBorderColor = Color(0xFFFFD700),
+                                unfocusedBorderColor = Color(0xFF3B3B4F),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedLabelColor = Color(0xFFFFD700),
+                                unfocusedLabelColor = Color.LightGray
+                            )
                         )
                         OutlinedTextField(
                             value = endSecStr,
                             onValueChange = { endSecStr = it },
-                            label = { Text("Segundo de fin") },
+                            label = { Text("Segundo de fin", color = Color.LightGray) },
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF2B2B3D),
+                                unfocusedContainerColor = Color(0xFF2B2B3D),
+                                focusedBorderColor = Color(0xFFFFD700),
+                                unfocusedBorderColor = Color(0xFF3B3B4F),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedLabelColor = Color(0xFFFFD700),
+                                unfocusedLabelColor = Color.LightGray
+                            )
                         )
 
                         Spacer(modifier = Modifier.height(4.dp))
@@ -201,13 +249,14 @@ fun LibraryScreen(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                containerColor = Color(0xFF3B3B4F)
                             ),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
                                 text = "▶ Previsualizar Fragmento",
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                color = Color(0xFFFFD700)
                             )
                         }
                     }
@@ -228,7 +277,7 @@ fun LibraryScreen(
                         }
                         audioToTrim = null
                     }) {
-                        Text("Recortar")
+                        Text("Recortar", color = Color(0xFFFFD700))
                     }
                 },
                 dismissButton = {
@@ -236,7 +285,7 @@ fun LibraryScreen(
                         viewModel.stopPreview()
                         audioToTrim = null 
                     }) {
-                        Text("Cancelar")
+                        Text("Cancelar", color = Color.LightGray)
                     }
                 }
             )
@@ -253,7 +302,7 @@ fun LibraryScreen(
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
+                        containerColor = Color(0xFF1E1E2C)
                     )
                 ) {
                     Column(
@@ -262,19 +311,19 @@ fun LibraryScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.primary
+                            color = Color(0xFFFFD700)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = "Recortando audio...",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = Color.White
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Por favor espera un momento",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color.LightGray
                         )
                     }
                 }
@@ -295,8 +344,9 @@ fun AudioItemRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onPlayClick() },
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = Color(0xFF1E1E2C)
         )
     ) {
         Row(
@@ -308,7 +358,7 @@ fun AudioItemRow(
             Icon(
                 imageVector = Icons.Default.MusicNote,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = Color(0xFFFFD700),
                 modifier = Modifier.size(32.dp)
             )
 
@@ -320,13 +370,15 @@ fun AudioItemRow(
                 Text(
                     text = audio.name,
                     fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    fontSize = 13.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = audio.sizeMb,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    fontSize = 11.sp,
+                    color = Color.LightGray
                 )
             }
 
@@ -334,7 +386,7 @@ fun AudioItemRow(
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Reproducir",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = Color(0xFFFFD700)
                 )
             }
 
@@ -342,7 +394,7 @@ fun AudioItemRow(
                 Icon(
                     imageVector = Icons.Default.ContentCut,
                     contentDescription = "Recortar",
-                    tint = MaterialTheme.colorScheme.secondary
+                    tint = Color(0xFFFF9800)
                 )
             }
 
@@ -350,7 +402,7 @@ fun AudioItemRow(
                 Icon(
                     imageVector = Icons.Default.PlaylistAdd,
                     contentDescription = "Añadir a lista",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = Color(0xFF00E676)
                 )
             }
 
@@ -358,7 +410,7 @@ fun AudioItemRow(
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Eliminar",
-                    tint = MaterialTheme.colorScheme.error
+                    tint = Color(0xFFE53935)
                 )
             }
         }
@@ -376,16 +428,17 @@ fun AddSongToPlaylistDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Añadir a una lista") },
+        containerColor = Color(0xFF1E1E2C),
+        title = { Text("Añadir a una lista", color = Color(0xFFFFD700)) },
         text = {
             if (playlists.isEmpty()) {
-                Text("No tienes listas creadas. ¡Crea una primero en la pestaña Listas!")
+                Text("No tienes listas creadas. ¡Crea una primero en la pestaña Listas!", color = Color.LightGray)
             } else {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     items(playlists) { playlist ->
                         Card(
@@ -399,13 +452,15 @@ fun AddSongToPlaylistDialog(
                                     )
                                     onDismiss()
                                 },
+                            shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                containerColor = Color(0xFF2B2B3D)
                             )
                         ) {
                             Text(
                                 text = playlist.name,
                                 modifier = Modifier.padding(16.dp),
+                                color = Color.White,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -415,7 +470,7 @@ fun AddSongToPlaylistDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text("Cancelar", color = Color(0xFFFFD700))
             }
         }
     )
