@@ -209,7 +209,8 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     onEqClick = { eqDialogDeck = "A" },
                     showSyncButton = false,
                     onScratchStart = { viewModel.startScratchA() },
-                    onScratchDelta = { delta -> viewModel.updateScratchA(delta) }
+                    onScratchDelta = { delta -> viewModel.updateScratchA(delta) },
+                    onScratchEnd = { viewModel.releaseScratchA() }
                 )
 
                 DeckCard(
@@ -232,7 +233,8 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                     showSyncButton = true,
                     onSyncClick = { viewModel.autoSyncDeckB() },
                     onScratchStart = { viewModel.startScratchB() },
-                    onScratchDelta = { delta -> viewModel.updateScratchB(delta) }
+                    onScratchDelta = { delta -> viewModel.updateScratchB(delta) },
+                    onScratchEnd = { viewModel.releaseScratchB() }
                 )
             }
 
@@ -372,7 +374,8 @@ fun DeckCard(
     showSyncButton: Boolean = false,
     onSyncClick: () -> Unit = {},
     onScratchStart: () -> Unit,
-    onScratchDelta: (Float) -> Unit
+    onScratchDelta: (Float) -> Unit,
+    onScratchEnd: () -> Unit
 ) {
     Card(
         modifier = modifier.fillMaxHeight(),
@@ -464,7 +467,7 @@ fun DeckCard(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // 🎶 Vinilos de Lujo Hiperrealistas (Gold[span_4](start_span)[span_4](end_span) & Platinum[span_5](start_span)[span_5](end_span)) con Touch Scratching Real
+            // 🎶 Vinilos de Lujo Hiperrealistas (Gold & Platinum) con Touch Scratching Real Avanzado
             val baseColors = if (vinylTheme == VinylTheme.GOLD) {
                 listOf(Color(0xFFFFDF73), Color(0xFFD4AF37), Color(0xFF996515), Color(0xFFD4AF37))
             } else {
@@ -482,7 +485,9 @@ fun DeckCard(
                             onDrag = { change, dragAmount ->
                                 change.consume()
                                 onScratchDelta(dragAmount.x + dragAmount.y)
-                            }
+                            },
+                            onDragEnd = { onScratchEnd() },
+                            onDragCancel = { onScratchEnd() }
                         )
                     },
                 contentAlignment = Alignment.Center
