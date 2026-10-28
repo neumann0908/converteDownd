@@ -55,7 +55,7 @@ class DjViewModel @Inject constructor(
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
-    // --- 🎧 Headphone Cue / Split Audio States (Punto 12) ---
+    // --- 🎧 Headphone Cue / Split Audio States (Punto 12)[span_3](start_span)[span_3](end_span) ---
     private val _isSplitAudioActive = MutableStateFlow(false)
     val isSplitAudioActive: StateFlow<Boolean> = _isSplitAudioActive.asStateFlow()
 
@@ -78,6 +78,10 @@ class DjViewModel @Inject constructor(
     private var cuePointA2: Int? = null
     private var cuePointB1: Int? = null
     private var cuePointB2: Int? = null
+
+    // --- 🎛️ Touch Scratch Tracking (Punto 14)[span_4](start_span)[span_4](end_span) ---
+    private var scratchPosA: Int = 0
+    private var scratchPosB: Int = 0
 
     init {
         loadLibraryTracks()
@@ -125,13 +129,13 @@ class DjViewModel @Inject constructor(
     }
 
     fun toggleDeckA() {
-        val trackPath = _currentTrackA.value?.path
+        val trackPath = _currentTrackA.value?.path ?: return
         val isPlaying = djAudioEngine.togglePlayA(trackPath)
         _isPlayingDeckA.value = isPlaying
     }
 
     fun toggleDeckB() {
-        val trackPath = _currentTrackB.value?.path
+        val trackPath = _currentTrackB.value?.path ?: return
         val isPlaying = djAudioEngine.togglePlayB(trackPath)
         _isPlayingDeckB.value = isPlaying
     }
@@ -140,7 +144,24 @@ class DjViewModel @Inject constructor(
         djAudioEngine.updateCrossfader(value)
     }
 
-    // --- 🎧 Headphone Cue Methods (Punto 12) ---
+    // --- 🎛️ Touch Scratch Methods (Punto 14)[span_5](start_span)[span_5](end_span) ---
+    fun startScratchA() {
+        scratchPosA = djAudioEngine.getCurrentPositionA()
+    }
+    fun updateScratchA(delta: Float) {
+        scratchPosA = (scratchPosA - (delta * 25).toInt()).coerceAtLeast(0)
+        djAudioEngine.seekToDeckA(scratchPosA)
+    }
+
+    fun startScratchB() {
+        scratchPosB = djAudioEngine.getCurrentPositionB()
+    }
+    fun updateScratchB(delta: Float) {
+        scratchPosB = (scratchPosB - (delta * 25).toInt()).coerceAtLeast(0)
+        djAudioEngine.seekToDeckB(scratchPosB)
+    }
+
+    // --- 🎧 Headphone Cue Methods (Punto 12)[span_6](start_span)[span_6](end_span) ---
     fun toggleSplitAudio() {
         val newState = !_isSplitAudioActive.value
         _isSplitAudioActive.value = newState
