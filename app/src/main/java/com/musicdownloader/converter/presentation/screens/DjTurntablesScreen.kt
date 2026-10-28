@@ -205,7 +205,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                         selectingForDeck = "A"
                     },
                     onEqClick = { eqDialogDeck = "A" },
-                    showSyncButton = false // Espacio reservado invisible para perfecta alineación
+                    showSyncButton = false
                 )
 
                 DeckCard(
@@ -224,7 +224,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                         selectingForDeck = "B"
                     },
                     onEqClick = { eqDialogDeck = "B" },
-                    showSyncButton = true, // Muestra el botón SYNC activo
+                    showSyncButton = true,
                     onSyncClick = { viewModel.autoSyncDeckB() }
                 )
             }
@@ -435,8 +435,6 @@ fun DeckCard(
             }
 
             // 🎯 BLOQUE DE SYNC / ESPACIADOR SIMÉTRICO ESTÁNDAR
-            // Si el deck no tiene botón SYNC, colocamos un Spacer idéntico a la altura del botón (24.dp)
-            // para garantizar que los vinilos y los controles queden perfectamente alineados a la misma altura.
             if (showSyncButton) {
                 Button(
                     onClick = onSyncClick,
@@ -847,7 +845,7 @@ fun DeckControlDialog(
                     Slider(
                         value = high,
                         onValueChange = { high = it; if (deckName == "A") viewModel.setEqualizerA(low, mid, high) else viewModel.setEqualizerB(low, mid, high) },
-                        valueRange - -1f..1f,
+                        valueRange = -1f..1f,
                         colors = SliderDefaults.colors(thumbColor = Color(0xFFFFD700), activeTrackColor = Color(0xFFFFD700))
                     )
                 }
