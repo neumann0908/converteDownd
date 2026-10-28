@@ -56,7 +56,7 @@ class DjAudioEngine(private val context: Context) {
     private var cueAActive: Boolean = false
     private var cueBActive: Boolean = false
 
-    // --- 🎛️ Parámetros de Tempo, Key Shift y Master Tempo (Punto 13) ---
+    // --- 🎛️ Parámetros de Tempo, Key Shift y Master Tempo ---
     private var speedA: Float = 1.0f
     private var pitchA: Float = 1.0f
     private var isMasterTempoA: Boolean = false
@@ -233,7 +233,7 @@ class DjAudioEngine(private val context: Context) {
         }
     }
 
-    // --- 🎛️ Control de Tonalidad (Key Shift & Master Tempo - Punto 13) ---
+    // --- 🎛️ Control de Tonalidad (Key Shift & Master Tempo) ---
     fun setTempoDeckA(speed: Float) {
         speedA = speed.coerceIn(0.5f, 2.0f)
         updatePlaybackParamsA()
@@ -292,6 +292,47 @@ class DjAudioEngine(private val context: Context) {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    // --- 🎛️ Físicas de Touch Scratch Real Avanzado ---
+    fun scratchDeckA(delta: Float) {
+        mediaPlayerA?.let { player ->
+            try {
+                val currentPos = player.currentPosition
+                val newPos = (currentPos - (delta * 20).toInt()).coerceAtLeast(0)
+                player.seekTo(newPos)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val scratchSpeed = (1.0f + (delta * 0.08f)).coerceIn(0.2f, 3.0f)
+                    player.playbackParams = player.playbackParams.apply { speed = scratchSpeed }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun releaseScratchA() {
+        updatePlaybackParamsA()
+    }
+
+    fun scratchDeckB(delta: Float) {
+        mediaPlayerB?.let { player ->
+            try {
+                val currentPos = player.currentPosition
+                val newPos = (currentPos - (delta * 20).toInt()).coerceAtLeast(0)
+                player.seekTo(newPos)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val scratchSpeed = (1.0f + (delta * 0.08f)).coerceIn(0.2f, 3.0f)
+                    player.playbackParams = player.playbackParams.apply { speed = scratchSpeed }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun releaseScratchB() {
+        updatePlaybackParamsB()
     }
 
     // --- 🎛️ Control de Stems para Deck A ---
