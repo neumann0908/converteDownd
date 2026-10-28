@@ -15,9 +15,13 @@ import com.musicdownloader.converter.presentation.screens.library.LibraryScreen
 import com.musicdownloader.converter.presentation.screens.player.PlayerScreen
 import com.musicdownloader.converter.presentation.viewmodel.DjViewModel
 
-// 1. Importamos las piezas de nuestro nuevo Beat Studio Pro
+// 1. Importaciones de nuestro Beat Studio Pro (Motor 1)
 import com.musicdownloader.converter.beatstudio.presentation.drum.BeatStudioScreen
 import com.musicdownloader.converter.beatstudio.presentation.drum.DrumStudioViewModel
+
+// 🎙️ 2. Importaciones de nuestro Sampler Studio Pro (Motor 2)
+import com.musicdownloader.converter.beatstudio.presentation.sampler.SamplerStudioScreen
+import com.musicdownloader.converter.beatstudio.presentation.sampler.SamplerStudioViewModel
 
 @Composable
 fun AppNavGraph(navController: NavHostController, modifier: Modifier = Modifier) {
@@ -38,10 +42,16 @@ fun AppNavGraph(navController: NavHostController, modifier: Modifier = Modifier)
             DjTurntablesScreen(viewModel = djViewModel)
         }
 
-        // 🛠️ FASE 1: Integración Quirúrgica del Nuevo Beat Studio Pro
+        // 🛠️ FASE 1: Integración Quirúrgica del Nuevo Beat Studio Pro (Motor 1)
         composable("beat_studio") {
             val drumStudioViewModel: DrumStudioViewModel = hiltViewModel()
             BeatStudioScreen(viewModel = drumStudioViewModel)
+        }
+
+        // 🎙️ FASE 2: Integración Quirúrgica del Nuevo Sampler Studio Pro (Motor 2)
+        composable("sampler_studio") {
+            val samplerStudioViewModel: SamplerStudioViewModel = hiltViewModel()
+            SamplerStudioScreen(viewModel = samplerStudioViewModel)
         }
     }
 }
