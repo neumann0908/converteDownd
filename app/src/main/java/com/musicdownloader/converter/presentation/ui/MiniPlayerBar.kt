@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -30,8 +31,9 @@ fun MiniPlayerBar(
             .fillMaxWidth()
             .height(64.dp)
             .clickable { onBarClick() },
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 8.dp
+        color = Color(0xFF1E1E2C),
+        tonalElevation = 8.dp,
+        shadowElevation = 4.dp
     ) {
         Row(
             modifier = Modifier
@@ -47,7 +49,7 @@ fun MiniPlayerBar(
                 Icon(
                     imageVector = Icons.Default.MusicNote,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = Color(0xFFFFD700),
                     modifier = Modifier.size(32.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -58,12 +60,12 @@ fun MiniPlayerBar(
                         fontSize = 14.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color.White
                     )
                     Text(
                         text = if (isPlaying) "Reproduciendo..." else "En pausa",
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.primary
+                        color = Color(0xFFFFD700)
                     )
                 }
             }
@@ -73,7 +75,7 @@ fun MiniPlayerBar(
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = "Play/Pausa",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = Color(0xFFFFD700)
                 )
             }
         }
