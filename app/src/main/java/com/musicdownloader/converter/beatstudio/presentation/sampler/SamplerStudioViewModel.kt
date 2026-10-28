@@ -14,17 +14,17 @@ class SamplerStudioViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow(SamplerStudioState())
     val uiState: StateFlow<SamplerStudioState> = _uiState.asStateFlow()
 
-    // 🎙️ Simular o iniciar grabación de muestras desde el micrófono[span_9](start_span)[span_9](end_span)
+    // 🎙️ Simular o iniciar grabación de muestras desde el micrófono[span_3](start_span)[span_3](end_span)
     fun toggleRecording() {
         _uiState.update { currentState ->
             val newRecordingState = !currentState.isRecording
             if (newRecordingState) {
-                // Al iniciar grabación, preparamos una pista vacía para el nuevo sample de micrófono
                 currentState.copy(
                     isRecording = true,
                     currentTrack = SamplerTrack(
                         sampleName = "Mic_Sample_01.wav",
                         totalDurationMs = 3000L,
+                        endPoint = 3000L, // Inicializado correctamente
                         detectedBpm = 120f
                     )
                 )
@@ -34,7 +34,7 @@ class SamplerStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 📂 Importar archivos de audio compatibles (WAV, MP3, FLAC)[span_10](start_span)[span_10](end_span)
+    // 📂 Importar archivos de audio compatibles (WAV, MP3, FLAC)[span_4](start_span)[span_4](end_span)
     fun importAudioFile(fileName: String, durationMs: Long) {
         _uiState.update { currentState ->
             val initialSlices = listOf(
@@ -49,18 +49,18 @@ class SamplerStudioViewModel @Inject constructor() : ViewModel() {
                     filePath = "storage/emulated/0/Music/$fileName",
                     totalDurationMs = durationMs,
                     detectedBpm = 124.0f,
+                    endPoint = durationMs, // Inicializado al total de la muestra
                     slices = initialSlices
                 )
             )
         }
     }
 
-    // ⚡ Función Diferencial: Auto Chop Inteligente (Transitorios, Silencios, Energía, Compases)[span_11](start_span)[span_11](end_span)[span_12](start_span)[span_12](end_span)
+    // ⚡ Función Diferencial: Auto Chop Inteligente (Transitorios, Silencios, Energía, Compases)[span_5](start_span)[span_5](end_span)[span_6](start_span)[span_6](end_span)
     fun executeAutoChop(type: AutoChopType) {
         _uiState.update { currentState ->
             val track = currentState.currentTrack
             val duration = track.totalDurationMs
-            // Generar divisiones automáticas según el criterio seleccionado
             val sliceCount = when (type) {
                 AutoChopType.TRANSIENTS -> 8
                 AutoChopType.SILENCES -> 6
@@ -86,7 +86,7 @@ class SamplerStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 🎛️ Modificar puntos de inicio y final de la muestra[span_13](start_span)[span_13](end_span)
+    // 🎛️ Modificar puntos de inicio y final de la muestra[span_7](start_span)[span_7](end_span)
     fun updateStartEndPoints(start: Long, end: Long) {
         _uiState.update { currentState ->
             val track = currentState.currentTrack
@@ -99,7 +99,7 @@ class SamplerStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 🎚️ Ajuste de Envolvente ADSR[span_14](start_span)[span_14](end_span)
+    // 🎚️ Ajuste de Envolvente ADSR Completa[span_8](start_span)[span_8](end_span)
     fun updateSamplerAdsr(attack: Float, decay: Float, sustain: Float, release: Float) {
         _uiState.update { currentState ->
             val track = currentState.currentTrack
@@ -114,7 +114,20 @@ class SamplerStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 🔄 Efectos y Normalización (Reverse, Loop, Normalization)[span_15](start_span)[span_15](end_span)
+    // 🎛️ Ajuste de Fade In y Fade Out[span_9](start_span)[span_9](end_span)
+    fun updateFadeInFadeOut(fadeIn: Long, fadeOut: Long) {
+        _uiState.update { currentState ->
+            val track = currentState.currentTrack
+            currentState.copy(
+                currentTrack = track.copy(
+                    fadeInMs = fadeIn.coerceAtLeast(0L),
+                    fadeOutMs = fadeOut.coerceAtLeast(0L)
+                )
+            )
+        }
+    }
+
+    // 🔄 Efectos y Normalización (Reverse, Loop, Normalization)[span_10](start_span)[span_10](end_span)
     fun toggleLoop() {
         _uiState.update { currentState ->
             val track = currentState.currentTrack
@@ -129,12 +142,22 @@ class SamplerStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 🎛️ Ajustes de Slice Individual (Pitch, Reverse por pad)[span_16](start_span)[span_16](end_span)
+    // 🎛️ Ajustes de Slice Individual (Pitch, Volumen y Reverse por pad)[span_11](start_span)[span_11](end_span)
     fun updateSlicePitch(sliceId: Int, pitch: Float) {
         _uiState.update { currentState ->
             val track = currentState.currentTrack
             val updatedSlices = track.slices.map { slice ->
                 if (slice.id == sliceId) slice.copy(pitchShift = pitch.coerceIn(0.25f, 4.0f)) else slice
+            }
+            currentState.copy(currentTrack = track.copy(slices = updatedSlices))
+        }
+    }
+
+    fun updateSliceVolume(sliceId: Int, volume: Float) {
+        _uiState.update { currentState ->
+            val track = currentState.currentTrack
+            val updatedSlices = track.slices.map { slice ->
+                if (slice.id == sliceId) slice.copy(volume = volume.coerceIn(0f, 2.0f)) else slice
             }
             currentState.copy(currentTrack = track.copy(slices = updatedSlices))
         }
