@@ -2,6 +2,7 @@ package com.musicdownloader.converter.presentation.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.GridOn // <-- Ícono para la cuadrícula del secuenciador
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
@@ -20,6 +21,9 @@ sealed class BottomNavItem(
     object Player : BottomNavItem("player", "Player", Icons.Default.PlayCircle)
     object History : BottomNavItem("history", "Historial", Icons.Default.History)
     
-    // 🎧 Nuevo ítem añadido para la consola DJ Pro
+    // 🎧 Consola DJ Pro existente
     object DjTurntables : BottomNavItem("dj_turntables", "DJ Pro", Icons.Default.MusicNote)
+
+    // 🎛️ FASE 1: Nuevo ítem añadido quirúrgicamente para el Beat Studio Pro
+    object BeatStudio : BottomNavItem("beat_studio", "Beat Studio", Icons.Default.GridOn)
 }
