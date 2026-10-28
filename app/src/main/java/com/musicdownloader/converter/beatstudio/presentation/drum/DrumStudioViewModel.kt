@@ -1,7 +1,11 @@
 package com.musicdownloader.converter.beatstudio.presentation.drum
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
+import com.musicdownloader.converter.converter.engine.AudioEngine
+import com.musicdownloader.converter.converter.engine.AssetAudioLoader
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -9,10 +13,41 @@ import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 
 @HiltViewModel
-class DrumStudioViewModel @Inject constructor() : ViewModel() {
+class DrumStudioViewModel @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DrumStudioState())
     val uiState: StateFlow<DrumStudioState> = _uiState.asStateFlow()
+
+    // Instancia del motor nativo Oboe de ultra baja latencia
+    private val audioEngine = AudioEngine()
+
+    init {
+        // Enciende el motor Oboe automáticamente al abrir la pantalla de ritmos
+        audioEngine.nativeStart()
+    }
+
+    /**
+     * Dispara instantáneamente el sonido asignado al índice de la pista/pad.
+     */
+    fun playTrackSound(trackIndex: Int) {
+        audioEngine.nativePlayPad(trackIndex)
+    }
+
+    /**
+     * Obtiene la lista de sonidos disponibles en assets/kits/ filtrados por categoría (ej. "kick", "snare").
+     */
+    fun getAvailableSamplesForCategory(categoryKeyword: String): List<String> {
+        return AssetAudioLoader.getFilteredSamplesForCategory(context, categoryKeyword)
+    }
+
+    /**
+     * Carga un sample específico de los assets y lo asigna al pad/pista en caliente.
+     */
+    fun assignSampleToTrack(trackIndex: Int, assetPath: String) {
+        AssetAudioLoader.loadSampleToPad(context, assetPath, trackIndex)
+    }
 
     // 🥁 Encender o apagar una casilla de ritmo en el secuenciador
     fun toggleStep(trackId: String, stepIndex: Int) {
@@ -32,7 +67,7 @@ class DrumStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 📐 Cambiar el número de pads/pasos (16, 32 o 64 pasos)[span_29](start_span)[span_29](end_span)
+    // 📐 Cambiar el número de pads/pasos (16, 32 o 64 pasos)
     fun setStepCount(count: Int) {
         val validCount = when (count) {
             16, 32, 64 -> count
@@ -67,7 +102,7 @@ class DrumStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 🎚️ Control de Velocity (fuerza) por golpe[span_30](start_span)[span_30](end_span)[span_31](start_span)[span_31](end_span)
+    // 🎚️ Control de Velocity (fuerza) por golpe
     fun updateStepVelocity(trackId: String, stepIndex: Int, velocity: Float) {
         _uiState.update { currentState ->
             val updatedTracks = currentState.tracks.map { track ->
@@ -83,7 +118,7 @@ class DrumStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 🎲 Probabilidad de disparo por paso (Trigger Probability)[span_32](start_span)[span_32](end_span)
+    // 🎲 Probabilidad de disparo por paso (Trigger Probability)
     fun updateStepProbability(trackId: String, stepIndex: Int, probability: Float) {
         _uiState.update { currentState ->
             val updatedTracks = currentState.tracks.map { track ->
@@ -99,7 +134,7 @@ class DrumStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // ⭐ Activar/Desactivar acento en un paso[span_33](start_span)[span_33](end_span)
+    // ⭐ Activar/Desactivar acento en un paso
     fun toggleStepAccent(trackId: String, stepIndex: Int) {
         _uiState.update { currentState ->
             val updatedTracks = currentState.tracks.map { track ->
@@ -115,7 +150,7 @@ class DrumStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 📋 Copiar y duplicar patrones rítmicos[span_34](start_span)[span_34](end_span)
+    // 📋 Copiar y duplicar patrones rítmicos
     fun duplicatePattern() {
         _uiState.update { currentState ->
             val currentSize = currentState.stepCount
@@ -131,7 +166,7 @@ class DrumStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 🎛️ Función diferencial: Control de Envolvente ADSR (Ataque, Caída, Sostenimiento, Liberación)[span_35](start_span)[span_35](end_span)
+    // 🎛️ Función diferencial: Control de Envolvente ADSR
     fun updateAdsr(trackId: String, attack: Float, decay: Float, sustain: Float, release: Float) {
         _uiState.update { currentState ->
             val updatedTracks = currentState.tracks.map { track ->
@@ -148,7 +183,7 @@ class DrumStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 🎛️ Función diferencial: Efectos independientes por pad (Reverb / Delay)[span_36](start_span)[span_36](end_span)
+    // 🎛️ Función diferencial: Efectos independientes por pad (Reverb / Delay)
     fun updateEffects(trackId: String, reverb: Float, delay: Float) {
         _uiState.update { currentState ->
             val updatedTracks = currentState.tracks.map { track ->
@@ -163,12 +198,12 @@ class DrumStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 🎹 Cambiar Kits de batería intercambiables[span_37](start_span)[span_37](end_span)[span_38](start_span)[span_38](end_span)
+    // 🎹 Cambiar Kits de batería intercambiables
     fun switchKit(kitName: String) {
         _uiState.update { it.copy(currentKit = kitName) }
     }
 
-    // 🎷 Groove: Control de Swing y Humanización[span_39](start_span)[span_39](end_span)[span_40](start_span)[span_40](end_span)
+    // 🎷 Groove: Control de Swing y Humanización
     fun updateSwing(newSwing: Float) {
         _uiState.update { it.copy(swing = newSwing.coerceIn(0f, 1f)) }
     }
