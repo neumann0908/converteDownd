@@ -2,9 +2,25 @@ package com.musicdownloader.converter.converter.engine
 
 import android.content.Context
 import java.io.DataInputStream
-import java.nio.ByteOrder
 
 object AssetAudioLoader {
+
+    /**
+     * Escanea la carpeta assets/kits/ y devuelve únicamente los archivos 
+     * que coincidan con la categoría solicitada (ej. "kick", "snare", "hat").
+     */
+    fun getFilteredSamplesForCategory(context: Context, categoryKeyword: String): List<String> {
+        return try {
+            val assetManager = context.assets
+            val allFiles = assetManager.list("kits")?.toList() ?: emptyList()
+            
+            // Filtra de forma inteligente ignorando mayúsculas/minúsculas
+            allFiles.filter { it.lowercase().contains(categoryKeyword.lowercase()) }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
 
     /**
      * Carga un archivo de audio PCM/WAV crudo desde la carpeta assets/kits/ y lo inyecta en el pad nativo.
@@ -12,7 +28,10 @@ object AssetAudioLoader {
     fun loadSampleToPad(context: Context, assetPath: String, padIndex: Int) {
         try {
             val assetManager = context.assets
-            val inputStream = assetManager.open(assetPath)
+            // Verificación cruzada: Asegura que la ruta apunte correctamente al directorio kits/
+            val fullPath = if (assetPath.startsWith("kits/")) assetPath else "kits/$assetPath"
+            
+            val inputStream = assetManager.open(fullPath)
             val dataInputStream = DataInputStream(inputStream)
             
             // Leemos los bytes y los convertimos a FloatArray (formato que exige Oboe Float)
@@ -39,3 +58,4 @@ object AssetAudioLoader {
         }
     }
 }
+
