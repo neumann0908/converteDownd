@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -181,7 +182,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                 }
             }
 
-            // Decks A y B con Vinilos Dorado y Platinum + Scratch Táctil Real
+            // Decks A y B con Vinilos Hiperrealistas Gold y Platinum
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -385,7 +386,7 @@ fun DeckCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Cabecera de Deck Alineada
+            // Cabecera
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -447,7 +448,7 @@ fun DeckCard(
                 }
             }
 
-            // Bloque SYNC / Espaciador Simétrico
+            // Bloque SYNC / Espaciador
             if (showSyncButton) {
                 Button(
                     onClick = onSyncClick,
@@ -463,9 +464,14 @@ fun DeckCard(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // 🎶 Vinilo Interactivo con Touch Scratching Real y Temática (Gold / Platinum) (Punto 14)[span_7](start_span)[span_7](end_span)
-            val primaryRingColor = if (vinylTheme == VinylTheme.GOLD) Color(0xFFDAA520) else Color(0xFF90A4AE)
-            val centerLabelColor = if (vinylTheme == VinylTheme.GOLD) Color(0xFFFFD700) else Color(0xFFE0E0E0)
+            // 🎶 Vinilos de Lujo Hiperrealistas (Gold[span_4](start_span)[span_4](end_span) & Platinum[span_5](start_span)[span_5](end_span)) con Touch Scratching Real
+            val baseColors = if (vinylTheme == VinylTheme.GOLD) {
+                listOf(Color(0xFFFFDF73), Color(0xFFD4AF37), Color(0xFF996515), Color(0xFFD4AF37))
+            } else {
+                listOf(Color(0xFFF5F5F5), Color(0xFFB0BEC5), Color(0xFF607D8B), Color(0xFFCFD8DC))
+            }
+
+            val labelColor = if (vinylTheme == VinylTheme.GOLD) Color(0xFFFFC107) else Color(0xFF90A4AE)
 
             Box(
                 modifier = Modifier
@@ -482,13 +488,22 @@ fun DeckCard(
                 contentAlignment = Alignment.Center
             ) {
                 Canvas(modifier = Modifier.fillMaxSize().rotate(rotationAngle)) {
-                    drawCircle(color = Color.Black)
-                    drawCircle(color = Color(0xFF252525), radius = size.minDimension / 2.3f)
-                    drawCircle(color = primaryRingColor, radius = size.minDimension / 2.8f, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f))
-                    drawCircle(color = Color(0xFF151515), radius = size.minDimension / 3f)
-                    drawCircle(color = primaryRingColor, radius = size.minDimension / 3.8f, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f))
-                    drawCircle(color = centerLabelColor, radius = size.minDimension / 6f)
-                    drawCircle(color = Color.Black, radius = size.minDimension / 18f)
+                    // Disco Metálico Base
+                    drawCircle(brush = Brush.radialGradient(baseColors))
+
+                    // Surcos Concéntricos Detallados de Vinilo
+                    val radiusStep = size.minDimension / 14f
+                    for (i in 2..5) {
+                        drawCircle(
+                            color = Color.Black.copy(alpha = 0.25f),
+                            radius = radiusStep * i,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5f)
+                        )
+                    }
+
+                    // Etiqueta Central Elegante
+                    drawCircle(color = labelColor, radius = size.minDimension / 5.5f)
+                    drawCircle(color = Color.Black, radius = size.minDimension / 16f)
                 }
             }
 
