@@ -12,8 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -63,7 +61,7 @@ fun SamplerStudioScreen(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Botón Cargar Archivo (WAV, MP3, FLAC)[span_8](start_span)[span_8](end_span)
+                // Botón Cargar Archivo (WAV, MP3, FLAC)[span_0](start_span)[span_0](end_span)
                 IconButton(
                     onClick = { viewModel.importAudioFile("DrumLoop_Pro.wav", 4000L) },
                     modifier = Modifier.size(36.dp).background(Color(0xFF28283D), CircleShape)
@@ -72,7 +70,7 @@ fun SamplerStudioScreen(
                 }
                 Spacer(modifier = Modifier.width(6.dp))
 
-                // Botón Micrófono (Grabar sample)[span_9](start_span)[span_9](end_span)
+                // Botón Micrófono (Grabar sample)[span_1](start_span)[span_1](end_span)
                 IconButton(
                     onClick = { viewModel.toggleRecording() },
                     modifier = Modifier.size(36.dp).background(if (state.isRecording) Color.Red else Color(0xFF28283D), CircleShape)
@@ -138,7 +136,7 @@ fun SamplerStudioScreen(
                     fontSize = 11.sp
                 )
             } else {
-                // Matriz de Pads para disparar cada fragmento (*slice*)[span_10](start_span)[span_10](end_span)
+                // Matriz de Pads para disparar cada fragmento (*slice*)[span_2](start_span)[span_2](end_span)
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(4),
                     modifier = Modifier.fillMaxSize(),
@@ -209,8 +207,9 @@ fun SamplerStudioScreen(
     }
 }
 
+// 🛠️ ¡CORREGIDO AQUÍ AGREGANDO LA PALABRA CLAVE "fun"!
 @Composable
-RowScope.AutoChopButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
+fun RowScope.AutoChopButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .weight(1f)
