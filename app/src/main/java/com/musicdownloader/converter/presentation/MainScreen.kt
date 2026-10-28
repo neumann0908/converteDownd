@@ -1,5 +1,6 @@
 package com.musicdownloader.converter.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -53,7 +55,9 @@ fun MainScreen(
 
     Scaffold(
         bottomBar = {
-            Column {
+            Column(
+                modifier = Modifier.background(Color(0xFF13131A))
+            ) {
                 MiniPlayerBar(
                     currentSongName = currentTrackTitle, 
                     isPlaying = isPlaying,
@@ -71,7 +75,10 @@ fun MainScreen(
                     }
                 )
 
-                NavigationBar {
+                NavigationBar(
+                    containerColor = Color(0xFF1E1E2C),
+                    contentColor = Color.White
+                ) {
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -88,7 +95,14 @@ fun MainScreen(
                                     launchSingleTop = true
                                     restoreState = true
                                 }
-                            }
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = Color.Black,
+                                unselectedIconColor = Color.LightGray,
+                                selectedTextColor = Color(0xFFFFD700),
+                                unselectedTextColor = Color.LightGray,
+                                indicatorColor = Color(0xFFFFD700)
+                            )
                         )
                     }
                 }
