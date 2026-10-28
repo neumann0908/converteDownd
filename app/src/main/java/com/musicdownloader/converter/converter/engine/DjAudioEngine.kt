@@ -294,15 +294,21 @@ class DjAudioEngine(private val context: Context) {
         }
     }
 
-    // --- 🎛️ Físicas de Touch Scratch Real Avanzado ---
+    // --- 🎛️ Físicas de Touch Scratch Real Avanzado con Protección de Límites ---
     fun scratchDeckA(delta: Float) {
         mediaPlayerA?.let { player ->
             try {
+                if (!player.isPlaying) {
+                    player.start()
+                    isPlayingA = true
+                }
                 val currentPos = player.currentPosition
-                val newPos = (currentPos - (delta * 20).toInt()).coerceAtLeast(0)
+                val duration = player.duration
+                val newPos = (currentPos - (delta * 15).toInt()).coerceIn(0, if (duration > 0) duration else 1)
                 player.seekTo(newPos)
+                
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    val scratchSpeed = (1.0f + (delta * 0.08f)).coerceIn(0.2f, 3.0f)
+                    val scratchSpeed = (1.0f + (delta * 0.05f)).coerceIn(-2.5f, 3.5f)
                     player.playbackParams = player.playbackParams.apply { speed = scratchSpeed }
                 }
             } catch (e: Exception) {
@@ -318,11 +324,17 @@ class DjAudioEngine(private val context: Context) {
     fun scratchDeckB(delta: Float) {
         mediaPlayerB?.let { player ->
             try {
+                if (!player.isPlaying) {
+                    player.start()
+                    isPlayingB = true
+                }
                 val currentPos = player.currentPosition
-                val newPos = (currentPos - (delta * 20).toInt()).coerceAtLeast(0)
+                val duration = player.duration
+                val newPos = (currentPos - (delta * 15).toInt()).coerceIn(0, if (duration > 0) duration else 1)
                 player.seekTo(newPos)
+                
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    val scratchSpeed = (1.0f + (delta * 0.08f)).coerceIn(0.2f, 3.0f)
+                    val scratchSpeed = (1.0f + (delta * 0.05f)).coerceIn(-2.5f, 3.5f)
                     player.playbackParams = player.playbackParams.apply { speed = scratchSpeed }
                 }
             } catch (e: Exception) {
