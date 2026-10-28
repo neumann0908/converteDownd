@@ -181,7 +181,7 @@ fun DjTurntablesScreen(viewModel: DjViewModel) {
                 }
             }
 
-            // Decks A y B con Distribución Limpia
+            // Decks A y B con Distribución Limpia y Centrada
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -369,22 +369,20 @@ fun DeckCard(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.CenterHorizontally, // 🎯 Centrado absoluto horizontal
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // 🎛️ Cabecera de Deck Estructurada para evitar desplazamientos
+            // 🎛️ Cabecera de Deck Centrada y Alineada
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Título y Subtítulo compactos en columna para no invadir espacio
                 Column {
                     Text(text = title, color = Color.White, fontSize = 10.sp, style = MaterialTheme.typography.labelSmall)
                     Text(text = subtitle, color = Color.LightGray, fontSize = 8.sp)
                 }
 
-                // Controles derechos alineados y compactos
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(3.dp)
@@ -408,6 +406,7 @@ fun DeckCard(
                 }
             }
 
+            // Selector de Pista Centrado
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -448,8 +447,9 @@ fun DeckCard(
                 }
             }
 
+            // 🎶 Vinilo Ampliado y Centrado Profesional (115.dp)
             Box(
-                modifier = Modifier.size(76.dp),
+                modifier = Modifier.size(115.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Canvas(modifier = Modifier.fillMaxSize().rotate(rotationAngle)) {
@@ -461,6 +461,7 @@ fun DeckCard(
                 }
             }
 
+            // Botón Play/Pause Centrado
             IconButton(
                 onClick = onTogglePlay,
                 modifier = Modifier
