@@ -45,7 +45,7 @@ class DrumStudioViewModel @Inject constructor() : ViewModel() {
         _uiState.update { it.copy(selectedTrackIndex = index) }
     }
 
-    // 🎛️ FASE 1: Silencia o prende una pista individual (Mute)
+    // Silencia o prende una pista individual (Mute)
     fun toggleMute(trackId: String) {
         _uiState.update { currentState ->
             val updatedTracks = currentState.tracks.map { track ->
@@ -59,7 +59,7 @@ class DrumStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 🎛️ FASE 1: Aísla la pista para destacar solo su sonido (Solo)
+    // Aísla la pista para destacar solo su sonido (Solo)
     fun toggleSolo(trackId: String) {
         _uiState.update { currentState ->
             val updatedTracks = currentState.tracks.map { track ->
@@ -73,7 +73,7 @@ class DrumStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 🎛️ FASE 1: Ajusta de forma independiente el volumen de una pista específica
+    // Ajusta de forma independiente el volumen de una pista específica
     fun updateVolume(trackId: String, newVolume: Float) {
         _uiState.update { currentState ->
             val updatedTracks = currentState.tracks.map { track ->
@@ -82,6 +82,31 @@ class DrumStudioViewModel @Inject constructor() : ViewModel() {
                 } else {
                     track
                 }
+            }
+            currentState.copy(tracks = updatedTracks)
+        }
+    }
+
+    // 🎛️ FASE PRO: Ajusta el Swing global del secuenciador[span_13](start_span)[span_13](end_span)
+    fun updateSwing(newSwing: Float) {
+        _uiState.update { it.copy(swing = newSwing.coerceIn(0f, 1f)) }
+    }
+
+    // 🎛️ FASE PRO (Función diferencial): Modifica el tono (Pitch) independiente por pad[span_14](start_span)[span_14](end_span)
+    fun updatePitch(trackId: String, newPitch: Float) {
+        _uiState.update { currentState ->
+            val updatedTracks = currentState.tracks.map { track ->
+                if (track.id == trackId) track.copy(pitch = newPitch.coerceIn(0.5f, 2.0f)) else track
+            }
+            currentState.copy(tracks = updatedTracks)
+        }
+    }
+
+    // 🎛️ FASE PRO (Función diferencial): Modifica el panorama (Pan) independiente por pad[span_15](start_span)[span_15](end_span)
+    fun updatePan(trackId: String, newPan: Float) {
+        _uiState.update { currentState ->
+            val updatedTracks = currentState.tracks.map { track ->
+                if (track.id == trackId) track.copy(pan = newPan.coerceIn(-1.0f, 1.0f)) else track
             }
             currentState.copy(tracks = updatedTracks)
         }
