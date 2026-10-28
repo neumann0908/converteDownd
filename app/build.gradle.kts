@@ -57,6 +57,9 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
+            // [INTEGRACIÓN QUIRÚRGICA] Evita que llvm-strip falle con los contenedores .zip.so
+            doNotStrip("**/libffmpeg.zip.so")
+            doNotStrip("**/libpython.zip.so")
         }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
