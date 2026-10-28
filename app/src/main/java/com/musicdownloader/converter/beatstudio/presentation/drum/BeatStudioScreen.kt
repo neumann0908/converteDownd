@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +29,12 @@ fun BeatStudioScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val selectedTrack = state.tracks.getOrNull(state.selectedTrackIndex)
+
+    // Estados locales para el diálogo de selección de samples filtrados por categoría
+    var showSampleDialog by remember { mutableStateOf(false) }
+    var selectedTrackIndexForSample by remember { mutableStateOf(0) }
+    var selectedTrackNameForSample by remember { mutableStateOf("") }
+    var availableSamplesList by remember { mutableStateOf(listOf<String>()) }
 
     Column(
         modifier = Modifier
@@ -137,7 +144,27 @@ fun BeatStudioScreen(
                     isSelected = state.selectedTrackIndex == trackIndex,
                     onTrackSelect = { viewModel.selectTrack(trackIndex) },
                     onMuteClick = { viewModel.toggleMute(track.id) },
-                    onSoloClick = { viewModel.toggleSolo(track.id) }
+                    onSoloClick = { viewModel.toggleSolo(track.id) },
+                    onInstrumentClick = {
+                        // Detección inteligente de categoría basada en el nombre de la pista
+                        val nameLower = track.name.lowercase()
+                        val keyword = when {
+                            nameLower.contains("kick") -> "kick"
+                            nameLower.contains("snare") -> "snare"
+                            nameLower.contains("hat") || nameLower.contains("closed") || nameLower.contains("open") -> "hat"
+                            nameLower.contains("clap") -> "clap"
+                            nameLower.contains("perc") -> "perc"
+                            nameLower.contains("tom") -> "tom"
+                            nameLower.contains("rim") -> "rim"
+                            nameLower.contains("shaker") -> "shaker"
+                            else -> nameLower.take(4)
+                        }
+                        
+                        availableSamplesList = viewModel.getFilteredSamplesForCategory(keyword)
+                        selectedTrackIndexForSample = trackIndex
+                        selectedTrackNameForSample = track.name
+                        showSampleDialog = true
+                    }
                 )
             }
         }
@@ -247,6 +274,70 @@ fun BeatStudioScreen(
             }
         }
     }
+
+    // --- DIÁLOGO FLOTANTE PARA SELECCIÓN DE SAMPLE FILTRADO ---
+    if (showSampleDialog) {
+        AlertDialog(
+            onDismissRequest = { showSampleDialog = false },
+            containerColor = Color(0xFF1E1E2C),
+            title = {
+                Text(
+                    text = "Sonidos para: $selectedTrackNameForSample",
+                    color = Color(0xFFFFD700),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                if (availableSamplesList.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No se encontraron samples en assets/kits/",
+                            color = Color.LightGray,
+                            fontSize = 12.sp
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(availableSamplesList) { sampleName ->
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF28283D)),
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.assignSampleToTrack(selectedTrackIndexForSample, sampleName)
+                                        showSampleDialog = false
+                                    }
+                            ) {
+                                Text(
+                                    text = sampleName,
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(10.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSampleDialog = false }) {
+                    Text(text = "Cerrar", color = Color(0xFFFFD700))
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -258,7 +349,8 @@ fun TrackRow(
     isSelected: Boolean,
     onTrackSelect: () -> Unit,
     onMuteClick: () -> Unit,
-    onSoloClick: () -> Unit
+    onSoloClick: () -> Unit,
+    onInstrumentClick: () -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -273,15 +365,23 @@ fun TrackRow(
             modifier = Modifier.padding(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Nombre del instrumento y controles Mute/Solo compactos
+            // Nombre del instrumento y controles Mute/Solo (Al hacer clic en el nombre se abre el selector de samples)
             Column(
-                modifier = Modifier.width(90.dp)
+                modifier = Modifier
+                    .width(90.dp)
+                    .clickable { onInstrumentClick() }
+                    .padding(vertical = 2.dp)
             ) {
                 Text(
                     text = track.name,
                     color = Color(track.colorHex),
                     fontWeight = FontWeight.Bold,
                     fontSize = 10.sp
+                )
+                Text(
+                    text = "Cambiar 🔍",
+                    color = Color.LightGray.copy(alpha = 0.7f),
+                    fontSize = 8.sp
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Row(
