@@ -93,7 +93,9 @@ fun BeatStudioScreen(
                         viewModel.toggleStep(track.id, stepIndex)
                     },
                     isSelected = state.selectedTrackIndex == trackIndex,
-                    onTrackSelect = { viewModel.selectTrack(trackIndex) }
+                    onTrackSelect = { viewModel.selectTrack(trackIndex) },
+                    onMuteClick = { viewModel.toggleMute(track.id) },
+                    onSoloClick = { viewModel.toggleSolo(track.id) }
                 )
             }
         }
@@ -106,7 +108,9 @@ fun TrackRow(
     currentStep: Int,
     onStepClick: (Int) -> Unit,
     isSelected: Boolean,
-    onTrackSelect: () -> Unit
+    onTrackSelect: () -> Unit,
+    onMuteClick: () -> Unit,
+    onSoloClick: () -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -121,14 +125,38 @@ fun TrackRow(
             modifier = Modifier.padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Nombre del instrumento (Ej: Kick 808)
-            Text(
-                text = track.name,
-                color = Color(track.colorHex),
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
-                modifier = Modifier.width(90.dp)
-            )
+            // Nombre del instrumento y controles Mute/Solo compactos
+            Column(
+                modifier = Modifier.width(110.dp)
+            ) {
+                Text(
+                    text = track.name,
+                    color = Color(track.colorHex),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Botón Mute (M)
+                    SmallChipButton(
+                        text = "M",
+                        isActive = track.isMuted,
+                        activeColor = Color.Red,
+                        onClick = onMuteClick
+                    )
+                    // Botón Solo (S)
+                    SmallChipButton(
+                        text = "S",
+                        isActive = track.isSolo,
+                        activeColor = Color(0xFFFFD700),
+                        onClick = onSoloClick
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
 
             // Los 16 botoncitos en fila
             LazyRow(
@@ -141,7 +169,7 @@ fun TrackRow(
 
                     Box(
                         modifier = Modifier
-                            .size(width = 28.dp, height = 36.dp)
+                            .size(width = 24.dp, height = 34.dp)
                             .clip(RoundedCornerShape(4.dp))
                             .background(
                                 when {
@@ -161,5 +189,31 @@ fun TrackRow(
                 }
             }
         }
+    }
+}
+
+// Pequeño botón auxiliar para Mute y Solo
+@Composable
+fun SmallChipButton(
+    text: String,
+    isActive: Boolean,
+    activeColor: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(22.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .background(if (isActive) activeColor else Color(0xFF13131A))
+            .border(0.5.dp, Color.Gray.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = if (isActive) Color.Black else Color.LightGray,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
