@@ -55,7 +55,7 @@ class DjViewModel @Inject constructor(
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
-    // --- 🎧 Headphone Cue / Split Audio States (Punto 12)[span_3](start_span)[span_3](end_span) ---
+    // --- 🎧 Headphone Cue / Split Audio States ---
     private val _isSplitAudioActive = MutableStateFlow(false)
     val isSplitAudioActive: StateFlow<Boolean> = _isSplitAudioActive.asStateFlow()
 
@@ -78,10 +78,6 @@ class DjViewModel @Inject constructor(
     private var cuePointA2: Int? = null
     private var cuePointB1: Int? = null
     private var cuePointB2: Int? = null
-
-    // --- 🎛️ Touch Scratch Tracking (Punto 14)[span_4](start_span)[span_4](end_span) ---
-    private var scratchPosA: Int = 0
-    private var scratchPosB: Int = 0
 
     init {
         loadLibraryTracks()
@@ -144,24 +140,32 @@ class DjViewModel @Inject constructor(
         djAudioEngine.updateCrossfader(value)
     }
 
-    // --- 🎛️ Touch Scratch Methods (Punto 14)[span_5](start_span)[span_5](end_span) ---
+    // --- 🎛️ Touch Scratch Real Methods (Conectados al Engine) ---
     fun startScratchA() {
-        scratchPosA = djAudioEngine.getCurrentPositionA()
+        // Preparación inicial del gesto en Deck A si se requiere
     }
+
     fun updateScratchA(delta: Float) {
-        scratchPosA = (scratchPosA - (delta * 25).toInt()).coerceAtLeast(0)
-        djAudioEngine.seekToDeckA(scratchPosA)
+        djAudioEngine.scratchDeckA(delta)
+    }
+
+    fun releaseScratchA() {
+        djAudioEngine.releaseScratchA()
     }
 
     fun startScratchB() {
-        scratchPosB = djAudioEngine.getCurrentPositionB()
-    }
-    fun updateScratchB(delta: Float) {
-        scratchPosB = (scratchPosB - (delta * 25).toInt()).coerceAtLeast(0)
-        djAudioEngine.seekToDeckB(scratchPosB)
+        // Preparación inicial del gesto en Deck B si se requiere
     }
 
-    // --- 🎧 Headphone Cue Methods (Punto 12)[span_6](start_span)[span_6](end_span) ---
+    fun updateScratchB(delta: Float) {
+        djAudioEngine.scratchDeckB(delta)
+    }
+
+    fun releaseScratchB() {
+        djAudioEngine.releaseScratchB()
+    }
+
+    // --- 🎧 Headphone Cue Methods ---
     fun toggleSplitAudio() {
         val newState = !_isSplitAudioActive.value
         _isSplitAudioActive.value = newState
@@ -186,7 +190,7 @@ class DjViewModel @Inject constructor(
         }
     }
 
-    // --- 🎛️ Key Shift & Master Tempo Methods (Punto 13) ---
+    // --- 🎛️ Key Shift & Master Tempo Methods ---
     fun setTempoDeckA(speed: Float) {
         currentSpeedA = speed
         djAudioEngine.setTempoDeckA(speed)
@@ -245,7 +249,7 @@ class DjViewModel @Inject constructor(
         _isPlayingDeckB.value = false
     }
 
-    // --- ⚡ Sampler Pad (Sintetizador PCM de Alta Fidelidad) ---
+    // --- ⚡ Sampler Pad ---
     fun playSample(sampleName: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -352,7 +356,7 @@ class DjViewModel @Inject constructor(
         else djAudioEngine.stopAutoLoopB()
     }
 
-    // --- ⚡ Modo Automix (Mezcla Automática Inteligente) ---
+    // --- ⚡ Modo Automix ---
     fun toggleAutomix() {
         val newState = !_isAutomixActive.value
         _isAutomixActive.value = newState
