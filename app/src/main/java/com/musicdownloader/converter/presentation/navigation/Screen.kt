@@ -10,6 +10,9 @@ sealed class Screen(val route: String) {
     // Consola DJ Pro existente
     object DjTurntables : Screen("dj_turntables")
 
-    // 🎛️ FASE 1: Nueva ruta añadida quirúrgicamente para el Beat Studio Pro
+    // 🎛️ FASE 1: Beat Studio Pro (Motor 1 - Drum Engine)
     object BeatStudio : Screen("beat_studio")
+
+    // 🎙️ FASE 2: Sampler Studio Pro (Motor 2 - Sampler Engine)
+    object SamplerStudio : Screen("sampler_studio")
 }
