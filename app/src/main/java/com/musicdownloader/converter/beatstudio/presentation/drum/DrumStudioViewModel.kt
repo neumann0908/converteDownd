@@ -37,8 +37,9 @@ class DrumStudioViewModel @Inject constructor(
 
     /**
      * Obtiene la lista de sonidos disponibles en assets/kits/ filtrados por categoría (ej. "kick", "snare").
+     * Sincronizado quirúrgicamente con BeatStudioScreen.
      */
-    fun getAvailableSamplesForCategory(categoryKeyword: String): List<String> {
+    fun getFilteredSamplesForCategory(categoryKeyword: String): List<String> {
         return AssetAudioLoader.getFilteredSamplesForCategory(context, categoryKeyword)
     }
 
