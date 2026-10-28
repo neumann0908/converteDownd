@@ -20,7 +20,7 @@ android {
             abiFilters.addAll(setOf("armeabi-v7a", "arm64-v8a"))
         }
 
-        // [INTEGRACIÓN QUIRÚRGICA] Configuración de compilación C++ con Oboe
+        // [INTEGRACIÓN QUIRÚRGICA] Configuración de compilación C++ con CMake
         externalNativeBuild {
             cmake {
                 cppFlags("-std=c++17")
@@ -109,7 +109,4 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-
-    // [INTEGRACIÓN QUIRÚRGICA] Google Oboe - Runtime de Audio Nativo C++ de Baja Latencia
-    implementation("com.google.oboe:oboe:1.8.1")
 }
