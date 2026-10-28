@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.GridOn // <-- Ícono para la cuadrícula del Beat Studio
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
@@ -28,12 +29,19 @@ import com.musicdownloader.converter.presentation.viewmodel.DjViewModel
 import com.musicdownloader.converter.presentation.ui.MiniPlayerBar
 import com.musicdownloader.converter.presentation.viewmodel.PlayerViewModel
 
+// 🎛️ Importaciones de nuestro nuevo Beat Studio Pro
+import com.musicdownloader.converter.beatstudio.presentation.drum.BeatStudioScreen
+import com.musicdownloader.converter.beatstudio.presentation.drum.DrumStudioViewModel
+
 sealed class Screen(val route: String, val title: String, val icon: @Composable () -> Unit) {
     object Download : Screen("download", "Descargar", { Icon(Icons.Default.Download, contentDescription = null) })
     object Library : Screen("library", "Biblioteca", { Icon(Icons.Default.LibraryMusic, contentDescription = null) })
     object Playlists : Screen("playlists", "Listas", { Icon(Icons.Default.QueueMusic, contentDescription = null) })
     object Player : Screen("player", "Player", { Icon(Icons.Default.PlayCircle, contentDescription = null) })
     object DjTurntables : Screen("dj_turntables", "DJ Pro", { Icon(Icons.Default.MusicNote, contentDescription = null) })
+    
+    // 🥁 FASE 1: Nueva pantalla integrada quirúrgicamente en el sistema de navegación principal
+    object BeatStudio : Screen("beat_studio", "Beat Studio", { Icon(Icons.Default.GridOn, contentDescription = null) })
 }
 
 @Composable
@@ -50,7 +58,8 @@ fun MainScreen(
         Screen.Library,
         Screen.Playlists,
         Screen.Player,
-        Screen.DjTurntables
+        Screen.DjTurntables,
+        Screen.BeatStudio // <--- ¡Añadido aquí para que aparezca el botón en la barra inferior!
     )
 
     Scaffold(
@@ -119,10 +128,16 @@ fun MainScreen(
             composable(Screen.Playlists.route) { PlaylistsScreen() }
             composable(Screen.Player.route) { PlayerScreen() }
             
-            // 🎛️ ViewModel corregido con hiltViewModel() para la consola DJ
+            // Consola DJ Pro
             composable(Screen.DjTurntables.route) {
                 val djViewModel: DjViewModel = hiltViewModel()
                 DjTurntablesScreen(viewModel = djViewModel)
+            }
+
+            // 🎛️ FASE 1: Ruta oficial del Beat Studio conectada a su ViewModel con Hilt
+            composable(Screen.BeatStudio.route) {
+                val drumStudioViewModel: DrumStudioViewModel = hiltViewModel()
+                BeatStudioScreen(viewModel = drumStudioViewModel)
             }
         }
     }
