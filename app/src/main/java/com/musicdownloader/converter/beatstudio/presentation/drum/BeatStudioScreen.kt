@@ -468,7 +468,7 @@ fun TrackRow(
         shape = RoundedCornerShape(6.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onTrackSelect() }
+            .clickable { onTrackSelect() } // Selecciona la pista al tocar el cuerpo general de la tarjeta
     ) {
         Row(
             modifier = Modifier.padding(6.dp),
@@ -477,7 +477,10 @@ fun TrackRow(
             Column(
                 modifier = Modifier
                     .width(90.dp)
-                    .clickable { onInstrumentClick() }
+                    .clickable { 
+                        onTrackSelect()      // 👈 ¡Primero selecciona la pista!
+                        onInstrumentClick()  // 👈 Luego abre el diálogo para cambiar el sample
+                    }
                     .padding(vertical = 2.dp)
             ) {
                 Text(
@@ -537,7 +540,10 @@ fun TrackRow(
                                 color = if (isPlayingStep) Color.White else Color.Gray.copy(alpha = 0.3f),
                                 shape = RoundedCornerShape(2.dp)
                             )
-                            .clickable { onStepClick(stepIndex) }
+                            .clickable { 
+                                onTrackSelect()       // 👈 ¡Selecciona la pista al hacer clic en un paso!
+                                onStepClick(stepIndex) 
+                            }
                     )
                 }
             }
