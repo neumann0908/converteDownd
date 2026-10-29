@@ -37,13 +37,10 @@ class DrumStudioViewModel @Inject constructor(
         _errorMessage.value = null
     }
 
-    // Instancia del motor nativo Oboe de ultra baja latencia
-    private val audioEngine = AudioEngine()
-
     init {
-        // Enciende el motor Oboe automáticamente al abrir la pantalla de ritmos
+        // Enciende el motor Oboe automáticamente al abrir la pantalla de ritmos usando el Singleton global
         try {
-            audioEngine.nativeStart()
+            AudioEngine.nativeStart()
         } catch (e: Exception) {
             _errorMessage.value = "⚠️ Error al iniciar el motor Oboe: ${e.message}"
         }
@@ -66,7 +63,7 @@ class DrumStudioViewModel @Inject constructor(
                         current.tracks.forEachIndexed { index, track ->
                             if (!track.isMuted && track.steps.getOrElse(nextStep) { false }) {
                                 try {
-                                    audioEngine.nativePlayPad(index)
+                                    AudioEngine.nativePlayPad(index)
                                 } catch (e: Exception) {
                                     // Falla menor de disparo evitada para no congelar el loop
                                 }
@@ -124,7 +121,7 @@ class DrumStudioViewModel @Inject constructor(
      */
     fun playTrackSound(trackIndex: Int) {
         try {
-            audioEngine.nativePlayPad(trackIndex)
+            AudioEngine.nativePlayPad(trackIndex)
         } catch (e: Exception) {
             _errorMessage.value = "⚠️ Error al reproducir pad $trackIndex: ${e.message}"
         }
@@ -334,7 +331,7 @@ class DrumStudioViewModel @Inject constructor(
                 return
             }
 
-            audioEngine.nativeStart()
+            AudioEngine.nativeStart()
             _uiState.update { it.copy(isPlaying = !it.isPlaying) }
         } catch (e: Exception) {
             _errorMessage.value = "❌ Error en reproducción: ${e.message}"
