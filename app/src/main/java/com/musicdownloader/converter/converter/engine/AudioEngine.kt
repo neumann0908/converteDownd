@@ -36,4 +36,14 @@ object AudioEngine {
      * @return true si el archivo se abrió y cargó con éxito en el motor nativo, false en caso contrario.
      */
     external fun nativeLoadSampleByPath(filePath: String, padIndex: Int): Boolean
+
+    /**
+     * Configura en tiempo real los parámetros de audio (Pitch, Pan, Volumen) para un pad específico.
+     */
+    external fun nativeSetPadParams(padIndex: Int, pitch: Float, pan: Float, volume: Float)
+
+    /**
+     * Renderiza y exporta un pad o pista a un archivo físico .wav en el almacenamiento.
+     */
+    external fun nativeExportWavTest(outputPath: String, padIndex: Int): Boolean
 }
