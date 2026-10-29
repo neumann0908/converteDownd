@@ -110,13 +110,12 @@ class DrumStudioViewModel @Inject constructor(
                     
                     val matchedSamples = AssetAudioLoader.getFilteredSamplesForCategory(context, keyword)
                     if (matchedSamples.isNotEmpty()) {
-                        // Carga automática en el motor nativo para este pad/pista
                         AssetAudioLoader.loadSampleToPad(context, matchedSamples.first(), index)
                     }
                 }
             }
         } catch (e: Exception) {
-            // Manejo silencioso para no interrumpir el arranque si el directorio aún se está creando
+            // Manejo silencioso para no interrumpir el arranque
         }
     }
 
@@ -371,7 +370,7 @@ class DrumStudioViewModel @Inject constructor(
         }
     }
 
-    fn updatePitch(trackId: String, newPitch: Float) {
+    fun updatePitch(trackId: String, newPitch: Float) {
         _uiState.update { currentState ->
             val updatedTracks = currentState.tracks.map { track ->
                 if (track.id == trackId) track.copy(pitch = newPitch.coerceIn(0.25f, 4.0f)) else track
