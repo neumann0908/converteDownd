@@ -1,12 +1,10 @@
 package com.musicdownloader.converter.converter.engine
 
-class AudioEngine {
+object AudioEngine {
 
-    companion object {
-        init {
-            // Carga la librería compartida nativa compilada mediante CMakeLists.txt (add_library("musicengine"))
-            System.loadLibrary("musicengine")
-        }
+    init {
+        // Carga la librería compartida nativa compilada mediante CMakeLists.txt (add_library("musicengine"))
+        System.loadLibrary("musicengine")
     }
 
     /**
