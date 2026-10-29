@@ -1,7 +1,5 @@
 package com.musicdownloader.converter.converter.engine
 
-import android.content.res.AssetManager
-
 class AudioEngine {
 
     companion object {
@@ -23,10 +21,10 @@ class AudioEngine {
     external fun nativePlayPad(padIndex: Int)
 
     /**
-     * Carga de forma nativa un asset de audio directamente mediante el AssetManager de Android.
-     * @param assetManager Gestor de assets de la aplicación.
-     * @param filename Nombre o ruta relativa del archivo de audio dentro de kits/.
+     * Carga de forma nativa un sample de audio utilizando su ruta absoluta en el almacenamiento interno.
+     * @param filePath Ruta absoluta del archivo de audio en la memoria interna (filesDir/kits/).
+     * @param padIndex Índice del pad donde se asignará el sample.
      * @return true si el archivo se abrió y cargó con éxito en el motor nativo, false en caso contrario.
      */
-    external fun nativeLoadSample(assetManager: AssetManager, filename: String): Boolean
+    external fun nativeLoadSampleByPath(filePath: String, padIndex: Int): Boolean
 }
