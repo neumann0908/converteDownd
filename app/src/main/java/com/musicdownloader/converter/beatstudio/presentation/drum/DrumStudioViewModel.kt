@@ -144,11 +144,17 @@ class DrumStudioViewModel @Inject constructor(
     }
 
     /**
-     * Carga un sample específico desde la memoria interna y lo asigna al pad/pista en caliente.
+     * Carga un sample específico desde la memoria interna y lo asigna al pad/pista en caliente,
+     * verificando que el motor C++ lo acepte correctamente.
      */
     fun assignSampleToTrack(trackIndex: Int, samplePath: String) {
         try {
-            AssetAudioLoader.loadSampleToPad(context, samplePath, trackIndex)
+            val success = AssetAudioLoader.loadSampleToPad(context, samplePath, trackIndex)
+            if (!success) {
+                _errorMessage.value = "⚠️ El motor C++ rechazó el audio en el pad $trackIndex. Posible formato .wav incompatible."
+            } else {
+                _errorMessage.value = null // Limpia cualquier error previo si cargó con éxito
+            }
         } catch (e: Exception) {
             _errorMessage.value = "❌ Error al cargar sample en pad $trackIndex: ${e.message}"
         }
