@@ -2,18 +2,18 @@ package com.musicdownloader.converter.beatstudio.presentation.drum
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope // 🌐 Importación esencial para el bucle del secuenciador
+import androidx.lifecycle.viewModelScope
 import com.musicdownloader.converter.converter.engine.AudioEngine
 import com.musicdownloader.converter.converter.engine.AssetAudioLoader
 import com.musicdownloader.converter.converter.engine.AssetDownloader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.delay // 🌐 Para regular los intervalos de tiempo por BPM
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch // 🌐 Para lanzar la corrutina en segundo plano
+import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 
@@ -48,6 +48,9 @@ class DrumStudioViewModel @Inject constructor(
             _errorMessage.value = "⚠️ Error al iniciar el motor Oboe: ${e.message}"
         }
 
+        // 🎹 Auto-asignar samples por defecto a los pads si ya están descargados los kits
+        autoAssignDefaultSamplesIfNeeded()
+
         // 🥁 Bucle reactivo del secuenciador (Ticker basado en BPM)
         viewModelScope.launch {
             while (true) {
@@ -79,6 +82,41 @@ class DrumStudioViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * 🎹 Función inteligente: Escanea la memoria interna y asigna automáticamente
+     * un sample por categoría a cada pista del secuenciador al arrancar la app.
+     */
+    private fun autoAssignDefaultSamplesIfNeeded() {
+        try {
+            val kitsDir = File(context.filesDir, "kits")
+            if (kitsDir.exists() && kitsDir.listFiles()?.isNotEmpty() == true) {
+                val currentState = _uiState.value
+                currentState.tracks.forEachIndexed { index, track ->
+                    val nameLower = track.name.lowercase()
+                    val keyword = when {
+                        nameLower.contains("kick") -> "kick"
+                        nameLower.contains("snare") -> "snare"
+                        nameLower.contains("hat") || nameLower.contains("closed") || nameLower.contains("open") -> "hat"
+                        nameLower.contains("clap") -> "clap"
+                        nameLower.contains("perc") -> "perc"
+                        nameLower.contains("tom") -> "tom"
+                        nameLower.contains("rim") -> "rim"
+                        nameLower.contains("shaker") -> "shaker"
+                        else -> nameLower.take(4)
+                    }
+                    
+                    val matchedSamples = AssetAudioLoader.getFilteredSamplesForCategory(context, keyword)
+                    if (matchedSamples.isNotEmpty()) {
+                        // Carga automática en el motor nativo para este pad/pista
+                        AssetAudioLoader.loadSampleToPad(context, matchedSamples.first(), index)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Manejo silencioso para no interrumpir el arranque si el directorio aún se está creando
         }
     }
 
@@ -333,7 +371,7 @@ class DrumStudioViewModel @Inject constructor(
         }
     }
 
-    fun updatePitch(trackId: String, newPitch: Float) {
+    fn updatePitch(trackId: String, newPitch: Float) {
         _uiState.update { currentState ->
             val updatedTracks = currentState.tracks.map { track ->
                 if (track.id == trackId) track.copy(pitch = newPitch.coerceIn(0.25f, 4.0f)) else track
