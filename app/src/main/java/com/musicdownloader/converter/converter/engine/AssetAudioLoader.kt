@@ -216,7 +216,7 @@ object AssetAudioLoader {
         header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0
         header[20] = 1; header[21] = 0
         header[22] = channels.toByte(); header[23] = 0
-        header[24] = (sampleRate and 0xff).toByte() tus
+        header[24] = (sampleRate and 0xff).toByte()
         header[25] = ((sampleRate shr 8) and 0xff).toByte()
         header[26] = ((sampleRate shr 16) and 0xff).toByte()
         header[27] = ((sampleRate shr 24) and 0xff).toByte()
