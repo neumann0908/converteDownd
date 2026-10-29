@@ -2,15 +2,18 @@ package com.musicdownloader.converter.beatstudio.presentation.drum
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope // 🌐 Importación esencial para el bucle del secuenciador
 import com.musicdownloader.converter.converter.engine.AudioEngine
 import com.musicdownloader.converter.converter.engine.AssetAudioLoader
 import com.musicdownloader.converter.converter.engine.AssetDownloader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay // 🌐 Para regular los intervalos de tiempo por BPM
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch // 🌐 Para lanzar la corrutina en segundo plano
 import java.io.File
 import javax.inject.Inject
 
@@ -43,6 +46,39 @@ class DrumStudioViewModel @Inject constructor(
             audioEngine.nativeStart()
         } catch (e: Exception) {
             _errorMessage.value = "⚠️ Error al iniciar el motor Oboe: ${e.message}"
+        }
+
+        // 🥁 Bucle reactivo del secuenciador (Ticker basado en BPM)
+        viewModelScope.launch {
+            while (true) {
+                val state = _uiState.value
+                if (state.isPlaying) {
+                    // Cálculo de milisegundos por paso (dividido en semicorcheas por compás)
+                    val intervalMs = (60_000L / state.bpm) / 4
+
+                    _uiState.update { current ->
+                        val nextStep = (current.currentStep + 1) % current.stepCount
+                        
+                        // Disparar de forma sincronizada los pads activos en este paso exacto
+                        current.tracks.forEachIndexed { index, track ->
+                            if (!track.isMuted && track.steps.getOrElse(nextStep) { false }) {
+                                try {
+                                    audioEngine.nativePlayPad(index)
+                                } catch (e: Exception) {
+                                    // Falla menor de disparo evitada para no congelar el loop
+                                }
+                            }
+                        }
+                        current.copy(currentStep = nextStep)
+                    }
+                    delay(intervalMs)
+                } else {
+                    delay(100) // Pausa eficiente cuando el secuenciador está detenido
+                    if (_uiState.value.currentStep != -1) {
+                        _uiState.update { it.copy(currentStep = -1) }
+                    }
+                }
+            }
         }
     }
 
