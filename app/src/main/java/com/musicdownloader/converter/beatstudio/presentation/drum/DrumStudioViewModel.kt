@@ -246,7 +246,6 @@ class DrumStudioViewModel @Inject constructor(
     }
 
     fun updateVolume(trackId: String, newVolume: Float) {
-        _otivStateUpdateIfNeeded(...) // Mantener lógica limpia existente
         _uiState.update { currentState ->
             val updatedTracks = currentState.tracks.map { track ->
                 if (track.id == trackId) track.copy(volume = newVolume.coerceIn(0f, 1f)) else track
