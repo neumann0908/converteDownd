@@ -468,7 +468,7 @@ fun TrackRow(
         shape = RoundedCornerShape(6.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onTrackSelect() } // Selecciona la pista al tocar el cuerpo general de la tarjeta
+            .clickable { onTrackSelect() } // Tocar la tarjeta selecciona la pista para editarla abajo
     ) {
         Row(
             modifier = Modifier.padding(6.dp),
@@ -476,25 +476,41 @@ fun TrackRow(
         ) {
             Column(
                 modifier = Modifier
-                    .width(90.dp)
-                    .clickable { 
-                        onTrackSelect()      // 👈 ¡Primero selecciona la pista!
-                        onInstrumentClick()  // 👈 Luego abre el diálogo para cambiar el sample
-                    }
+                    .width(95.dp)
                     .padding(vertical = 2.dp)
             ) {
-                Text(
-                    text = track.name,
-                    color = Color(track.colorHex),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 10.sp
-                )
-                Text(
-                    text = "Cambiar 🔍",
-                    color = Color.LightGray.copy(alpha = 0.7f),
-                    fontSize = 8.sp
-                )
-                Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = track.name,
+                        color = Color(track.colorHex),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onTrackSelect() } // Tocar el nombre selecciona la pista sin abrir diálogo
+                    )
+                    // Botón dedicado (Lupa) para cambiar el sample
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF13131A))
+                            .clickable { 
+                                onTrackSelect()
+                                onInstrumentClick() 
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "🔍", fontSize = 9.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
@@ -513,7 +529,7 @@ fun TrackRow(
                 }
             }
 
-            Spacer(modifier = Modifier.width(2.dp))
+            Spacer(modifier = Modifier.width(4.dp))
 
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -541,7 +557,7 @@ fun TrackRow(
                                 shape = RoundedCornerShape(2.dp)
                             )
                             .clickable { 
-                                onTrackSelect()       // 👈 ¡Selecciona la pista al hacer clic en un paso!
+                                onTrackSelect()       // Selecciona la pista al tocar un paso
                                 onStepClick(stepIndex) 
                             }
                     )
