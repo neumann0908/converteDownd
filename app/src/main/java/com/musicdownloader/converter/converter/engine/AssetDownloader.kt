@@ -65,7 +65,7 @@ object AssetDownloader {
                 outputStream.close()
                 inputStream.close()
                 
-                Log.i(TAG, "📦 Descarga finalizada con éxito. Procediendo a descomprimir...")
+                Log.i(TAG, "📦 Descarga finalizada con éxito. Procediendo a descomprimir y aplanar rutas...")
                 unzip(zipFile, kitsDir)
                 
                 if (zipFile.exists()) {
@@ -89,16 +89,18 @@ object AssetDownloader {
         ZipInputStream(zipFile.inputStream()).use { zis ->
             var zipEntry = zis.nextEntry
             while (zipEntry != null) {
-                val newFile = File(targetDirectory, zipEntry.name)
-                if (zipEntry.isDirectory) {
-                    newFile.mkdirs()
-                } else {
-                    newFile.parentFile?.mkdirs()
-                    FileOutputStream(newFile).use { fos ->
-                        val buffer = ByteArray(8192)
-                        var len: Int
-                        while (zis.read(buffer).also { len = it } > 0) {
-                            fos.write(buffer, 0, len)
+                // Procesamos únicamente los archivos (ignoramos las entradas que sean directorios puros)
+                if (!zipEntry.isDirectory) {
+                    // Extraemos exclusivamente el nombre del archivo, descartando cualquier ruta o subcarpeta del ZIP
+                    val fileName = File(zipEntry.name).name
+                    if (fileName.isNotBlank()) {
+                        val newFile = File(targetDirectory, fileName)
+                        FileOutputStream(newFile).use { fos ->
+                            val buffer = ByteArray(8192)
+                            var len: Int
+                            while (zis.read(buffer).also { len = it } > 0) {
+                                fos.write(buffer, 0, len)
+                            }
                         }
                     }
                 }
