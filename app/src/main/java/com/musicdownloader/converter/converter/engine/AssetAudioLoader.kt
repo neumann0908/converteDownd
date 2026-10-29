@@ -58,8 +58,8 @@ object AssetAudioLoader {
     }
 
     /**
-     * Carga el sample en el pad. Si el archivo es .ogg, lo decodifica automáticamente a .wav 
-     * para que el motor C++ / Oboe pueda leerlo sin problemas.
+     * Carga el sample en el pad. Normaliza tanto .ogg como .wav complejos a un formato 
+     * PCM 16-bit estándar garantizado, compatible con el motor C++ / Oboe.
      */
     fun loadSampleToPad(context: Context, absolutePath: String, padIndex: Int): Boolean {
         try {
@@ -69,24 +69,32 @@ object AssetAudioLoader {
                 return false
             }
 
-            val targetFileToLoad = if (file.name.lowercase().endsWith(".ogg")) {
+            val nameLower = file.name.lowercase()
+            
+            // 🛡️ Normalizamos tanto .ogg como .wav para asegurar que Oboe reciba un PCM de 16-bit puro
+            val targetFileToLoad = if (nameLower.endsWith(".ogg") || nameLower.endsWith(".wav")) {
                 val decodedDir = File(context.cacheDir, "decoded_wavs").apply { mkdirs() }
                 val wavFile = File(decodedDir, "${file.nameWithoutExtension}_${file.length()}.wav")
                 
-                val successConversion = convertOggToWav(file, wavFile)
-                if (!successConversion || !wavFile.exists()) {
-                    Log.e(TAG, "Fallo al decodificar el archivo OGG a WAV: ${file.name}")
-                    return false
+                // Si ya fue procesado y convertido anteriormente, lo reutilizamos instantáneamente de la caché
+                if (wavFile.exists() && wavFile.length() > 44) {
+                    wavFile
+                } else {
+                    val successConversion = convertAudioToStandardWav(file, wavFile)
+                    if (!successConversion || !wavFile.exists()) {
+                        Log.e(TAG, "Fallo al normalizar el archivo de audio a WAV 16-bit: ${file.name}")
+                        return false
+                    }
+                    wavFile
                 }
-                wavFile
             } else {
                 file
             }
 
-            Log.i(TAG, "Enviando archivo PCM al motor Oboe: ${targetFileToLoad.name} en el pad: $padIndex")
+            Log.i(TAG, "Enviando archivo PCM normalizado al motor Oboe: ${targetFileToLoad.name} en el pad: $padIndex")
 
-            val audioEngine = AudioEngine()
-            val success = audioEngine.nativeLoadSampleByPath(targetFileToLoad.absolutePath, padIndex)
+            // Usamos el objeto global unificado (Singleton) AudioEngine
+            val success = AudioEngine.nativeLoadSampleByPath(targetFileToLoad.absolutePath, padIndex)
 
             if (!success) {
                 Log.e(TAG, "El motor C++ rechazó la ruta: ${targetFileToLoad.absolutePath}")
@@ -104,14 +112,13 @@ object AssetAudioLoader {
     }
 
     /**
-     * 🔄 Decodificador interno: Transforma un archivo .ogg comprimido en un archivo .wav PCM estándar de 16-bit.
+     * 🔄 Normalizador universal: Transforma cualquier archivo de audio (.ogg o .wav complejo) 
+     * en un archivo .wav PCM estándar de 16-bit mediante MediaCodec y MediaExtractor.
      */
-    private fun convertOggToWav(oggFile: File, outputWavFile: File): Boolean {
+    private fun convertAudioToStandardWav(inputFile: File, outputWavFile: File): Boolean {
         try {
-            if (outputWavFile.exists() && outputWavFile.length() > 44) return true
-
             val extractor = MediaExtractor()
-            extractor.setDataSource(oggFile.absolutePath)
+            extractor.setDataSource(inputFile.absolutePath)
 
             var audioTrackIndex = -1
             var format: MediaFormat? = null
@@ -209,7 +216,7 @@ object AssetAudioLoader {
         header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0
         header[20] = 1; header[21] = 0
         header[22] = channels.toByte(); header[23] = 0
-        header[24] = (sampleRate and 0xff).toByte()
+        header[24] = (sampleRate and 0xff).toByte() tus
         header[25] = ((sampleRate shr 8) and 0xff).toByte()
         header[26] = ((sampleRate shr 16) and 0xff).toByte()
         header[27] = ((sampleRate shr 24) and 0xff).toByte()
