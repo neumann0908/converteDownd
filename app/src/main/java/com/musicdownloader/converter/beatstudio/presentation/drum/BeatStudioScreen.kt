@@ -19,14 +19,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.io.File
 
 @Composable
 fun BeatStudioScreen(
     viewModel: DrumStudioViewModel
 ) {
+    val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
     val selectedTrack = state.tracks.getOrNull(state.selectedTrackIndex)
 
@@ -34,7 +37,7 @@ fun BeatStudioScreen(
     val isDownloading by viewModel.isDownloading.collectAsState()
     val progress by viewModel.downloadProgress.collectAsState()
 
-    // 🚨 Observación reactiva de errores del motor de audio para mostrarlos en pantalla
+    // 🚨 Observación reactiva de errores y mensajes del motor de audio
     val errorMessage by viewModel.errorMessage.collectAsState()
 
     // Estados locales para el diálogo de selección de samples filtrados por categoría
@@ -43,7 +46,7 @@ fun BeatStudioScreen(
     var selectedTrackNameForSample by remember { mutableStateOf("") }
     var availableSamplesList by remember { mutableStateOf(listOf<String>()) }
 
-    // Contenedor principal en formato Box para permitir capas flotantes (Overlay de descarga y errores)
+    // Contenedor principal en formato Box para permitir capas flotantes (Overlay de descarga y mensajes)
     Box(modifier = Modifier.fillMaxSize()) {
 
         // --- CONTENIDO PRINCIPAL DE LA APP ---
@@ -181,7 +184,7 @@ fun BeatStudioScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // --- PANEL DE FUNCIÓN DIFERENCIAL PROFUNDA (VOL, PITCH, PAN, ADSR, EFECTOS) ---
+            // --- PANEL DE FUNCIÓN DIFERENCIAL PROFUNDA (VOL, PITCH, PAN, ADSR, EFECTOS Y EXPORTACIÓN) ---
             if (selectedTrack != null) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
@@ -200,11 +203,26 @@ fun BeatStudioScreen(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp
                             )
-                            Text(
-                                text = "Swing: ${(state.swing * 100).toInt()}%",
-                                color = Color.LightGray,
-                                fontSize = 10.sp
-                            )
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                // 💾 Botón de Exportación WAV directo
+                                SmallChipButton(
+                                    text = "💾 Exportar WAV",
+                                    isActive = false,
+                                    activeColor = Color(0xFF00E676),
+                                    onClick = {
+                                        val exportDir = File(context.filesDir, "exports")
+                                        if (!exportDir.exists()) exportDir.mkdirs()
+                                        val file = File(exportDir, "${selectedTrack.name.replace(" ", "_")}_${System.currentTimeMillis()}.wav")
+                                        viewModel.exportTrackAsWav(state.selectedTrackIndex, file.absolutePath)
+                                    }
+                                )
+                                Text(
+                                    text = "Swing: ${(state.swing * 100).toInt()}%",
+                                    color = Color.LightGray,
+                                    fontSize = 10.sp
+                                )
+                            }
                         }
                         
                         Spacer(modifier = Modifier.height(4.dp))
@@ -337,22 +355,22 @@ fun BeatStudioScreen(
             }
         }
 
-        // --- 🚨 DIÁLOGO FLOTANTE DE DIAGNÓSTICO DE ERRORES ---
+        // --- 🚨 DIÁLOGO FLOTANTE DE DIAGNÓSTICO DE ERRORES Y ÉXITO ---
         if (errorMessage != null) {
             AlertDialog(
                 onDismissRequest = { viewModel.clearError() },
                 containerColor = Color(0xFF1E1E2C),
                 title = {
                     Text(
-                        text = "🚨 Diagnóstico de Beat Studio",
-                        color = Color.Red,
+                        text = "🚨 Beat Studio Pro",
+                        color = Color(0xFFFFD700),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
                 },
                 text = {
                     Text(
-                        text = errorMessage ?: "Error desconocido",
+                        text = errorMessage ?: "",
                         color = Color.White,
                         fontSize = 14.sp
                     )
