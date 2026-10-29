@@ -297,7 +297,7 @@ fun BeatStudioScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No se encontraron samples en assets/kits/",
+                            text = "No se encontraron samples en la memoria interna (kits/)",
                             color = Color.LightGray,
                             fontSize = 12.sp
                         )
@@ -365,7 +365,7 @@ fun TrackRow(
             modifier = Modifier.padding(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Nombre del instrumento y controles Mute/Solo (Al hacer clic en el nombre se abre el selector de samples)
+            // Nombre del instrumento y controles Mute/Solo
             Column(
                 modifier = Modifier
                     .width(90.dp)
@@ -404,7 +404,7 @@ fun TrackRow(
 
             Spacer(modifier = Modifier.width(2.dp))
 
-            // Botoncitos de la secuencia en fila (dinámicos según stepCount)
+            // Botoncitos de la secuencia en fila
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier.weight(1f)
