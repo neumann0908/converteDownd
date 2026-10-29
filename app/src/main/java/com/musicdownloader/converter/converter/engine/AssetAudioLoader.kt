@@ -1,56 +1,65 @@
 package com.musicdownloader.converter.converter.engine
 
-import android.content.res.AssetManager
 import android.content.Context
 import android.util.Log
+import java.io.File
 
 object AssetAudioLoader {
 
     private const val TAG = "AssetAudioLoader"
 
     /**
-     * Escanea la carpeta assets/kits/ y devuelve únicamente los archivos 
+     * Escanea la carpeta interna filesDir/kits/ y devuelve únicamente los archivos 
      * que coincidan con la categoría solicitada (ej. "kick", "snare", "hat").
      */
     fun getFilteredSamplesForCategory(context: Context, categoryKeyword: String): List<String> {
         return try {
-            val assetManager = context.assets
-            val allFiles = assetManager.list("kits")?.toList() ?: emptyList()
+            val kitsDir = File(context.filesDir, "kits")
+            if (!kitsDir.exists()) {
+                Log.w(TAG, "La carpeta interna de kits no existe en: ${kitsDir.absolutePath}")
+                return emptyList()
+            }
+
+            // Recorre recursivamente o busca en las subcarpetas de kits
+            val allFiles = mutableListOf<String>()
+            kitsDir.walkTopDown().forEach { file ->
+                if (file.isFile) {
+                    // Guardamos la ruta relativa o el nombre para identificarlo
+                    allFiles.add(file.absolutePath)
+                }
+            }
             
-            // Filtra de forma inteligente ignorando mayúsculas/minúsculas
+            // Filtra de forma inteligente ignorando mayúsculas/minúsculas según la palabra clave
             allFiles.filter { it.lowercase().contains(categoryKeyword.lowercase()) }
         } catch (e: Exception) {
-            Log.e(TAG, "Error al listar y filtrar samples: ${e.message}")
+            Log.e(TAG, "Error al listar y filtrar samples desde memoria interna: ${e.message}")
             emptyList()
         }
     }
 
     /**
-     * Delega la carga del sample directamente al motor nativo en C++ utilizando 
-     * el AssetManager para un rendimiento óptimo de ultra baja latencia con Oboe.
+     * Carga el sample apuntando directamente a su ruta absoluta en el almacenamiento interno.
      */
-    fun loadSampleToPad(context: Context, assetPath: String, padIndex: Int) {
+    fun loadSampleToPad(context: Context, absolutePath: String, padIndex: Int) {
         try {
-            val assetManager = context.assets
-            
-            // Normalizamos la ruta: eliminamos el prefijo "kits/" si ya lo trae, 
-            // ya que el motor C++ se encarga de concatenarlo de forma segura.
-            val cleanFilename = if (assetPath.startsWith("kits/")) {
-                assetPath.removePrefix("kits/")
-            } else {
-                assetPath
+            val file = File(absolutePath)
+            if (!file.exists()) {
+                Log.e(TAG, "El archivo de audio no existe en la ruta: $absolutePath")
+                return
             }
-            
-            Log.i(TAG, "Solicitando carga nativa para el archivo: $cleanFilename en el pad: $padIndex")
 
-            // Llamada al puente nativo optimizado
+            Log.i(TAG, "Solicitando carga para el archivo interno: ${file.name} en el pad: $padIndex")
+
+            // Llamada al motor nativo usando la ruta absoluta del archivo extraído
             val audioEngine = AudioEngine()
-            val success = audioEngine.nativeLoadSample(assetManager, cleanFilename)
+            // Nota: Si tu función nativa en C++ espera un descriptor de archivo o ruta de archivo (fd / filepath),
+            // puedes pasarle file.absolutePath directamente si el motor soporta lectura por ruta.
+            val success = audioEngine.nativeLoadSampleByPath(file.absolutePath, padIndex)
 
             if (!success) {
-                Log.e(TAG, "Fallo al cargar el sample nativamente: $cleanFilename")
+                Log.e(TAG, "Fallo al cargar el sample nativamente desde ruta: ${file.absolutePath}")
             } else {
-                Log.i(TAG, "¡Sample cargado con éxito en el pad $padIndex!")
+                Log.i(TAG, "¡Sample interno cargado con éxito en el pad $padIndex!")
             }
             
         } catch (e: Exception) {
