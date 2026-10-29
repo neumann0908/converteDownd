@@ -1,10 +1,9 @@
 #include <jni.h>
 #include <oboe/Oboe.h>
 #include <android/log.h>
-#include <android/asset_manager.h>
-#include <android/asset_manager_jni.h>
 #include <string>
 #include <vector>
+#include <cstdio> // Necesario para fopen, fread, fclose
 
 #define TAG "AudioEngineNative"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
@@ -51,59 +50,74 @@ Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativeStart(JNIE
 }
 
 /**
- * Función JNI de integración quirúrgica para cargar y validar assets de audio de forma segura.
- * Evita cierres forzosos (crashes) validando punteros nulos y concatenando la ruta de kits/.
+ * Función JNI de integración quirúrgica para cargar samples de audio desde la ruta absoluta 
+ * del almacenamiento interno (filesDir/kits/).
+ * Utiliza E/S estándar de C (fopen) para lectura directa y eficiente en memoria.
  */
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativeLoadSample(
-        JNIEnv *env, jobject thiz, jobject assetManagerObj, jstring filenameStr) {
+Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativeLoadSampleByPath(
+        JNIEnv *env, jobject thiz, jstring filePathStr, jint padIndex) {
 
-    if (assetManagerObj == nullptr || filenameStr == nullptr) {
-        LOGE("nativeLoadSample: Error crítico - AssetManager o filename son nulos.");
+    if (filePathStr == nullptr) {
+        LOGE("nativeLoadSampleByPath: Error crítico - La ruta del archivo es nula.");
         return JNI_FALSE;
     }
 
-    // Obtener el puente nativo del AssetManager de Android
-    AAssetManager *assetManager = AAssetManager_fromJava(env, assetManagerObj);
-    if (assetManager == nullptr) {
-        LOGE("nativeLoadSample: No se pudo extraer AAssetManager desde Java.");
+    const char *filePath = env->GetStringUTFChars(filePathStr, nullptr);
+    if (filePath == nullptr) {
+        LOGE("nativeLoadSampleByPath: Error al convertir la ruta de archivo a UTF.");
         return JNI_FALSE;
     }
 
-    const char *filename = env->GetStringUTFChars(filenameStr, nullptr);
-    if (filename == nullptr) {
-        LOGE("nativeLoadSample: Error al convertir el nombre de archivo a UTF.");
+    LOGI("Intentando abrir sample de audio interno en ruta: %s para el pad: %d", filePath, padIndex);
+
+    // Abrir el archivo directamente desde el almacenamiento interno en modo lectura binaria ("rb")
+    FILE *file = fopen(filePath, "rb");
+    if (file == nullptr) {
+        LOGE("nativeLoadSampleByPath: Fallo al abrir el archivo en la ruta absoluta: %s", filePath);
+        env->ReleaseStringUTFChars(filePathStr, filePath);
         return JNI_FALSE;
     }
 
-    // Construir la ruta relativa exacta combinando el directorio raíz de kits y el archivo seleccionado
-    std::string fullPath = std::string("kits/") + filename;
-    LOGI("Intentando abrir asset de audio seguro: %s", fullPath.c_str());
+    // Obtener el tamaño total del archivo en bytes
+    fseek(file, 0, SEEK_END);
+    long fileSize = ftell(file);
+    fseek(file, 0, SEEK_SET);
 
-    // Abrir el asset en modo buffer de solo lectura
-    AAsset *asset = AAssetManager_open(assetManager, fullPath.c_str(), AASSET_MODE_BUFFER);
-    if (asset == nullptr) {
-        LOGE("nativeLoadSample: Fallo al abrir el asset en la ruta: %s", fullPath.c_str());
-        env->ReleaseStringUTFChars(filenameStr, filename);
-        return JNI_FALSE; // Corregido: Sin acentos graves
-    }
-
-    off_t assetSize = AAsset_getLength(asset);
-    const void *assetBuffer = AAsset_getBuffer(asset);
-
-    if (assetBuffer == nullptr) {
-        LOGE("nativeLoadSample: El buffer en memoria para el asset vino vacío: %s", fullPath.c_str());
-        AAsset_close(asset);
-        env->ReleaseStringUTFChars(filenameStr, filename);
+    if (fileSize <= 0) {
+        LOGE("nativeLoadSampleByPath: El archivo está vacío o no se pudo medir su tamaño: %s", filePath);
+        fclose(file);
+        env->ReleaseStringUTFChars(filePathStr, filePath);
         return JNI_FALSE;
     }
 
-    LOGI("¡Asset cargado exitosamente en C++! Tamaño del archivo: %ld bytes", (long)assetSize);
+    // Reservar buffer en memoria nativa y leer los datos binarios del PCM/WAV
+    std::vector<uint8_t> fileBuffer(fileSize);
+    size_t bytesRead = fread(fileBuffer.data(), 1, fileSize, file);
+    
+    fclose(file); // Cerramos el descriptor de archivo de inmediato tras la lectura
 
-    // TODO: Aquí se enlazará el buffer PCM descampado con el mezclador de Oboe
+    if (bytesRead != static_cast<size_t>(fileSize)) {
+        LOGE("nativeLoadSampleByPath: Error de lectura, se leyeron %zu de %ld bytes.", bytesRead, fileSize);
+        env->ReleaseStringUTFChars(filePathStr, filePath);
+        return JNI_FALSE;
+    }
 
-    // Liberación segura de recursos nativos
-    AAsset_close(asset);
-    env->ReleaseStringUTFChars(filenameStr, filename);
+    LOGI("¡Sample cargado exitosamente en C++ desde almacenamiento interno! Tamaño: %ld bytes en pad %d", fileSize, padIndex);
+
+    // TODO: Aquí enlazaras el vector 'fileBuffer' con el mezclador de Oboe para reproducirlo en tiempo real
+
+    // Liberación segura de los caracteres de JNI
+    env->ReleaseStringUTFChars(filePathStr, filePath);
     return JNI_TRUE;
+}
+
+/**
+ * Disparador del pad en tiempo real para el motor nativo Oboe.
+ */
+extern "C" JNIEXPORT void JNICALL
+Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativePlayPad(
+        JNIEnv *env, jobject thiz, jint padIndex) {
+    LOGI("Reproduciendo pad nativo índice: %d", padIndex);
+    // TODO: Activar el trigger de reproducción en el callback de Oboe
 }
