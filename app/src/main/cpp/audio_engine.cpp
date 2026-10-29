@@ -85,7 +85,7 @@ Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativeLoadSample
     if (asset == nullptr) {
         LOGE("nativeLoadSample: Fallo al abrir el asset en la ruta: %s", fullPath.c_str());
         env->ReleaseStringUTFChars(filenameStr, filename);
-        return `JNI_FALSE`;
+        return JNI_FALSE; // Corregido: Sin acentos graves
     }
 
     off_t assetSize = AAsset_getLength(asset);
