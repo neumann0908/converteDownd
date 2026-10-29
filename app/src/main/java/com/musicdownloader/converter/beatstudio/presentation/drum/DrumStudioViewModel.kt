@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import com.musicdownloader.converter.converter.engine.AudioEngine
 import com.musicdownloader.converter.converter.engine.AssetAudioLoader
+import com.musicdownloader.converter.converter.engine.AssetDownloader // 🌐 Importación clave del descargador
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,10 @@ class DrumStudioViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(DrumStudioState())
     val uiState: StateFlow<DrumStudioState> = _uiState.asStateFlow()
+
+    // 🌐 Estados expuestos desde AssetDownloader para gobernar la ventana de progreso (0% a 100%) en la UI
+    val isDownloading = AssetDownloader.isDownloading
+    val downloadProgress = AssetDownloader.downloadProgress
 
     // Instancia del motor nativo Oboe de ultra baja latencia
     private val audioEngine = AudioEngine()
