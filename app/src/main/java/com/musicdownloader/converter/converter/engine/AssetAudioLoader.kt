@@ -70,11 +70,9 @@ object AssetAudioLoader {
             }
 
             val targetFileToLoad = if (file.name.lowercase().endsWith(".ogg")) {
-                // Carpeta de caché para almacenar el WAV decodificado
                 val decodedDir = File(context.cacheDir, "decoded_wavs").apply { mkdirs() }
                 val wavFile = File(decodedDir, "${file.nameWithoutExtension}_${file.length()}.wav")
                 
-                // Si ya fue decodificado antes, lo reutilizamos; si no, lo convertimos
                 val successConversion = convertOggToWav(file, wavFile)
                 if (!successConversion || !wavFile.exists()) {
                     Log.e(TAG, "Fallo al decodificar el archivo OGG a WAV: ${file.name}")
@@ -221,7 +219,7 @@ object AssetAudioLoader {
         header[31] = ((byteRate shr 24) and 0xff).toByte()
         header[32] = (channels * bitsPerSample / 8).toByte(); header[33] = 0
         header[34] = bitsPerSample.toByte(); header[35] = 0
-        header[36] = 'd'.code.toByte(); header[37] = 'a'.code.toByte(); header[38] = 't'.code.toByte(); header[39] = ''.code.toByte()
+        header[36] = 'd'.code.toByte(); header[37] = 'a'.code.toByte(); header[38] = 't'.code.toByte(); header[39] = 'a'.code.toByte()
         header[40] = (pcmData.size and 0xff).toByte()
         header[41] = ((pcmData.size shr 8) and 0xff).toByte()
         header[42] = ((pcmData.size shr 16) and 0xff).toByte()
