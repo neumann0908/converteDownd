@@ -9,8 +9,9 @@ object AssetAudioLoader {
     private const val TAG = "AssetAudioLoader"
 
     /**
-     * Escanea la carpeta interna filesDir/kits/ y devuelve únicamente los archivos 
-     * que coincidan con la categoría solicitada (ej. "kick", "snare", "hat").
+     * Escanea la carpeta interna filesDir/kits/ recursivamente y devuelve los archivos .wav 
+     * que coincidan con la categoría solicitada. Si el filtro estricto no halla coincidencias,
+     * actúa como red de seguridad devolviendo todos los audios disponibles.
      */
     fun getFilteredSamplesForCategory(context: Context, categoryKeyword: String): List<String> {
         return try {
@@ -20,17 +21,31 @@ object AssetAudioLoader {
                 return emptyList()
             }
 
-            // Recorre recursivamente o busca en las subcarpetas de kits
-            val allFiles = mutableListOf<String>()
+            val allWavFiles = mutableListOf<String>()
+            
+            // Recorrido recursivo profundo buscando exclusivamente archivos de audio .wav
             kitsDir.walkTopDown().forEach { file ->
-                if (file.isFile) {
-                    // Guardamos la ruta relativa o el nombre para identificarlo
-                    allFiles.add(file.absolutePath)
+                if (file.isFile && file.name.lowercase().endsWith(".wav")) {
+                    allWavFiles.add(file.absolutePath)
                 }
             }
+
+            if (allWavFiles.isEmpty()) {
+                Log.w(TAG, "No se encontraron archivos .wav en el directorio kits/")
+                return emptyList()
+            }
             
-            // Filtra de forma inteligente ignorando mayúsculas/minúsculas según la palabra clave
-            allFiles.filter { it.lowercase().contains(categoryKeyword.lowercase()) }
+            // Intento de filtrado inteligente por palabra clave (ej. "kick", "snare")
+            val filtered = allWavFiles.filter { it.lowercase().contains(categoryKeyword.lowercase()) }
+            
+            // 🛡️ Red de seguridad infalible: Si la categoría no coincide exactamente con ningún nombre,
+            // devolvemos todos los .wav disponibles para que el usuario pueda elegirlos libremente sin bloqueos.
+            if (filtered.isEmpty()) {
+                Log.i(TAG, "Filtro estricto para '$categoryKeyword' sin resultados. Aplicando respaldo con todos los .wav disponibles.")
+                return allWavFiles
+            }
+
+            filtered
         } catch (e: Exception) {
             Log.e(TAG, "Error al listar y filtrar samples desde memoria interna: ${e.message}")
             emptyList()
@@ -38,7 +53,7 @@ object AssetAudioLoader {
     }
 
     /**
-     * Carga el sample apuntando directamente a su ruta absoluta en el almacenamiento interno.
+     * Carga el sample apuntando directamente a su ruta absoluta en el almacenamiento interno en el motor Oboe.
      */
     fun loadSampleToPad(context: Context, absolutePath: String, padIndex: Int) {
         try {
@@ -50,10 +65,7 @@ object AssetAudioLoader {
 
             Log.i(TAG, "Solicitando carga para el archivo interno: ${file.name} en el pad: $padIndex")
 
-            // Llamada al motor nativo usando la ruta absoluta del archivo extraído
             val audioEngine = AudioEngine()
-            // Nota: Si tu función nativa en C++ espera un descriptor de archivo o ruta de archivo (fd / filepath),
-            // puedes pasarle file.absolutePath directamente si el motor soporta lectura por ruta.
             val success = audioEngine.nativeLoadSampleByPath(file.absolutePath, padIndex)
 
             if (!success) {
