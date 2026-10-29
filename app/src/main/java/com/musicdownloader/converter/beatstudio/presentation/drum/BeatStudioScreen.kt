@@ -34,13 +34,16 @@ fun BeatStudioScreen(
     val isDownloading by viewModel.isDownloading.collectAsState()
     val progress by viewModel.downloadProgress.collectAsState()
 
+    // 🚨 Observación reactiva de errores del motor de audio para mostrarlos en pantalla
+    val errorMessage by viewModel.errorMessage.collectAsState()
+
     // Estados locales para el diálogo de selección de samples filtrados por categoría
     var showSampleDialog by remember { mutableStateOf(false) }
     var selectedTrackIndexForSample by remember { mutableStateOf(0) }
     var selectedTrackNameForSample by remember { mutableStateOf("") }
     var availableSamplesList by remember { mutableStateOf(listOf<String>()) }
 
-    // Contenedor principal en formato Box para permitir capas flotantes (Overlay de descarga)
+    // Contenedor principal en formato Box para permitir capas flotantes (Overlay de descarga y errores)
     Box(modifier = Modifier.fillMaxSize()) {
 
         // --- CONTENIDO PRINCIPAL DE LA APP ---
@@ -315,7 +318,7 @@ fun BeatStudioScreen(
                         )
 
                         LinearProgressIndicator(
-                            progress =  progress ,
+                            progress = progress,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(10.dp)
@@ -332,6 +335,34 @@ fun BeatStudioScreen(
                     }
                 }
             }
+        }
+
+        // --- 🚨 DIÁLOGO FLOTANTE DE DIAGNÓSTICO DE ERRORES ---
+        if (errorMessage != null) {
+            AlertDialog(
+                onDismissRequest = { viewModel.clearError() },
+                containerColor = Color(0xFF1E1E2C),
+                title = {
+                    Text(
+                        text = "🚨 Diagnóstico de Beat Studio",
+                        color = Color.Red,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = errorMessage ?: "Error desconocido",
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.clearError() }) {
+                        Text(text = "Entendido", color = Color(0xFFFFD700))
+                    }
+                }
+            )
         }
 
         // --- DIÁLOGO FLOTANTE PARA SELECCIÓN DE SAMPLE FILTRADO ---
