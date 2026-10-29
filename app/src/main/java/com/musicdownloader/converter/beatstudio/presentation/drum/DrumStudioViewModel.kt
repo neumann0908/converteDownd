@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import com.musicdownloader.converter.converter.engine.AudioEngine
 import com.musicdownloader.converter.converter.engine.AssetAudioLoader
-import com.musicdownloader.converter.converter.engine.AssetDownloader // 🌐 Importación clave del descargador
+import com.musicdownloader.converter.converter.engine.AssetDownloader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,19 +26,35 @@ class DrumStudioViewModel @Inject constructor(
     val isDownloading = AssetDownloader.isDownloading
     val downloadProgress = AssetDownloader.downloadProgress
 
+    // 🚨 Nuevo flujo para capturar errores de forma visual sin necesidad de Logcat
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    fun clearError() {
+        _errorMessage.value = null
+    }
+
     // Instancia del motor nativo Oboe de ultra baja latencia
     private val audioEngine = AudioEngine()
 
     init {
         // Enciende el motor Oboe automáticamente al abrir la pantalla de ritmos
-        audioEngine.nativeStart()
+        try {
+            audioEngine.nativeStart()
+        } catch (e: Exception) {
+            _errorMessage.value = "⚠️ Error al iniciar el motor Oboe: ${e.message}"
+        }
     }
 
     /**
      * Dispara instantáneamente el sonido asignado al índice de la pista/pad.
      */
     fun playTrackSound(trackIndex: Int) {
-        audioEngine.nativePlayPad(trackIndex)
+        try {
+            audioEngine.nativePlayPad(trackIndex)
+        } catch (e: Exception) {
+            _errorMessage.value = "⚠️ Error al reproducir pad $trackIndex: ${e.message}"
+        }
     }
 
     /**
@@ -46,14 +62,23 @@ class DrumStudioViewModel @Inject constructor(
      * filtrados por categoría (ej. "kick", "snare").
      */
     fun getFilteredSamplesForCategory(categoryKeyword: String): List<String> {
-        return AssetAudioLoader.getFilteredSamplesForCategory(context, categoryKeyword)
+        return try {
+            AssetAudioLoader.getFilteredSamplesForCategory(context, categoryKeyword)
+        } catch (e: Exception) {
+            _errorMessage.value = "⚠️ Error al listar samples: ${e.message}"
+            emptyList()
+        }
     }
 
     /**
      * Carga un sample específico desde la memoria interna y lo asigna al pad/pista en caliente.
      */
     fun assignSampleToTrack(trackIndex: Int, samplePath: String) {
-        AssetAudioLoader.loadSampleToPad(context, samplePath, trackIndex)
+        try {
+            AssetAudioLoader.loadSampleToPad(context, samplePath, trackIndex)
+        } catch (e: Exception) {
+            _errorMessage.value = "❌ Error al cargar sample en pad $trackIndex: ${e.message}"
+        }
     }
 
     // 🥁 Encender o apagar una casilla de ritmo en el secuenciador
@@ -219,9 +244,22 @@ class DrumStudioViewModel @Inject constructor(
         _uiState.update { it.copy(humanization = newHumanization.coerceIn(0f, 1f)) }
     }
 
-    // ▶️ Controles generales de reproducción y mezcla
+    // ▶️ Controles generales de reproducción y mezcla con validación de errores visuales
     fun togglePlayPause() {
-        _uiState.update { it.copy(isPlaying = !it.isPlaying) }
+        try {
+            val currentState = _uiState.value
+            val hasActiveSteps = currentState.tracks.any { track -> track.steps.any { it } }
+            
+            if (!currentState.isPlaying && !hasActiveSteps) {
+                _errorMessage.value = "⚠️ Advertencia: No hay pasos marcados en el secuenciador para reproducir."
+                return
+            }
+
+            audioEngine.nativeStart()
+            _uiState.update { it.copy(isPlaying = !it.isPlaying) }
+        } catch (e: Exception) {
+            _errorMessage.value = "❌ Error en reproducción: ${e.message}"
+        }
     }
 
     fun updateBpm(newBpm: Int) {
