@@ -315,7 +315,7 @@ fun BeatStudioScreen(
                         )
 
                         LinearProgressIndicator(
-                            progress = { progress },
+                            progress =  progress ,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(10.dp)
