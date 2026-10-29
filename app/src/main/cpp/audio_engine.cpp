@@ -261,15 +261,14 @@ Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativeLoadSample
 }
 
 /**
- * Disparador instantáneo del pad en tiempo real.
+ * Disparador instantáneo del pad en tiempo real (Corregido con exclusión mutua limpia).
  */
 extern "C" JNIEXPORT void JNICALL
 Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativePlayPad(
         JNIEnv *env, jobject thiz, jint padIndex) {
     if (padIndex < 0 || padIndex >= 64) return;
 
-    std::lock_guard<std::mutex> lock(g_samplesMixin); // (protegido por g_samplesMutex)
-    std::lock_guard<std::mutex> lockMutex(g_samplesMutex);
+    std::lock_guard<std::mutex> lock(g_samplesMutex);
     g_voices[padIndex] = PlayingVoice{padIndex, 0.0f, true, false, 0.0f, 0};
 }
 
