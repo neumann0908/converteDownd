@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
@@ -36,18 +37,18 @@ class DrumStudioViewModel @Inject constructor(
     }
 
     /**
-     * Obtiene la lista de sonidos disponibles en assets/kits/ filtrados por categoría (ej. "kick", "snare").
-     * Sincronizado quirúrgicamente con BeatStudioScreen.
+     * Obtiene la lista de sonidos disponibles en la memoria interna (filesDir/kits/) 
+     * filtrados por categoría (ej. "kick", "snare").
      */
     fun getFilteredSamplesForCategory(categoryKeyword: String): List<String> {
         return AssetAudioLoader.getFilteredSamplesForCategory(context, categoryKeyword)
     }
 
     /**
-     * Carga un sample específico de los assets y lo asigna al pad/pista en caliente.
+     * Carga un sample específico desde la memoria interna y lo asigna al pad/pista en caliente.
      */
-    fun assignSampleToTrack(trackIndex: Int, assetPath: String) {
-        AssetAudioLoader.loadSampleToPad(context, assetPath, trackIndex)
+    fun assignSampleToTrack(trackIndex: Int, samplePath: String) {
+        AssetAudioLoader.loadSampleToPad(context, samplePath, trackIndex)
     }
 
     // 🥁 Encender o apagar una casilla de ritmo en el secuenciador
@@ -245,6 +246,7 @@ class DrumStudioViewModel @Inject constructor(
     }
 
     fun updateVolume(trackId: String, newVolume: Float) {
+        _otivStateUpdateIfNeeded(...) // Mantener lógica limpia existente
         _uiState.update { currentState ->
             val updatedTracks = currentState.tracks.map { track ->
                 if (track.id == trackId) track.copy(volume = newVolume.coerceIn(0f, 1f)) else track
