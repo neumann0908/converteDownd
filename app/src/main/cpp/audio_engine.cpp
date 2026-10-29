@@ -7,6 +7,7 @@
 #include <array>
 #include <cstring>
 #include <cstdio>
+#include <cmath> // Necesario para tanhf (Soft Clipping anti-saturación)
 
 #define TAG "AudioEngineNative"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
@@ -30,7 +31,7 @@ static std::mutex g_samplesMutex;
 static std::array<PlayingVoice, 64> g_voices;
 
 /**
- * Callback de audio de ultra baja latencia con mezclador en tiempo real y rampas anti-chasquidos.
+ * Callback de audio de ultra baja latencia con mezclador en tiempo real, rampas anti-chasquidos y limitador Anti-Clipping.
  */
 class MyAudioStreamCallback : public oboe::AudioStreamCallback {
 public:
@@ -42,62 +43,69 @@ public:
         // Inicializar el búfer de salida con silencio limpio
         std::memset(outputBuffer, 0, totalSamples * sizeof(float));
 
-        std::lock_guard<std::mutex> lock(g_samplesMutex);
-        
-        // Mezclar todos los pads que estén sonando actualmente
-        for (int p = 0; p < 64; ++p) {
-            auto &voice = g_voices[p];
-            if (voice.isPlaying) {
-                auto &buffer = g_sampleBuffers[voice.padIndex];
-                if (buffer.empty()) {
-                    voice.isPlaying = false;
-                    continue;
-                }
+        {
+            std::lock_guard<std::mutex> lock(g_samplesMutex);
+            
+            // Mezclar todos los pads que estén sonando actualmente
+            for (int p = 0; p < 64; ++p) {
+                auto &voice = g_voices[p];
+                if (voice.isPlaying) {
+                    auto &buffer = g_sampleBuffers[voice.padIndex];
+                    if (buffer.empty()) {
+                        voice.isPlaying = false;
+                        continue;
+                    }
 
-                for (int i = 0; i < totalSamples; i += channelCount) {
-                    if (voice.cursor < buffer.size() && !voice.isFadingOut) {
-                        // 1. Fade-in ultra rápido en las primeras 64 muestras (~1.3ms) para evitar chasquidos de arranque
-                        if (voice.currentGain < 1.0f) {
-                            voice.currentGain += 1.0f / 64.0f;
-                            if (voice.currentGain > 1.0f) voice.currentGain = 1.0f;
-                        }
+                    for (int i = 0; i < totalSamples; i += channelCount) {
+                        if (voice.cursor < buffer.size() && !voice.isFadingOut) {
+                            // 1. Fade-in ultra rápido en las primeras 64 muestras (~1.3ms) para evitar chasquidos de arranque
+                            if (voice.currentGain < 1.0f) {
+                                voice.currentGain += 1.0f / 64.0f;
+                                if (voice.currentGain > 1.0f) voice.currentGain = 1.0f;
+                            }
 
-                        // Convertir PCM 16-bit (-32768 a 32767) a Float (-1.0f a 1.0f) aplicando rampa
-                        float sampleVal = (static_cast<float>(buffer[voice.cursor++]) / 32768.0f) * voice.currentGain;
-                        
-                        // Inyectar en canal izquierdo
-                        outputBuffer[i] += sampleVal;
-                        
-                        // Inyectar en canal derecho si es estéreo
-                        if (channelCount > 1 && (i + 1) < totalSamples) {
-                            outputBuffer[i + 1] += sampleVal;
-                        }
-                    } else {
-                        // 2. Fade-out al terminar el sample o al solicitar pausa
-                        if (!voice.isFadingOut) {
-                            voice.isFadingOut = true;
-                            voice.fadeOutCounter = 64; // 64 muestras de desvanecimiento suave
-                        }
-
-                        if (voice.fadeOutCounter > 0) {
-                            voice.currentGain = static_cast<float>(voice.fadeOutCounter) / 64.0f;
-                            voice.fadeOutCounter--;
-
-                            if (voice.cursor < buffer.size()) {
-                                float sampleVal = (static_cast<float>(buffer[voice.cursor++]) / 32768.0f) * voice.currentGain;
-                                outputBuffer[i] += sampleVal;
-                                if (channelCount > 1 && (i + 1) < totalSamples) {
-                                    outputBuffer[i + 1] += sampleVal;
-                                }
+                            // Convertir PCM 16-bit (-32768 a 32767) a Float (-1.0f a 1.0f) aplicando rampa
+                            float sampleVal = (static_cast<float>(buffer[voice.cursor++]) / 32768.0f) * voice.currentGain;
+                            
+                            // Inyectar en canal izquierdo
+                            outputBuffer[i] += sampleVal;
+                            
+                            // Inyectar en canal derecho si es estéreo
+                            if (channelCount > 1 && (i + 1) < totalSamples) {
+                                outputBuffer[i + 1] += sampleVal;
                             }
                         } else {
-                            voice.isPlaying = false;
-                            voice.isFadingOut = false;
-                            break;
+                            // 2. Fade-out al terminar el sample o al solicitar pausa
+                            if (!voice.isFadingOut) {
+                                voice.isFadingOut = true;
+                                voice.fadeOutCounter = 64; // 64 muestras de desvanecimiento suave
+                            }
+
+                            if (voice.fadeOutCounter > 0) {
+                                voice.currentGain = static_cast<float>(voice.fadeOutCounter) / 64.0f;
+                                voice.fadeOutCounter--;
+
+                                if (voice.cursor < buffer.size()) {
+                                    float sampleVal = (static_cast<float>(buffer[voice.cursor++]) / 32768.0f) * voice.currentGain;
+                                    outputBuffer[i] += sampleVal;
+                                    if (channelCount > 1 && (i + 1) < totalSamples) {
+                                        outputBuffer[i + 1] += sampleVal;
+                                    }
+                                }
+                            } else {
+                                voice.isPlaying = false;
+                                voice.isFadingOut = false;
+                                break;
+                            }
                         }
                     }
                 }
             }
+        }
+
+        // 3. Etapa de Masterización: Aplicar Soft Clipping (tanhf) para evitar saturación y distorsión digital
+        for (int i = 0; i < totalSamples; ++i) {
+            outputBuffer[i] = tanhf(outputBuffer[i]);
         }
 
         return oboe::DataCallbackResult::Continue;
@@ -146,7 +154,7 @@ Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativeStart(JNIE
         return JNI_FALSE;
     }
 
-    LOGI("✅ ¡Motor Oboe iniciado con éxito! Frecuencia de muestreo: %d Hz", g_stream->getSampleRate());
+    LOGI("✅ ¡Motor Oboe iniciado con éxito con Anti-Clipping activado!");
     return JNI_TRUE;
 }
 
