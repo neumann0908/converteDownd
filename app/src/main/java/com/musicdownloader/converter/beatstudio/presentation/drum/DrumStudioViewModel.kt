@@ -45,7 +45,7 @@ class DrumStudioViewModel @Inject constructor(
             _errorMessage.value = "⚠️ Error al iniciar el motor Oboe: ${e.message}"
         }
 
-        // 🎹 Auto-asignar samples por defecto a los pads si ya están descargados los kits
+        // 🎹 Auto-asignar samples por defecto a los pads y sincronizar parámetros nativos
         autoAssignDefaultSamplesIfNeeded()
 
         // 🥁 Bucle reactivo del secuenciador (Ticker basado en BPM)
@@ -83,8 +83,8 @@ class DrumStudioViewModel @Inject constructor(
     }
 
     /**
-     * 🎹 Función inteligente: Escanea la memoria interna y asigna automáticamente
-     * un sample por categoría a cada pista del secuenciador al arrancar la app.
+     * 🎹 Función inteligente: Escanea la memoria interna, asigna automáticamente
+     * un sample por categoría y sincroniza sus parámetros iniciales en C++.
      */
     private fun autoAssignDefaultSamplesIfNeeded() {
         try {
@@ -108,6 +108,8 @@ class DrumStudioViewModel @Inject constructor(
                     val matchedSamples = AssetAudioLoader.getFilteredSamplesForCategory(context, keyword)
                     if (matchedSamples.isNotEmpty()) {
                         AssetAudioLoader.loadSampleToPad(context, matchedSamples.first(), index)
+                        // Sincronizar parámetros iniciales (Pitch, Pan, Volumen) con el motor C++
+                        AudioEngine.nativeSetPadParams(index, track.pitch, track.pan, track.volume)
                     }
                 }
             }
@@ -142,7 +144,7 @@ class DrumStudioViewModel @Inject constructor(
 
     /**
      * Carga un sample específico desde la memoria interna y lo asigna al pad/pista en caliente,
-     * verificando que el motor C++ lo acepte correctamente.
+     * sincronizando sus parámetros actuales en C++.
      */
     fun assignSampleToTrack(trackIndex: Int, samplePath: String) {
         try {
@@ -150,7 +152,11 @@ class DrumStudioViewModel @Inject constructor(
             if (!success) {
                 _errorMessage.value = "⚠️ El motor C++ rechazó el audio en el pad $trackIndex. Posible formato .wav incompatible."
             } else {
-                _errorMessage.value = null // Limpia cualquier error previo si cargó con éxito
+                _errorMessage.value = null
+                val track = _uiState.value.tracks.getOrNull(trackIndex)
+                if (track != null) {
+                    AudioEngine.nativeSetPadParams(trackIndex, track.pitch, track.pan, track.volume)
+                }
             }
         } catch (e: Exception) {
             _errorMessage.value = "❌ Error al cargar sample en pad $trackIndex: ${e.message}"
@@ -274,7 +280,7 @@ class DrumStudioViewModel @Inject constructor(
         }
     }
 
-    // 🎛️ Función diferencial: Control de Envolvente ADSR
+    // 🎛️ Control de Envolvente ADSR
     fun updateAdsr(trackId: String, attack: Float, decay: Float, sustain: Float, release: Float) {
         _uiState.update { currentState ->
             val updatedTracks = currentState.tracks.map { track ->
@@ -291,7 +297,7 @@ class DrumStudioViewModel @Inject constructor(
         }
     }
 
-    // 🎛️ Función diferencial: Efectos independientes por pad (Reverb / Delay)
+    // 🎛️ Efectos independientes por pad (Reverb / Delay)
     fun updateEffects(trackId: String, reverb: Float, delay: Float) {
         _uiState.update { currentState ->
             val updatedTracks = currentState.tracks.map { track ->
@@ -320,7 +326,7 @@ class DrumStudioViewModel @Inject constructor(
         _uiState.update { it.copy(humanization = newHumanization.coerceIn(0f, 1f)) }
     }
 
-    // ▶️ Controles generales de reproducción y mezcla con validación de errores visuales
+    // ▶️ Controles generales de reproducción, pausa limpia y mezcla
     fun togglePlayPause() {
         try {
             val currentState = _uiState.value
@@ -331,7 +337,13 @@ class DrumStudioViewModel @Inject constructor(
                 return
             }
 
-            AudioEngine.nativeStart()
+            if (currentState.isPlaying) {
+                // Pausa limpia con desvanecimiento (Fade-out) anti-chasquidos en C++
+                AudioEngine.nativePause()
+            } else {
+                AudioEngine.nativeStart()
+            }
+
             _uiState.update { it.copy(isPlaying = !it.isPlaying) }
         } catch (e: Exception) {
             _errorMessage.value = "❌ Error en reproducción: ${e.message}"
@@ -364,30 +376,66 @@ class DrumStudioViewModel @Inject constructor(
         }
     }
 
+    // 🎚️ Control de Volumen sincronizado con C++
     fun updateVolume(trackId: String, newVolume: Float) {
         _uiState.update { currentState ->
-            val updatedTracks = currentState.tracks.map { track ->
-                if (track.id == trackId) track.copy(volume = newVolume.coerceIn(0f, 1f)) else track
+            val updatedTracks = currentState.tracks.mapIndexed { index, track ->
+                if (track.id == trackId) {
+                    val vol = newVolume.coerceIn(0f, 1f)
+                    val updated = track.copy(volume = vol)
+                    try {
+                        AudioEngine.nativeSetPadParams(index, updated.pitch, updated.pan, updated.volume)
+                    } catch (e: Exception) {}
+                    updated
+                } else track
             }
             currentState.copy(tracks = updatedTracks)
         }
     }
 
+    // 🎚️ Control de Pitch sincronizado con C++
     fun updatePitch(trackId: String, newPitch: Float) {
         _uiState.update { currentState ->
-            val updatedTracks = currentState.tracks.map { track ->
-                if (track.id == trackId) track.copy(pitch = newPitch.coerceIn(0.25f, 4.0f)) else track
+            val updatedTracks = currentState.tracks.mapIndexed { index, track ->
+                if (track.id == trackId) {
+                    val p = newPitch.coerceIn(0.25f, 4.0f)
+                    val updated = track.copy(pitch = p)
+                    try {
+                        AudioEngine.nativeSetPadParams(index, updated.pitch, updated.pan, updated.volume)
+                    } catch (e: Exception) {}
+                    updated
+                } else track
             }
             currentState.copy(tracks = updatedTracks)
         }
     }
 
+    // 🎚️ Control de Panorámica Estéreo sincronizado con C++
     fun updatePan(trackId: String, newPan: Float) {
         _uiState.update { currentState ->
-            val updatedTracks = currentState.tracks.map { track ->
-                if (track.id == trackId) track.copy(pan = newPan.coerceIn(-1.0f, 1.0f)) else track
+            val updatedTracks = currentState.tracks.mapIndexed { index, track ->
+                if (track.id == trackId) {
+                    val panVal = newPan.coerceIn(-1.0f, 1.0f)
+                    val updated = track.copy(pan = panVal)
+                    try {
+                        AudioEngine.nativeSetPadParams(index, updated.pitch, updated.pan, updated.volume)
+                    } catch (e: Exception) {}
+                    updated
+                } else track
             }
             currentState.copy(tracks = updatedTracks)
+        }
+    }
+
+    /**
+     * 💾 Exporta el pad seleccionado a un archivo WAV físico usando la función nativa en C++.
+     */
+    fun exportTrackAsWav(trackIndex: Int, outputPath: String): Boolean {
+        return try {
+            AudioEngine.nativeExportWavTest(outputPath, trackIndex)
+        } catch (e: Exception) {
+            _errorMessage.value = "❌ Error al exportar WAV: ${e.message}"
+            false
         }
     }
 }
