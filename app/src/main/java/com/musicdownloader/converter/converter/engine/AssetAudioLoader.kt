@@ -54,13 +54,14 @@ object AssetAudioLoader {
 
     /**
      * Carga el sample apuntando directamente a su ruta absoluta en el almacenamiento interno en el motor Oboe.
+     * Retorna true si el motor C++ aceptó el archivo, o false si lo rechazó.
      */
-    fun loadSampleToPad(context: Context, absolutePath: String, padIndex: Int) {
+    fun loadSampleToPad(context: Context, absolutePath: String, padIndex: Int): Boolean {
         try {
             val file = File(absolutePath)
             if (!file.exists()) {
                 Log.e(TAG, "El archivo de audio no existe en la ruta: $absolutePath")
-                return
+                return false
             }
 
             Log.i(TAG, "Solicitando carga para el archivo interno: ${file.name} en el pad: $padIndex")
@@ -70,13 +71,16 @@ object AssetAudioLoader {
 
             if (!success) {
                 Log.e(TAG, "Fallo al cargar el sample nativamente desde ruta: ${file.absolutePath}")
+                return false
             } else {
                 Log.i(TAG, "¡Sample interno cargado con éxito en el pad $padIndex!")
+                return true
             }
             
         } catch (e: Exception) {
             Log.e(TAG, "Excepción crítica en loadSampleToPad: ${e.message}")
             e.printStackTrace()
+            return false
         }
     }
 }
