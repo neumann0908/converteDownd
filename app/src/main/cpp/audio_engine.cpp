@@ -12,11 +12,14 @@
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
 
-// Estructura para gestionar la voz en reproducción de cada pad
+// Estructura mejorada con control de envolvente (Fade-in / Fade-out) para eliminar chasquidos
 struct PlayingVoice {
     int padIndex = -1;
     size_t cursor = 0;
     bool isPlaying = false;
+    bool isFadingOut = false;
+    float currentGain = 0.0f; // Ganancia inicial para rampa suave (Fade-in)
+    int fadeOutCounter = 0;   // Contador de muestras para el desvanecimiento de salida
 };
 
 // Almacén global de buffers PCM de 16 bits para hasta 64 pads/pistas
@@ -27,7 +30,7 @@ static std::mutex g_samplesMutex;
 static std::array<PlayingVoice, 64> g_voices;
 
 /**
- * Callback de audio de ultra baja latencia con mezclador en tiempo real.
+ * Callback de audio de ultra baja latencia con mezclador en tiempo real y rampas anti-chasquidos.
  */
 class MyAudioStreamCallback : public oboe::AudioStreamCallback {
 public:
@@ -52,9 +55,15 @@ public:
                 }
 
                 for (int i = 0; i < totalSamples; i += channelCount) {
-                    if (voice.cursor < buffer.size()) {
-                        // Convertir PCM 16-bit (-32768 a 32767) a Float (-1.0f a 1.0f)
-                        float sampleVal = static_cast<float>(buffer[voice.cursor++]) / 32768.0f;
+                    if (voice.cursor < buffer.size() && !voice.isFadingOut) {
+                        // 1. Fade-in ultra rápido en las primeras 64 muestras (~1.3ms) para evitar chasquidos de arranque
+                        if (voice.currentGain < 1.0f) {
+                            voice.currentGain += 1.0f / 64.0f;
+                            if (voice.currentGain > 1.0f) voice.currentGain = 1.0f;
+                        }
+
+                        // Convertir PCM 16-bit (-32768 a 32767) a Float (-1.0f a 1.0f) aplicando rampa
+                        float sampleVal = (static_cast<float>(buffer[voice.cursor++]) / 32768.0f) * voice.currentGain;
                         
                         // Inyectar en canal izquierdo
                         outputBuffer[i] += sampleVal;
@@ -64,8 +73,28 @@ public:
                             outputBuffer[i + 1] += sampleVal;
                         }
                     } else {
-                        voice.isPlaying = false; // Fin del sample
-                        break;
+                        // 2. Fade-out al terminar el sample o al solicitar pausa
+                        if (!voice.isFadingOut) {
+                            voice.isFadingOut = true;
+                            voice.fadeOutCounter = 64; // 64 muestras de desvanecimiento suave
+                        }
+
+                        if (voice.fadeOutCounter > 0) {
+                            voice.currentGain = static_cast<float>(voice.fadeOutCounter) / 64.0f;
+                            voice.fadeOutCounter--;
+
+                            if (voice.cursor < buffer.size()) {
+                                float sampleVal = (static_cast<float>(buffer[voice.cursor++]) / 32768.0f) * voice.currentGain;
+                                outputBuffer[i] += sampleVal;
+                                if (channelCount > 1 && (i + 1) < totalSamples) {
+                                    outputBuffer[i + 1] += sampleVal;
+                                }
+                            }
+                        } else {
+                            voice.isPlaying = false;
+                            voice.isFadingOut = false;
+                            break;
+                        }
                     }
                 }
             }
@@ -119,6 +148,35 @@ Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativeStart(JNIE
 
     LOGI("✅ ¡Motor Oboe iniciado con éxito! Frecuencia de muestreo: %d Hz", g_stream->getSampleRate());
     return JNI_TRUE;
+}
+
+/**
+ * Detiene y cierra el stream de Oboe de forma limpia para liberar los recursos de hardware.
+ */
+extern "C" JNIEXPORT void JNICALL
+Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativeStop(JNIEnv *env, jobject thiz) {
+    if (g_stream) {
+        LOGI("🛑 Deteniendo y cerrando el stream de Oboe...");
+        g_stream->stop();
+        g_stream->close();
+        g_stream.reset();
+        LOGI("✅ Recursos de audio liberados limpiamente.");
+    }
+}
+
+/**
+ * Pausa la reproducción aplicando un desvanecimiento suave (fade-out) en todas las voces activas.
+ */
+extern "C" JNIEXPORT void JNICALL
+Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativePause(JNIEnv *env, jobject thiz) {
+    std::lock_guard<std::mutex> lock(g_samplesMutex);
+    for (auto &voice : g_voices) {
+        if (voice.isPlaying && !voice.isFadingOut) {
+            voice.isFadingOut = true;
+            voice.fadeOutCounter = 64; // Inicia desvanecimiento suave al pausar
+        }
+    }
+    LOGI("⏸️ Pausa solicitada: desvanecimiento suave aplicado en C++.");
 }
 
 /**
@@ -192,7 +250,7 @@ Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativeLoadSample
 }
 
 /**
- * Disparador instantáneo del pad en tiempo real.
+ * Disparador instantáneo del pad en tiempo real con inicio de ganancia en 0 (Fade-in).
  */
 extern "C" JNIEXPORT void JNICALL
 Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativePlayPad(
@@ -200,6 +258,6 @@ Java_com_musicdownloader_converter_converter_engine_AudioEngine_nativePlayPad(
     if (padIndex < 0 || padIndex >= 64) return;
 
     std::lock_guard<std::mutex> lock(g_samplesMutex);
-    // Activa la voz y reinicia el cursor de reproducción al inicio (muestra 0)
-    g_voices[padIndex] = PlayingVoice{padIndex, 0, true};
+    // Activa la voz, reinicia el cursor y coloca la ganancia en 0.0f para que el Fade-in evite chasquidos
+    g_voices[padIndex] = PlayingVoice{padIndex, 0, true, false, 0.0f, 0};
 }
