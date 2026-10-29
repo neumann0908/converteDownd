@@ -14,6 +14,17 @@ object AudioEngine {
     external fun nativeStart(): Boolean
 
     /**
+     * Detiene y cierra el stream de Oboe de forma limpia para liberar los recursos de hardware de audio.
+     */
+    external fun nativeStop()
+
+    /**
+     * Pausa la reproducción aplicando un desvanecimiento suave (fade-out) en todas las voces activas 
+     * para eliminar chasquidos o ruidos parásitos.
+     */
+    external fun nativePause()
+
+    /**
      * Dispara un pad específico de forma instantánea a ultra baja latencia.
      */
     external fun nativePlayPad(padIndex: Int)
