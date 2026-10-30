@@ -95,6 +95,22 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
+    // 🟢 Asignar un archivo de audio (.wav) personalizado a una tecla/pitch específico
+    fun assignSampleToPitch(trackIndex: Int, pitch: Int, filePath: String) {
+        _uiState.update { currentState ->
+            val updatedTracks = currentState.tracks.mapIndexed { tIdx, track ->
+                if (tIdx == trackIndex) {
+                    val newMap = track.customPitchSamples.toMutableMap()
+                    newMap[pitch] = filePath
+                    track.copy(customPitchSamples = newMap)
+                } else {
+                    track
+                }
+            }
+            currentState.copy(tracks = updatedTracks)
+        }
+    }
+
     // ▶️ Iniciar el reloj maestro adaptado al sistema de arreglos musicales
     fun startPlayback() {
         if (_uiState.value.isPlaying) return
@@ -199,30 +215,48 @@ class SequencerStudioViewModel @Inject constructor(
             if (!track.isMuted) {
                 val step = track.steps.getOrNull(stepIndex)
                 if (step != null && step.isActive) {
-                    playTrackSound(track.trackName, step.velocity)
+                    playTrackSound(track, step.pitch, step.velocity)
                 }
             }
         }
     }
 
-    // 🎚️ Reproductor individual para cada pista conectado a la carpeta exports/
-    private fun playTrackSound(trackName: String, velocity: Float) {
+    // 🎚️ Reproductor inteligente que evalúa muestras personalizadas, kits o respaldos de la carpeta exports/
+    private fun playTrackSound(track: SequencerTrack, pitch: Int, velocity: Float) {
         try {
             val exportDir = File(context.filesDir, "exports")
-            val sampleFile = File(exportDir, "${trackName.lowercase()}.wav")
-
-            val mediaPlayer = if (sampleFile.exists()) {
-                MediaPlayer.create(context, Uri.fromFile(sampleFile))
+            
+            // 1. Verificamos si hay una muestra personalizada asignada a esta tecla exacta
+            val customPath = track.customPitchSamples[pitch]
+            val sampleFile = if (customPath != null && File(customPath).exists()) {
+                File(customPath)
             } else {
-                null
+                // 2. Si no, buscamos en la carpeta de kits del instrumento
+                val kitFolderName = track.trackName.lowercase().replace(" ", "_")
+                val kitDir = File(exportDir, "kits/$kitFolderName")
+                val noteFileName = when (pitch) {
+                    0 -> "c4.wav"; 1 -> "d4.wav"; 2 -> "e4.wav"; 3 -> "f4.wav"
+                    4 -> "g4.wav"; 5 -> "a4.wav"; 6 -> "b4.wav"; 7 -> "c5.wav"
+                    else -> "c4.wav"
+                }
+                val kitFile = File(kitDir, noteFileName)
+                if (kitFile.exists()) {
+                    kitFile
+                } else {
+                    // 3. Respaldo general al archivo plano de la pista
+                    File(exportDir, "${track.trackName.lowercase()}.wav")
+                }
             }
 
-            mediaPlayer?.apply {
-                setVolume(velocity, velocity)
-                setOnCompletionListener { mp ->
-                    mp.release()
+            if (sampleFile.exists()) {
+                val mediaPlayer = MediaPlayer.create(context, Uri.fromFile(sampleFile))
+                mediaPlayer?.apply {
+                    setVolume(velocity, velocity)
+                    setOnCompletionListener { mp ->
+                        mp.release()
+                    }
+                    start()
                 }
-                start()
             }
         } catch (e: Exception) {
             e.printStackTrace()
