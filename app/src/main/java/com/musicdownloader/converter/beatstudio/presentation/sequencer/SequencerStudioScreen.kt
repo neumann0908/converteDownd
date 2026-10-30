@@ -38,23 +38,23 @@ fun SequencerStudioScreen(
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    // Estado local para controlar qué paso se está editando mediante pulsación larga (Velocity)
+    // Estado local para editar la velocity mediante pulsación larga
     var stepToEdit by remember { mutableStateOf<Pair<Int, Int>?>(null) } // (trackIndex, stepIndex)
     
-    // Estado local para controlar qué tecla/pitch se está configurando con muestras de la carpeta de kits
-    var pitchToConfigure by remember { mutableStateOf<Int?>(null) }
+    // Estado unificado para configurar kits: Pair(trackIndex, pitch)
+    var activeConfigTarget by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
-    // 🟢 Estado para almacenar temporalmente el pitch que va a recibir el archivo nativo
-    var targetPitchForPicker by remember { mutableStateOf<Int?>(null) }
+    // Estado unificado para el selector de archivos nativos: Pair(trackIndex, pitch)
+    var targetPickerTarget by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
-    // 🟢 Lanzador exclusivo para cargar archivos nativos de Android (almacenamiento del teléfono)
+    // Lanzador exclusivo para cargar archivos de audio nativos de Android
     val nativeFilePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let { selectedUri ->
-            targetPitchForPicker?.let { pitch ->
-                viewModel.importCustomSampleForPitch(state.selectedPianoTrackIndex, pitch, selectedUri)
-                targetPitchForPicker = null
+            targetPickerTarget?.let { (tIdx, pitch) ->
+                viewModel.importCustomSampleForPitch(tIdx, pitch, selectedUri)
+                targetPickerTarget = null
             }
         }
     }
@@ -62,10 +62,10 @@ fun SequencerStudioScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF13131A)) // Fondo DAW Pro Oscuro
+            .background(Color(0xFF13131A))
             .padding(10.dp)
     ) {
-        // --- CABEZAL DE CONTROLES PRINCIPALES (BPM y Play/Stop) ---
+        // --- CABEZAL DE CONTROLES PRINCIPALES ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -78,7 +78,7 @@ fun SequencerStudioScreen(
             Column {
                 Text(
                     text = "SEQUENCER ENGINE PRO",
-                    color = Color(0xFFFFD700), // Dorado Pro
+                    color = Color(0xFFFFD700),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -89,14 +89,9 @@ fun SequencerStudioScreen(
                 )
             }
 
-            // Botón Reproducir / Detener
             IconButton(
                 onClick = {
-                    if (state.isPlaying) {
-                        viewModel.stopPlayback()
-                    } else {
-                        viewModel.startPlayback()
-                    }
+                    if (state.isPlaying) viewModel.stopPlayback() else viewModel.startPlayback()
                 },
                 modifier = Modifier
                     .size(40.dp)
@@ -112,7 +107,7 @@ fun SequencerStudioScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // --- CONTROLADOR DE VELOCIDAD (BPM SLIDER) ---
+        // --- CONTROLADOR TEMPO (BPM) ---
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
             shape = RoundedCornerShape(10.dp),
@@ -136,12 +131,11 @@ fun SequencerStudioScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // --- 🎛️ CONTROLES AVANZADOS (Compás, Resolución y Metrónomo) ---
+        // --- CONTROLES AVANZADOS ---
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Selector de Compás
             Button(
                 onClick = {
                     val nextSig = when (state.timeSignature) {
@@ -152,15 +146,12 @@ fun SequencerStudioScreen(
                     viewModel.updateTimeSignature(nextSig)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E1E2C)),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(36.dp),
+                modifier = Modifier.weight(1f).height(36.dp),
                 contentPadding = PaddingValues(2.dp)
             ) {
                 Text("Compás: ${state.timeSignature}", color = Color.White, fontSize = 9.sp)
             }
 
-            // Selector de Resolución
             Button(
                 onClick = {
                     val nextRes = when (state.resolution) {
@@ -171,23 +162,18 @@ fun SequencerStudioScreen(
                     viewModel.updateResolution(nextRes)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E1E2C)),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(36.dp),
+                modifier = Modifier.weight(1f).height(36.dp),
                 contentPadding = PaddingValues(2.dp)
             ) {
                 Text("Res: ${state.resolution}", color = Color.White, fontSize = 9.sp)
             }
 
-            // Botón Metrónomo On/Off
             Button(
                 onClick = { viewModel.toggleMetronome() },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (state.isMetronomeEnabled) Color(0xFFFFD700) else Color(0xFF1E1E2C)
                 ),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(36.dp),
+                modifier = Modifier.weight(1f).height(36.dp),
                 contentPadding = PaddingValues(2.dp)
             ) {
                 Text(
@@ -201,7 +187,7 @@ fun SequencerStudioScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // --- 🎹 CONMUTADOR DE VISTA: STEP SEQUENCER vs PIANO ROLL ---
+        // --- CONMUTADOR DE VISTA ---
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -211,9 +197,7 @@ fun SequencerStudioScreen(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (!state.isPianoRollMode) Color(0xFFFFD700) else Color(0xFF1E1E2C)
                 ),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(32.dp),
+                modifier = Modifier.weight(1f).height(32.dp),
                 contentPadding = PaddingValues(2.dp)
             ) {
                 Text(
@@ -229,9 +213,7 @@ fun SequencerStudioScreen(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (state.isPianoRollMode) Color(0xFFFFD700) else Color(0xFF1E1E2C)
                 ),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(32.dp),
+                modifier = Modifier.weight(1f).height(32.dp),
                 contentPadding = PaddingValues(2.dp)
             ) {
                 Text(
@@ -245,7 +227,7 @@ fun SequencerStudioScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // --- 🎵 SISTEMA DE ARREGLOS (Línea de tiempo de la canción) ---
+        // --- SISTEMA DE ARREGLOS ---
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
             shape = RoundedCornerShape(10.dp),
@@ -263,7 +245,6 @@ fun SequencerStudioScreen(
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Button(
                             onClick = { viewModel.addSongSection(SongSectionType.VERSO) },
@@ -287,14 +268,11 @@ fun SequencerStudioScreen(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp),
+                    modifier = Modifier.fillMaxWidth().height(40.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     state.arrangement.forEachIndexed { index, section ->
                         val isPlayingThisSection = state.isPlaying && state.currentSectionIndex == index
-                        
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -330,9 +308,9 @@ fun SequencerStudioScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // --- 🎛️ CONTENEDOR PRINCIPAL: STEP SEQUENCER VS PIANO ROLL ---
+        // --- CONTENEDOR PRINCIPAL: STEP SEQUENCER VS PIANO ROLL ---
         if (!state.isPianoRollMode) {
-            // REJILLA DEL SECUENCIADOR (STEP SEQUENCER GRID)
+            // 🟢 REJILLA DE BATERÍA CON BOTONES 📁 Y ⚙️ PARA CADA PISTA (Kick, Snare, HiHat, SynthBass)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -347,14 +325,48 @@ fun SequencerStudioScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     itemsIndexed(state.tracks) { trackIndex, track ->
+                        val hasCustomSample = track.customPitchSamples.containsKey(0)
+
                         Column {
-                            Text(
-                                text = track.trackName,
-                                color = Color(0xFF00E676),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 2.dp)
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = track.trackName,
+                                    color = if (hasCustomSample) Color(0xFF00E676) else Color(0xFF00E676),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                // Botones de configuración para cada pista de batería/pasos
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Icon(
+                                        imageVector = Icons.Default.FolderOpen,
+                                        contentDescription = "Cargar Archivo Nativo",
+                                        tint = if (hasCustomSample) Color(0xFF00E676) else Color.Gray,
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .clickable {
+                                                targetPickerTarget = Pair(trackIndex, 0)
+                                                nativeFilePickerLauncher.launch("audio/*")
+                                            }
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = "Configurar Kit",
+                                        tint = if (hasCustomSample) Color(0xFFFFD700) else Color.Gray,
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .clickable {
+                                                activeConfigTarget = Pair(trackIndex, 0)
+                                            }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(2.dp))
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -378,12 +390,8 @@ fun SequencerStudioScreen(
                                             )
                                             .pointerInput(Unit) {
                                                 detectTapGestures(
-                                                    onTap = {
-                                                        viewModel.toggleStep(trackIndex, stepIndex)
-                                                    },
-                                                    onLongPress = {
-                                                        stepToEdit = Pair(trackIndex, stepIndex)
-                                                    }
+                                                    onTap = { viewModel.toggleStep(trackIndex, stepIndex) },
+                                                    onLongPress = { stepToEdit = Pair(trackIndex, stepIndex) }
                                                 )
                                             },
                                         contentAlignment = Alignment.Center
@@ -401,15 +409,13 @@ fun SequencerStudioScreen(
                 }
             }
         } else {
-            // 🎹 VISTA PIANO ROLL PROFESIONAL CON BOTONES 📁 (Nativo) Y ⚙️ (Kits) POR TECLA
+            // --- 🎹 VISTA PIANO ROLL PROFESIONAL ---
             val activeTrack = state.tracks.getOrNull(state.selectedPianoTrackIndex) ?: state.tracks.last()
             
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
                 shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
+                modifier = Modifier.fillMaxWidth().weight(1f)
             ) {
                 Column(modifier = Modifier.padding(8.dp)) {
                     Text(
@@ -428,13 +434,13 @@ fun SequencerStudioScreen(
                         
                         items(pitchNames.size) { pitchIndex ->
                             val actualPitch = 7 - pitchIndex
+                            val hasKeySample = activeTrack.customPitchSamples.containsKey(actualPitch)
                             
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                // 🟢 Panel lateral de la tecla: Nombre + Botón Archivo Nativo (📁) + Botón Kits (⚙️)
                                 Row(
                                     modifier = Modifier.width(56.dp),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -442,13 +448,12 @@ fun SequencerStudioScreen(
                                 ) {
                                     Text(
                                         text = pitchNames[pitchIndex],
-                                        color = if (activeTrack.customPitchSamples.containsKey(actualPitch)) Color(0xFF00E676) else Color.LightGray,
+                                        color = if (hasKeySample) Color(0xFF00E676) else Color.LightGray,
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                     
                                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        // 📁 Botón exclusivo para abrir el explorador de archivos nativo del teléfono
                                         Icon(
                                             imageVector = Icons.Default.FolderOpen,
                                             contentDescription = "Cargar Archivo Nativo",
@@ -456,18 +461,17 @@ fun SequencerStudioScreen(
                                             modifier = Modifier
                                                 .size(13.dp)
                                                 .clickable {
-                                                    targetPitchForPicker = actualPitch
+                                                    targetPickerTarget = Pair(state.selectedPianoTrackIndex, actualPitch)
                                                     nativeFilePickerLauncher.launch("audio/*")
                                                 }
                                         )
-                                        // ⚙️ Botón para configurar desde la carpeta de kits internos
                                         Icon(
                                             imageVector = Icons.Default.Settings,
                                             contentDescription = "Configurar Kit",
-                                            tint = if (activeTrack.customPitchSamples.containsKey(actualPitch)) Color(0xFFFFD700) else Color.Gray,
+                                            tint = if (hasKeySample) Color(0xFFFFD700) else Color.Gray,
                                             modifier = Modifier
                                                 .size(13.dp)
-                                                .clickable { pitchToConfigure = actualPitch }
+                                                .clickable { activeConfigTarget = Pair(state.selectedPianoTrackIndex, actualPitch) }
                                         )
                                     }
                                 }
@@ -488,7 +492,7 @@ fun SequencerStudioScreen(
                                                 .background(
                                                     when {
                                                         hasNoteAtThisPitch && isCurrentStepPlaying -> Color.White
-                                                        hasNoteAtThisPitch -> Color(0xFF9C27B0) // Morado Pro para notas melódicas
+                                                        hasNoteAtThisPitch -> Color(0xFF9C27B0)
                                                         isCurrentStepPlaying -> Color(0xFF3B3B4F)
                                                         else -> Color(0xFF22222F)
                                                     }
@@ -512,7 +516,7 @@ fun SequencerStudioScreen(
         }
     }
 
-    // --- 🎚️ DIÁLOGO FLOTANTE PARA EDITAR LA VELOCITY DE UN PASO ---
+    // --- DIÁLOGO VELOCITY ---
     if (stepToEdit != null) {
         val (tIdx, sIdx) = stepToEdit!!
         val currentStep = state.tracks.getOrNull(tIdx)?.steps?.getOrNull(sIdx)
@@ -520,63 +524,41 @@ fun SequencerStudioScreen(
 
         AlertDialog(
             onDismissRequest = { stepToEdit = null },
-            title = { 
-                Text(
-                    text = "Editar Velocity (Volumen)", 
-                    color = Color(0xFFFFD700), 
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                ) 
-            },
+            title = { Text("Editar Velocity (Volumen)", color = Color(0xFFFFD700), fontSize = 14.sp) },
             text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "Intensidad del golpe: ${(tempVelocity * 100).toInt()}%", 
-                        color = Color.White, 
-                        fontSize = 12.sp
-                    )
+                Column {
+                    Text("Intensidad: ${(tempVelocity * 100).toInt()}%", color = Color.White, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(12.dp))
                     Slider(
                         value = tempVelocity,
                         onValueChange = { tempVelocity = it },
-                        valueRange = 0.1f..1.0f,
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFF00E676),
-                            activeTrackColor = Color(0xFF00E676)
-                        )
+                        valueRange = 0.1f..1.0f
                     )
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.updateStepVelocity(tIdx, sIdx, tempVelocity)
-                        stepToEdit = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676))
-                ) {
-                    Text("Aceptar", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
+                Button(onClick = {
+                    viewModel.updateStepVelocity(tIdx, sIdx, tempVelocity)
+                    stepToEdit = null
+                }) { Text("Aceptar") }
             },
             dismissButton = {
-                TextButton(onClick = { stepToEdit = null }) {
-                    Text("Cancelar", color = Color.Gray)
-                }
+                TextButton(onClick = { stepToEdit = null }) { Text("Cancelar") }
             },
             containerColor = Color(0xFF1E1E2C)
         )
     }
 
-    // --- 📂 DIÁLOGO FLOTANTE PARA SELECCIONAR DESDE LA CARPETA DE KITS ---
-    if (pitchToConfigure != null) {
-        val pitch = pitchToConfigure!!
-        val activeTrack = state.tracks[state.selectedPianoTrackIndex]
+    // --- 📂 DIÁLOGO UNIFICADO PARA CONFIGURAR MUESTRAS DE KITS ---
+    if (activeConfigTarget != null) {
+        val (tIdx, pitch) = activeConfigTarget!!
+        val targetTrack = state.tracks.getOrNull(tIdx)
 
         AlertDialog(
-            onDismissRequest = { pitchToConfigure = null },
+            onDismissRequest = { activeConfigTarget = null },
             title = { 
                 Text(
-                    text = "Seleccionar de Kit (Pitch: $pitch)", 
+                    text = "Kit para ${targetTrack?.trackName ?: "Pista"} (Pitch: $pitch)", 
                     color = Color(0xFFFFD700), 
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
@@ -591,7 +573,7 @@ fun SequencerStudioScreen(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    val kitName = activeTrack.trackName.lowercase().replace(" ", "_")
+                    val kitName = targetTrack?.trackName?.lowercase()?.replace(" ", "_") ?: "kick"
                     val kitDir = File(context.filesDir, "exports/kits/$kitName")
                     val wavFiles = if (kitDir.exists() && kitDir.isDirectory) {
                         kitDir.listFiles { file -> file.extension.lowercase() == "wav" }?.toList() ?: emptyList()
@@ -611,8 +593,8 @@ fun SequencerStudioScreen(
                                 val file = wavFiles[index]
                                 TextButton(
                                     onClick = {
-                                        viewModel.assignSampleToPitch(state.selectedPianoTrackIndex, pitch, file.absolutePath)
-                                        pitchToConfigure = null
+                                        viewModel.assignSampleToPitch(tIdx, pitch, file.absolutePath)
+                                        activeConfigTarget = null
                                     },
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -628,7 +610,7 @@ fun SequencerStudioScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { pitchToConfigure = null }) {
+                TextButton(onClick = { activeConfigTarget = null }) {
                     Text("Cerrar", color = Color.Gray)
                 }
             },
