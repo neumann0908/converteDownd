@@ -155,7 +155,7 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
-    // 🎛️ Cambiar el patrón activo (Patrón A, B, C)[span_1](start_span)[span_1](end_span)
+    // 🎛️ Cambiar el patrón activo (Patrón A, B, C)[span_0](start_span)[span_0](end_span)
     fun selectPattern(patternIndex: Int) {
         _uiState.update { currentState ->
             if (patternIndex in currentState.patterns.indices) {
@@ -166,7 +166,7 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
-    // 🎛️ Duplicar el patrón actual hacia otro slot de patrón[span_2](start_span)[span_2](end_span)
+    // 🎛️ Duplicar el patrón actual hacia otro slot de patrón[span_1](start_span)[span_1](end_span)
     fun duplicatePattern(targetIndex: Int) {
         _uiState.update { currentState ->
             val currentPattern = currentState.patterns[currentState.currentPatternIndex]
@@ -188,7 +188,7 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
-    // 📋 Copiar el patrón activo actual a memoria temporal[span_3](start_span)[span_3](end_span)
+    // 📋 Copiar el patrón activo actual a memoria temporal[span_2](start_span)[span_2](end_span)
     fun copyCurrentPattern() {
         val currentPattern = _uiState.value.patterns[_uiState.value.currentPatternIndex]
         copiedTracksMemory = currentPattern.tracks.map { track ->
@@ -199,7 +199,7 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
-    // 📋 Pegar los pasos/pistas copiados en el patrón activo actual[span_4](start_span)[span_4](end_span)
+    // 📋 Pegar los pasos/pistas copiados en el patrón activo actual[span_3](start_span)[span_3](end_span)
     fun pasteToCurrentPattern() {
         copiedTracksMemory?.let { memoryTracks ->
             updateCurrentPatternTracks { _ ->
