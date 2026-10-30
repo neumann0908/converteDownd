@@ -1,5 +1,6 @@
 package com.musicdownloader.converter.beatstudio.presentation.drum
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -205,7 +206,7 @@ fun BeatStudioScreen(
                             )
 
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                // 💾 Botón de Exportación WAV directo
+                                // 💾 Botón de Exportación WAV directo con Toast de confirmación
                                 SmallChipButton(
                                     text = "💾 Exportar WAV",
                                     isActive = false,
@@ -213,8 +214,16 @@ fun BeatStudioScreen(
                                     onClick = {
                                         val exportDir = File(context.filesDir, "exports")
                                         if (!exportDir.exists()) exportDir.mkdirs()
-                                        val file = File(exportDir, "${selectedTrack.name.replace(" ", "_")}_${System.currentTimeMillis()}.wav")
+                                        val fileName = "${selectedTrack.name.replace(" ", "_")}_${System.currentTimeMillis()}.wav"
+                                        val file = File(exportDir, fileName)
+                                        
                                         viewModel.exportTrackAsWav(state.selectedTrackIndex, file.absolutePath)
+                                        
+                                        Toast.makeText(
+                                            context,
+                                            "✅ ¡Beat guardado con éxito en la Biblioteca!",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     }
                                 )
                                 Text(
