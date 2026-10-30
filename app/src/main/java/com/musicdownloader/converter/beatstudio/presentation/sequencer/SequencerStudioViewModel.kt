@@ -1,6 +1,8 @@
 package com.musicdownloader.converter.beatstudio.presentation.sequencer
 
 import android.content.Context
+import android.media.MediaPlayer
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
@@ -76,16 +79,68 @@ class SequencerStudioViewModel @Inject constructor(
         _uiState.update { it.copy(isPlaying = false, currentStepIndex = -1) }
     }
 
-    // 🔊 Dispara los sonidos que están activos en la columna actual
+    // 🟢 Activar o desactivar el metrónomo
+    fun toggleMetronome() {
+        _uiState.update { it.copy(isMetronomeEnabled = !it.isMetronomeEnabled) }
+    }
+
+    // 🔊 Dispara los sonidos que están activos en la columna actual y el metrónomo
     private fun playActiveStepsForColumn(stepIndex: Int) {
-        val tracks = _uiState.value.tracks
-        for (track in tracks) {
+        val state = _uiState.value
+        
+        // Si el metrónomo está activo, reproducimos un clic en cada tiempo principal (ej. cada 4 pasos)
+        if (state.isMetronomeEnabled && stepIndex % 4 == 0) {
+            playMetronomeClick()
+        }
+
+        for (track in state.tracks) {
             if (!track.isMuted) {
                 val step = track.steps.getOrNull(stepIndex)
                 if (step != null && step.isActive) {
-                    // Aquí conectaremos la reproducción de audio de cada pad/pista
+                    playTrackSound(track.trackName, step.velocity)
                 }
             }
+        }
+    }
+
+    // 🎚️ Reproductor individual para cada pista conectado a la carpeta exports/
+    private fun playTrackSound(trackName: String, velocity: Float) {
+        try {
+            val exportDir = File(context.filesDir, "exports")
+            val sampleFile = File(exportDir, "${trackName.lowercase()}.wav")
+
+            val mediaPlayer = if (sampleFile.exists()) {
+                MediaPlayer.create(context, Uri.fromFile(sampleFile))
+            } else {
+                null
+            }
+
+            mediaPlayer?.apply {
+                setVolume(velocity, velocity)
+                setOnCompletionListener { mp ->
+                    mp.release()
+                }
+                start()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // 🔊 Reproductor para el clic del metrónomo
+    private fun playMetronomeClick() {
+        try {
+            val exportDir = File(context.filesDir, "exports")
+            val clickFile = File(exportDir, "metronome.wav")
+            if (clickFile.exists()) {
+                val mediaPlayer = MediaPlayer.create(context, Uri.fromFile(clickFile))
+                mediaPlayer?.apply {
+                    setOnCompletionListener { it.release() }
+                    start()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
