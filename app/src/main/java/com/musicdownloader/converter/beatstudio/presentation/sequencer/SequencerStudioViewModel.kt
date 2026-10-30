@@ -133,6 +133,34 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
+    // 🎚️ Actualizar el Pitch Bend de un paso específico
+    fun updateStepPitchBend(trackIndex: Int, stepIndex: Int, newBend: Float) {
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { tIdx, track ->
+                if (tIdx == trackIndex) {
+                    val updatedSteps = track.steps.mapIndexed { sIdx, step ->
+                        if (sIdx == stepIndex) step.copy(pitchBend = newBend.coerceIn(-1.0f, 1.0f)) else step
+                    }
+                    track.copy(steps = updatedSteps)
+                } else track
+            }
+        }
+    }
+
+    // 🎛️ Actualizar la Modulación de un paso específico
+    fun updateStepModulation(trackIndex: Int, stepIndex: Int, newMod: Float) {
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { tIdx, track ->
+                if (tIdx == trackIndex) {
+                    val updatedSteps = track.steps.mapIndexed { sIdx, step ->
+                        if (sIdx == stepIndex) step.copy(modulation = newMod.coerceIn(0.0f, 1.0f)) else step
+                    }
+                    track.copy(steps = updatedSteps)
+                } else track
+            }
+        }
+    }
+
     // 🎚️ Actualizar el volumen general de una pista específica
     fun updateTrackVolume(trackIndex: Int, newVolume: Float) {
         updateCurrentPatternTracks { tracks ->
