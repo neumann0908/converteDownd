@@ -7,24 +7,26 @@ data class SequencerPattern(
     val tracks: List<SequencerTrack>
 )
 
-// Representa un cuadrito (paso) individual con control de duración y desplazamiento temporal (Offset/Shift)[span_1](start_span)[span_1](end_span)
+// Representa un cuadrito (paso) individual con control de duración, desplazamiento temporal y probabilidad de disparo
 data class SequencerStep(
     val id: Int,
     val isActive: Boolean = false,
     val velocity: Float = 1.0f,     // Qué tan fuerte suena el golpe (Edición de Velocity)
     val pitch: Int = 0,           // Altura de la nota musical para el Piano Roll
-    val durationMs: Long = 125L,  // 🟢 Duración exacta en milisegundos que suena la nota[span_2](start_span)[span_2](end_span)
-    val offsetMs: Long = 0L       // 🟢 Desplazamiento temporal (Shift/Offset) ligero de la posición[span_3](start_span)[span_3](end_span)
+    val durationMs: Long = 125L,  // Duración exacta en milisegundos que suena la nota
+    val offsetMs: Long = 0L,      // Desplazamiento temporal (Shift/Offset) ligero de la posición
+    val probability: Float = 1.0f // 🟢 Probabilidad de disparo (0.0 a 1.0 / 0% a 100% de que suene el paso)
 )
 
-// Representa una pista de sonido con soporte de Swing e Individual/Humanización
+// Representa una pista de sonido con soporte de Volumen, Paneo Estéreo, Mute, Solo y Swing
 data class SequencerTrack(
     val trackId: Int,
     val trackName: String,
     val steps: List<SequencerStep> = List(16) { SequencerStep(it) }, // 16 pasos por compás por defecto
-    val volume: Float = 1.0f,
-    val isMuted: Boolean = false,
-    val isSolo: Boolean = false,
+    val volume: Float = 1.0f,      // 🟢 Volumen general de la pista
+    val pan: Float = 0.0f,         // 🟢 Paneo estéreo (-1.0 Izquierda a 1.0 Derecha)
+    val isMuted: Boolean = false,  // 🟢 Silenciar pista
+    val isSolo: Boolean = false,   // 🟢 Aislar pista (Solo)
     val customPitchSamples: Map<Int, String> = emptyMap(), // Mapea Pitch con la ruta del archivo .wav
     val trackSwing: Float = 0.0f,          // Parámetro de Swing individual por pista (0.0 a 1.0)
     val humanizeEnabled: Boolean = false   // Control de humanización orgánica de velocidad por pista
