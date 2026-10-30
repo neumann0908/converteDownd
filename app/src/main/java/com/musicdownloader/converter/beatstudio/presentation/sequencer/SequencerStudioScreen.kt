@@ -2,7 +2,7 @@ package com.musicdownloader.converter.beatstudio.presentation.sequencer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,6 +28,9 @@ fun SequencerStudioScreen(
     viewModel: SequencerStudioViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+
+    // 🟢 Estado local para controlar qué paso se está editando mediante pulsación larga (Velocity)
+    var stepToEdit by remember { mutableStateOf<Pair<Int, Int>?>(null) } // (trackIndex, stepIndex)
 
     Column(
         modifier = Modifier
@@ -298,13 +302,21 @@ fun SequencerStudioScreen(
                                         .background(
                                             when {
                                                 step.isActive && isCurrentStepPlaying -> Color.White // Activado y sonando ahora mismo
-                                                step.isActive -> Color(0xFF00E676) // Activado normal
+                                                step.isActive -> Color(0xFF00E676).copy(alpha = 0.5f + (step.velocity * 0.5f)) // Brillo dinámico por velocity
                                                 isCurrentStepPlaying -> Color(0xFF3B3B4F) // Paso actual inactivo
                                                 else -> Color(0xFF28283D) // Apagado normal
                                             }
                                         )
-                                        .clickable {
-                                            viewModel.toggleStep(trackIndex, stepIndex)
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(
+                                                onTap = {
+                                                    viewModel.toggleStep(trackIndex, stepIndex)
+                                                },
+                                                onLongPress = {
+                                                    // 🟢 Mantener presionado abre el diálogo flotante de Velocity
+                                                    stepToEdit = Pair(trackIndex, stepIndex)
+                                                }
+                                            )
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -320,5 +332,60 @@ fun SequencerStudioScreen(
                 }
             }
         }
+    }
+
+    // --- 🎚️ DIÁLOGO FLOTANTE PARA EDITAR LA VELOCITY DE UN PASO ---
+    if (stepToEdit != null) {
+        val (tIdx, sIdx) = stepToEdit!!
+        val currentStep = state.tracks.getOrNull(tIdx)?.steps?.getOrNull(sIdx)
+        var tempVelocity by remember(currentStep?.velocity) { mutableStateOf(currentStep?.velocity ?: 1.0f) }
+
+        AlertDialog(
+            onDismissRequest = { stepToEdit = null },
+            title = { 
+                Text(
+                    text = "Editar Velocity (Volumen)", 
+                    color = Color(0xFFFFD700), 
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                ) 
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Intensidad del golpe: ${(tempVelocity * 100).toInt()}%", 
+                        color = Color.White, 
+                        fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Slider(
+                        value = tempVelocity,
+                        onValueChange = { tempVelocity = it },
+                        valueRange = 0.1f..1.0f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFF00E676),
+                            activeTrackColor = Color(0xFF00E676)
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.updateStepVelocity(tIdx, sIdx, tempVelocity)
+                        stepToEdit = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676))
+                ) {
+                    Text("Aceptar", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { stepToEdit = null }) {
+                    Text("Cancelar", color = Color.Gray)
+                }
+            },
+            containerColor = Color(0xFF1E1E2C)
+        )
     }
 }
