@@ -1,13 +1,15 @@
 package com.musicdownloader.converter.beatstudio.presentation.midi
 
-// 🎹 La Ficha de Nota Musical Inteligente
+// 🎹 La Ficha de Nota Musical Inteligente con Expresividad Pro
 data class MidiNote(
     val id: String,
-    val pitch: Int,             // El número de la tecla del piano (ej. 60 es el Do central / C4)
-    val startTick: Long,        // En qué momento exacto del tiempo arranca
-    val durationTicks: Long,    // Cuánto tiempo dura sonando
-    val velocity: Float = 1.0f, // Qué tan fuerte suena (de 0.1 a 1.0)
-    val probability: Float = 1.0f // Probabilidad de que suene (para efectos modernos)
+    val pitch: Int,                 // El número de la tecla del piano (ej. 60 es el Do central / C4)
+    val startTick: Long,            // En qué momento exacto del tiempo arranca
+    val durationTicks: Long,        // Cuánto tiempo dura sonando
+    val velocity: Float = 1.0f,     // Qué tan fuerte suena (de 0.1 a 1.0)
+    val probability: Float = 1.0f,  // Probabilidad de que suene (para efectos modernos)
+    val pitchBend: Float = 0.0f,    // 🎚️ Pitch Bend (-1.0 a 1.0) para modificar la afinación de la nota[span_1](start_span)[span_1](end_span)
+    val modulation: Float = 0.0f    // 🎛️ Modulation (0.0 a 1.0) para efectos de vibrato y modulación[span_2](start_span)[span_2](end_span)
 )
 
 // 🎶 Las Escalas Musicales (Grupos de notas que siempre se llevan bien)
