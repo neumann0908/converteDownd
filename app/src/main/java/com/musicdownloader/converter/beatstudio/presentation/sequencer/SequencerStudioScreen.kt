@@ -40,7 +40,7 @@ fun SequencerStudioScreen(
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    // Estado local para editar la velocity mediante pulsación larga
+    // Estado local para editar la velocity, duración y offset mediante pulsación larga
     var stepToEdit by remember { mutableStateOf<Pair<Int, Int>?>(null) } // (trackIndex, stepIndex)
     
     // Estado unificado para configurar kits: Pair(trackIndex, pitch)
@@ -707,34 +707,66 @@ fun SequencerStudioScreen(
         )
     }
 
-    // --- DIÁLOGO VELOCITY ---
+    // --- 🎚️ DIÁLOGO AVANZADO DE EDICIÓN DE PASO (Velocity, Duración y Offset) ---
     if (stepToEdit != null) {
         val (tIdx, sIdx) = stepToEdit!!
         val currentStep = state.tracks.getOrNull(tIdx)?.steps?.getOrNull(sIdx)
         var tempVelocity by remember(currentStep?.velocity) { mutableStateOf(currentStep?.velocity ?: 1.0f) }
+        var tempDuration by remember(currentStep?.durationMs) { mutableStateOf(currentStep?.durationMs ?: 125L) }
+        var tempOffset by remember(currentStep?.offsetMs) { mutableStateOf(currentStep?.offsetMs ?: 0L) }
 
         AlertDialog(
             onDismissRequest = { stepToEdit = null },
-            title = { Text("Editar Velocity (Volumen)", color = Color(0xFFFFD700), fontSize = 14.sp) },
+            title = { Text("Editor de Paso Avanzado", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold) },
             text = {
-                Column {
-                    Text("Intensidad: ${(tempVelocity * 100).toInt()}%", color = Color.White, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Velocity
+                    Text("Intensidad (Velocity): ${(tempVelocity * 100).toInt()}%", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = tempVelocity,
                         onValueChange = { tempVelocity = it },
-                        valueRange = 0.1f..1.0f
+                        valueRange = 0.1f..1.0f,
+                        modifier = Modifier.height(24.dp)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Duration
+                    Text("Duración nota: ${tempDuration} ms", color = Color.White, fontSize = 11.sp)
+                    Slider(
+                        value = tempDuration.toFloat(),
+                        onValueChange = { tempDuration = it.toLong() },
+                        valueRange = 20f..1000f,
+                        modifier = Modifier.height(24.dp)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Offset (Shift)
+                    Text("Desplazamiento (Shift): ${tempOffset} ms", color = Color.White, fontSize = 11.sp)
+                    Slider(
+                        value = tempOffset.toFloat(),
+                        onValueChange = { tempOffset = it.toLong() },
+                        valueRange = -50f..50f,
+                        modifier = Modifier.height(24.dp)
                     )
                 }
             },
             confirmButton = {
-                Button(onClick = {
-                    viewModel.updateStepVelocity(tIdx, sIdx, tempVelocity)
-                    stepToEdit = null
-                }) { Text("Aceptar") }
+                Button(
+                    onClick = {
+                        viewModel.updateStepVelocity(tIdx, sIdx, tempVelocity)
+                        viewModel.updateStepDuration(tIdx, sIdx, tempDuration)
+                        viewModel.updateStepOffset(tIdx, sIdx, tempOffset)
+                        stepToEdit = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676))
+                ) {
+                    Text("Aceptar", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
             },
             dismissButton = {
-                TextButton(onClick = { stepToEdit = null }) { Text("Cancelar") }
+                TextButton(onClick = { stepToEdit = null }) {
+                    Text("Cancelar", color = Color.Gray)
+                }
             },
             containerColor = Color(0xFF1E1E2C)
         )
