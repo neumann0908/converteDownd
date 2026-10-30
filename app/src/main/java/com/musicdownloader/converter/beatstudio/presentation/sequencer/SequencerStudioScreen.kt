@@ -40,7 +40,7 @@ fun SequencerStudioScreen(
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    // Estado local para editar la velocity, duración y offset mediante pulsación larga
+    // Estado local para editar la velocity, duración, offset y probabilidad mediante pulsación larga
     var stepToEdit by remember { mutableStateOf<Pair<Int, Int>?>(null) } // (trackIndex, stepIndex)
     
     // Estado unificado para configurar kits: Pair(trackIndex, pitch)
@@ -438,7 +438,7 @@ fun SequencerStudioScreen(
 
         // --- CONTENEDOR PRINCIPAL: STEP SEQUENCER VS PIANO ROLL ---
         if (!state.isPianoRollMode) {
-            // 🟢 REJILLA DE BATERÍA CON BOTONES DE HUMANIZACIÓN (Hum), ARCHIVOS Y KITS
+            // 🟢 REJILLA DE BATERÍA CON CONTROLES AVANZADOS DE PISTA (Mute, Solo, Volumen, Paneo)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -449,101 +449,153 @@ fun SequencerStudioScreen(
                     .padding(8.dp)
             ) {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
                     itemsIndexed(state.tracks) { trackIndex, track ->
                         val hasCustomSample = track.customPitchSamples.containsKey(0)
 
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = track.trackName,
-                                    color = Color(0xFF00E676),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    // 🟢 Botón de Humanización individual (Hum)
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(if (track.humanizeEnabled) Color(0xFFFFD700) else Color(0xFF28283D))
-                                            .clickable { viewModel.toggleTrackHumanize(trackIndex) }
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(6.dp)) {
+                                // Encabezado de Pista con Mute, Solo, Hum, Archivos y Kits
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Text(
-                                            text = "Hum",
-                                            color = if (track.humanizeEnabled) Color.Black else Color.Gray,
-                                            fontSize = 8.sp,
+                                            text = track.trackName,
+                                            color = Color(0xFF00E676),
+                                            fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold
                                         )
+
+                                        // 🔇 Botón Mute
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(if (track.isMuted) Color.Red else Color(0xFF28283D))
+                                                .clickable { viewModel.toggleTrackMute(trackIndex) }
+                                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(text = "M", color = if (track.isMuted) Color.White else Color.Gray, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        // 🎧 Botón Solo
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(if (track.isSolo) Color(0xFFFFD700) else Color(0xFF28283D))
+                                                .clickable { viewModel.toggleTrackSolo(trackIndex) }
+                                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(text = "S", color = if (track.isSolo) Color.Black else Color.Gray, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
 
-                                    Icon(
-                                        imageVector = Icons.Default.FolderOpen,
-                                        contentDescription = "Cargar Archivo Nativo",
-                                        tint = if (hasCustomSample) Color(0xFF00E676) else Color.Gray,
-                                        modifier = Modifier
-                                            .size(14.dp)
-                                            .clickable {
-                                                targetPickerTarget = Pair(trackIndex, 0)
-                                                nativeFilePickerLauncher.launch("audio/*")
-                                            }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        // 🟢 Botón de Humanización individual (Hum)
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(if (track.humanizeEnabled) Color(0xFFFFD700) else Color(0xFF28283D))
+                                                .clickable { viewModel.toggleTrackHumanize(trackIndex) }
+                                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(text = "Hum", color = if (track.humanizeEnabled) Color.Black else Color.Gray, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        Icon(
+                                            imageVector = Icons.Default.FolderOpen,
+                                            contentDescription = "Cargar Archivo Nativo",
+                                            tint = if (hasCustomSample) Color(0xFF00E676) else Color.Gray,
+                                            modifier = Modifier
+                                                .size(14.dp)
+                                                .clickable {
+                                                    targetPickerTarget = Pair(trackIndex, 0)
+                                                    nativeFilePickerLauncher.launch("audio/*")
+                                                }
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Default.Settings,
+                                            contentDescription = "Configurar Kit",
+                                            tint = if (hasCustomSample) Color(0xFFFFD700) else Color.Gray,
+                                            modifier = Modifier
+                                                .size(14.dp)
+                                                .clickable {
+                                                    activeConfigTarget = Pair(trackIndex, 0)
+                                                }
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                // Sliders de Volumen y Paneo Estéreo por Pista
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = "Vol: ${(track.volume * 100).toInt()}%", color = Color.LightGray, fontSize = 8.sp)
+                                    Slider(
+                                        value = track.volume,
+                                        onValueChange = { viewModel.updateTrackVolume(trackIndex, it) },
+                                        valueRange = 0.0f..1.0f,
+                                        modifier = Modifier.weight(1f).height(16.dp)
                                     )
-                                    Icon(
-                                        imageVector = Icons.Default.Settings,
-                                        contentDescription = "Configurar Kit",
-                                        tint = if (hasCustomSample) Color(0xFFFFD700) else Color.Gray,
-                                        modifier = Modifier
-                                            .size(14.dp)
-                                            .clickable {
-                                                activeConfigTarget = Pair(trackIndex, 0)
-                                            }
+
+                                    Text(text = "Pan: ${if (track.pan < 0) "L${(-track.pan * 100).toInt()}" else if (track.pan > 0) "R${(track.pan * 100).toInt()}" else "C"}", color = Color.LightGray, fontSize = 8.sp)
+                                    Slider(
+                                        value = track.pan,
+                                        onValueChange = { viewModel.updateTrackPan(trackIndex, it) },
+                                        valueRange = -1.0f..1.0f,
+                                        modifier = Modifier.weight(1f).height(16.dp)
                                     )
                                 }
-                            }
 
-                            Spacer(modifier = Modifier.height(2.dp))
+                                Spacer(modifier = Modifier.height(4.dp))
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(3.dp)
-                            ) {
-                                track.steps.forEachIndexed { stepIndex, step ->
-                                    val isCurrentStepPlaying = (state.currentStepIndex == stepIndex)
+                                // Pasos de la pista (Step Sequencer)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    track.steps.forEachIndexed { stepIndex, step ->
+                                        val isCurrentStepPlaying = (state.currentStepIndex == stepIndex)
 
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(32.dp)
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(
-                                                when {
-                                                    step.isActive && isCurrentStepPlaying -> Color.White 
-                                                    step.isActive -> Color(0xFF00E676).copy(alpha = 0.5f + (step.velocity * 0.5f))
-                                                    isCurrentStepPlaying -> Color(0xFF3B3B4F) 
-                                                    else -> Color(0xFF28283D) 
-                                                }
-                                            )
-                                            .pointerInput(Unit) {
-                                                detectTapGestures(
-                                                    onTap = { viewModel.toggleStep(trackIndex, stepIndex) },
-                                                    onLongPress = { stepToEdit = Pair(trackIndex, stepIndex) }
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(30.dp)
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(
+                                                    when {
+                                                        step.isActive && isCurrentStepPlaying -> Color.White 
+                                                        step.isActive -> Color(0xFF00E676).copy(alpha = 0.5f + (step.velocity * 0.5f))
+                                                        isCurrentStepPlaying -> Color(0xFF3B3B4F) 
+                                                        else -> Color(0xFF28283D) 
+                                                    }
                                                 )
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "${stepIndex + 1}",
-                                            color = if (step.isActive) Color.Black else Color.Gray,
-                                            fontSize = 7.sp
-                                        )
+                                                .pointerInput(Unit) {
+                                                    detectTapGestures(
+                                                        onTap = { viewModel.toggleStep(trackIndex, stepIndex) },
+                                                        onLongPress = { stepToEdit = Pair(trackIndex, stepIndex) }
+                                                    )
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "${stepIndex + 1}",
+                                                color = if (step.isActive) Color.Black else Color.Gray,
+                                                fontSize = 7.sp
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -707,13 +759,14 @@ fun SequencerStudioScreen(
         )
     }
 
-    // --- 🎚️ DIÁLOGO AVANZADO DE EDICIÓN DE PASO (Velocity, Duración y Offset) ---
+    // --- 🎚️ DIÁLOGO AVANZADO DE EDICIÓN DE PASO (Velocity, Duración, Offset y Probabilidad) ---
     if (stepToEdit != null) {
         val (tIdx, sIdx) = stepToEdit!!
         val currentStep = state.tracks.getOrNull(tIdx)?.steps?.getOrNull(sIdx)
         var tempVelocity by remember(currentStep?.velocity) { mutableStateOf(currentStep?.velocity ?: 1.0f) }
         var tempDuration by remember(currentStep?.durationMs) { mutableStateOf(currentStep?.durationMs ?: 125L) }
         var tempOffset by remember(currentStep?.offsetMs) { mutableStateOf(currentStep?.offsetMs ?: 0L) }
+        var tempProbability by remember(currentStep?.probability) { mutableStateOf(currentStep?.probability ?: 1.0f) }
 
         AlertDialog(
             onDismissRequest = { stepToEdit = null },
@@ -728,7 +781,7 @@ fun SequencerStudioScreen(
                         valueRange = 0.1f..1.0f,
                         modifier = Modifier.height(24.dp)
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     // Duration
                     Text("Duración nota: ${tempDuration} ms", color = Color.White, fontSize = 11.sp)
@@ -738,7 +791,7 @@ fun SequencerStudioScreen(
                         valueRange = 20f..1000f,
                         modifier = Modifier.height(24.dp)
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     // Offset (Shift)
                     Text("Desplazamiento (Shift): ${tempOffset} ms", color = Color.White, fontSize = 11.sp)
@@ -746,6 +799,16 @@ fun SequencerStudioScreen(
                         value = tempOffset.toFloat(),
                         onValueChange = { tempOffset = it.toLong() },
                         valueRange = -50f..50f,
+                        modifier = Modifier.height(24.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Probability
+                    Text("Probabilidad de Disparo: ${(tempProbability * 100).toInt()}%", color = Color.White, fontSize = 11.sp)
+                    Slider(
+                        value = tempProbability,
+                        onValueChange = { tempProbability = it },
+                        valueRange = 0.0f..1.0f,
                         modifier = Modifier.height(24.dp)
                     )
                 }
@@ -756,6 +819,7 @@ fun SequencerStudioScreen(
                         viewModel.updateStepVelocity(tIdx, sIdx, tempVelocity)
                         viewModel.updateStepDuration(tIdx, sIdx, tempDuration)
                         viewModel.updateStepOffset(tIdx, sIdx, tempOffset)
+                        viewModel.updateStepProbability(tIdx, sIdx, tempProbability)
                         stepToEdit = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676))
