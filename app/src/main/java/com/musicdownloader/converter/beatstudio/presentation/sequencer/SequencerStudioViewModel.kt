@@ -48,6 +48,27 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
+    // 🎚️ Actualizar la velocity (intensidad/volumen) de un paso específico
+    fun updateStepVelocity(trackIndex: Int, stepIndex: Int, newVelocity: Float) {
+        _uiState.update { currentState ->
+            val updatedTracks = currentState.tracks.mapIndexed { tIdx, track ->
+                if (tIdx == trackIndex) {
+                    val updatedSteps = track.steps.mapIndexed { sIdx, step ->
+                        if (sIdx == stepIndex) {
+                            step.copy(velocity = newVelocity.coerceIn(0.1f, 1.0f))
+                        } else {
+                            step
+                        }
+                    }
+                    track.copy(steps = updatedSteps)
+                } else {
+                    track
+                }
+            }
+            currentState.copy(tracks = updatedTracks)
+        }
+    }
+
     // ▶️ Iniciar el reloj maestro adaptado al sistema de arreglos musicales
     fun startPlayback() {
         if (_uiState.value.isPlaying) return
