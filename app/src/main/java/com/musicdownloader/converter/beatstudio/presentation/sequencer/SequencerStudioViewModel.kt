@@ -88,6 +88,34 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
+    // ⏱️ Actualizar la duración exacta (durationMs) de un paso específico
+    fun updateStepDuration(trackIndex: Int, stepIndex: Int, newDuration: Long) {
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { tIdx, track ->
+                if (tIdx == trackIndex) {
+                    val updatedSteps = track.steps.mapIndexed { sIdx, step ->
+                        if (sIdx == stepIndex) step.copy(durationMs = newDuration.coerceIn(20L, 2000L)) else step
+                    }
+                    track.copy(steps = updatedSteps)
+                } else track
+            }
+        }
+    }
+
+    // ⇄ Actualizar el desplazamiento temporal (Offset/Shift) de un paso específico
+    fun updateStepOffset(trackIndex: Int, stepIndex: Int, newOffset: Long) {
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { tIdx, track ->
+                if (tIdx == trackIndex) {
+                    val updatedSteps = track.steps.mapIndexed { sIdx, step ->
+                        if (sIdx == stepIndex) step.copy(offsetMs = newOffset.coerceIn(-100L, 100L)) else step
+                    }
+                    track.copy(steps = updatedSteps)
+                } else track
+            }
+        }
+    }
+
     // 🎹 Cambiar entre vista de Secuenciador de Batería y Piano Roll
     fun togglePianoRollMode(enabled: Boolean, trackIndex: Int = 3) {
         _uiState.update { it.copy(isPianoRollMode = enabled, selectedPianoTrackIndex = trackIndex) }
@@ -284,7 +312,7 @@ class SequencerStudioViewModel @Inject constructor(
 
                 val nextStep = (_uiState.value.currentStepIndex + 1) % totalSteps
                 
-                // 🎵 Cálculo dinámico de Swing Global (micro-retraso en pasos impares / off-beats)
+                // Cálculo dinámico de Swing Global (micro-retraso en pasos impares / off-beats)
                 val swingFactor = state.swing
                 val stepDelayMs = if (nextStep % 2 != 0) {
                     (baseStepDelayMs * (1.0f + (swingFactor * 0.4f))).toLong()
@@ -365,7 +393,7 @@ class SequencerStudioViewModel @Inject constructor(
         _uiState.update { it.copy(arrangement = it.arrangement.filter { sec -> sec.id != sectionId }) }
     }
 
-    // 🔊 Dispara los sonidos activos en la columna actual y el metrónomo
+    // 🔊 Dispara los sonidos activos aplicando el offset temporal (Shift) y duración (durationMs) de cada paso
     private fun playActiveStepsForColumn(stepIndex: Int) {
         val state = _uiState.value
         
@@ -377,20 +405,27 @@ class SequencerStudioViewModel @Inject constructor(
             if (!track.isMuted) {
                 val step = track.steps.getOrNull(stepIndex)
                 if (step != null && step.isActive) {
-                    playTrackSound(track, step.pitch, step.velocity)
+                    val totalDelay = (step.offsetMs).coerceAtLeast(0L)
+                    if (totalDelay > 0L) {
+                        viewModelScope.launch {
+                            delay(totalDelay)
+                            playTrackSound(track, step.pitch, step.velocity, step.durationMs)
+                        }
+                    } else {
+                        playTrackSound(track, step.pitch, step.velocity, step.durationMs)
+                    }
                 }
             }
         }
     }
 
-    // 🎚️ Reproductor inteligente con Humanización Orgánica (Velocity Jitter) y Swing de Pista
-    private fun playTrackSound(track: SequencerTrack, pitch: Int, velocity: Float) {
+    // 🎚️ Reproductor inteligente con Humanización, Duración y Desplazamiento
+    private fun playTrackSound(track: SequencerTrack, pitch: Int, velocity: Float, durationMs: Long) {
         try {
             val exportDir = File(context.filesDir, "exports")
             
-            // Si la humanización está activa, aplicamos una ligera variación orgánica aleatoria a la intensidad
             val finalVelocity = if (track.humanizeEnabled) {
-                val jitter = (0.85f + (Math.random() * 0.30f)).toFloat() // Varía entre 0.85 y 1.15
+                val jitter = (0.85f + (Math.random() * 0.30f)).toFloat()
                 (velocity * jitter).coerceIn(0.1f, 1.0f)
             } else {
                 velocity
@@ -419,8 +454,18 @@ class SequencerStudioViewModel @Inject constructor(
                 val mediaPlayer = MediaPlayer.create(context, Uri.fromFile(sampleFile))
                 mediaPlayer?.apply {
                     setVolume(finalVelocity, finalVelocity)
-                    setOnCompletionListener { mp -> mp.release() }
                     start()
+                    viewModelScope.launch {
+                        delay(durationMs)
+                        try {
+                            if (isPlaying) {
+                                stop()
+                            }
+                            release()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
                 }
             }
         } catch (e: Exception) {
