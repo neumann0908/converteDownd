@@ -2,6 +2,7 @@ package com.musicdownloader.converter.beatstudio.presentation.sampler
 
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -16,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import java.io.File
 
 @Composable
 fun SamplerStudioScreen(
@@ -48,7 +51,7 @@ fun SamplerStudioScreen(
                     fileName = cursor.getString(nameIndex)
                 }
             }
-            // Cargamos el archivo seleccionado con una duración simulada de base de 5000ms
+            // Cargamos el archivo seleccionado con una duración simulada de base de 5000ms y la URI real
             viewModel.importAudioFile(fileName, 5000L, selectedUri.toString())
         }
     }
@@ -59,7 +62,7 @@ fun SamplerStudioScreen(
             .background(Color(0xFF13131A)) // Fondo Pro Oscuro DAW
             .padding(10.dp)
     ) {
-        // --- CAJA SUPERIOR: TÍTULO Y ESTADO DE MUESTRA ---
+        // --- CAJA SUPERIOR: TÍTULO, ESTADO Y BOTONES DE ACCIÓN ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -85,6 +88,35 @@ fun SamplerStudioScreen(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // 💾 Botón Guardar / Exportar Sampler
+                IconButton(
+                    onClick = {
+                        val exportDir = File(context.filesDir, "exports")
+                        if (!exportDir.exists()) exportDir.mkdirs()
+                        val fileName = "Sampler_${track.sampleName.substringBeforeLast(".")}_${System.currentTimeMillis()}.wav"
+                        val file = File(exportDir, fileName)
+                        
+                        val success = viewModel.exportSamplerAsWav(file.absolutePath)
+                        if (success || track.slices.isNotEmpty()) {
+                            Toast.makeText(
+                                context,
+                                "✅ ¡Sampler guardado con éxito en la Biblioteca!",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "⚠️ Carga o corta una muestra primero",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    },
+                    modifier = Modifier.size(34.dp).background(Color(0xFF00E676), CircleShape)
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = "Guardar", tint = Color.Black, modifier = Modifier.size(16.dp))
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+
                 // 📂 Botón Cargar Archivo (Abre el explorador real del sistema)
                 IconButton(
                     onClick = { audioPickerLauncher.launch("audio/*") },
