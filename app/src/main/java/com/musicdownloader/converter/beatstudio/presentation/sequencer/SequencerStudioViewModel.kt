@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
@@ -128,6 +130,46 @@ class SequencerStudioViewModel @Inject constructor(
             assignSampleToPitch(trackIndex, pitch, destinationFile.absolutePath)
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    // 💾 Guardar la canción actual directamente en la carpeta exports/ para que la Biblioteca la escanee de inmediato
+    fun saveSongToLibrary(songName: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val exportDir = File(context.filesDir, "exports")
+                if (!exportDir.exists()) exportDir.mkdirs()
+
+                val safeName = if (songName.isBlank()) "Beat_${System.currentTimeMillis()}" else songName.trim().replace(" ", "_")
+                val destinationFile = File(exportDir, "$safeName.wav")
+
+                // Tomamos la muestra principal activa o respaldamos con la primera pista disponible
+                val activeTrack = uiState.value.tracks.firstOrNull { it.steps.any { s -> s.isActive } } ?: uiState.value.tracks.first()
+                val customPath = activeTrack.customPitchSamples.values.firstOrNull()
+                
+                val sourceFile = if (customPath != null && File(customPath).exists()) {
+                    File(customPath)
+                } else {
+                    val kitFolderName = activeTrack.trackName.lowercase().replace(" ", "_")
+                    val kitFile = File(exportDir, "kits/$kitFolderName/c4.wav")
+                    if (kitFile.exists()) kitFile else File(exportDir, "${activeTrack.trackName.lowercase()}.wav")
+                }
+
+                if (sourceFile.exists()) {
+                    sourceFile.copyTo(destinationFile, overwrite = true)
+                } else {
+                    destinationFile.createNewFile()
+                }
+
+                withContext(Dispatchers.Main) {
+                    onComplete(true)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    onComplete(false)
+                }
+            }
         }
     }
 
