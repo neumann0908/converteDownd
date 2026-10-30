@@ -148,7 +148,7 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
-    // 🎛️ Cambiar el patrón activo (Patrón A, B, C)[span_0](start_span)[span_0](end_span)
+    // 🎛️ Cambiar el patrón activo (Patrón A, B, C)
     fun selectPattern(patternIndex: Int) {
         _uiState.update { currentState ->
             if (patternIndex in currentState.patterns.indices) {
@@ -159,7 +159,7 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
-    // 🎛️ Duplicar el patrón actual hacia otro slot de patrón[span_1](start_span)[span_1](end_span)
+    // 🎛️ Duplicar el patrón actual hacia otro slot de patrón
     fun duplicatePattern(targetIndex: Int) {
         _uiState.update { currentState ->
             val currentPattern = currentState.patterns[currentState.currentPatternIndex]
@@ -181,7 +181,7 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
-    // 📋 Copiar el patrón activo actual a memoria temporal[span_2](start_span)[span_2](end_span)
+    // 📋 Copiar el patrón activo actual a memoria temporal
     fun copyCurrentPattern() {
         val currentPattern = _uiState.value.patterns[_uiState.value.currentPatternIndex]
         copiedTracksMemory = currentPattern.tracks.map { track ->
@@ -192,7 +192,7 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
-    // 📋 Pegar los pasos/pistas copiados en el patrón activo actual[span_3](start_span)[span_3](end_span)
+    // 📋 Pegar los pasos/pistas copiados en el patrón activo actual
     fun pasteToCurrentPattern() {
         copiedTracksMemory?.let { memoryTracks ->
             updateCurrentPatternTracks { _ ->
@@ -202,6 +202,29 @@ class SequencerStudioViewModel @Inject constructor(
                         customPitchSamples = track.customPitchSamples.toMap()
                     )
                 }
+            }
+        }
+    }
+
+    // 🎛️ Actualizar el nivel de Swing Global (Groove)
+    fun updateSwing(newSwing: Float) {
+        _uiState.update { it.copy(swing = newSwing.coerceIn(0.0f, 1.0f)) }
+    }
+
+    // 🎛️ Actualizar el Swing Individual de una pista específica
+    fun updateTrackSwing(trackIndex: Int, newSwing: Float) {
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { idx, track ->
+                if (idx == trackIndex) track.copy(trackSwing = newSwing.coerceIn(0.0f, 1.0f)) else track
+            }
+        }
+    }
+
+    // 🎛️ Alternar la humanización orgánica en una pista
+    fun toggleTrackHumanize(trackIndex: Int) {
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { idx, track ->
+                if (idx == trackIndex) track.copy(humanizeEnabled = !track.humanizeEnabled) else track
             }
         }
     }
@@ -245,7 +268,7 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
-    // ▶️ Iniciar el reloj maestro adaptado al sistema de arreglos musicales
+    // ▶️ Iniciar el reloj maestro adaptado al sistema de arreglos musicales y Swing / Groove
     fun startPlayback() {
         if (_uiState.value.isPlaying) return
         
@@ -257,12 +280,22 @@ class SequencerStudioViewModel @Inject constructor(
             while (_uiState.value.isPlaying) {
                 val state = _uiState.value
                 val currentBpm = state.bpm
-                val stepDelayMs = (60000f / currentBpm / 4f).toLong()
+                val baseStepDelayMs = (60000f / currentBpm / 4f).toLong()
+
+                val nextStep = (_uiState.value.currentStepIndex + 1) % totalSteps
+                
+                // 🎵 Cálculo dinámico de Swing Global (micro-retraso en pasos impares / off-beats)
+                val swingFactor = state.swing
+                val stepDelayMs = if (nextStep % 2 != 0) {
+                    (baseStepDelayMs * (1.0f + (swingFactor * 0.4f))).toLong()
+                } else {
+                    (baseStepDelayMs * (1.0f - (swingFactor * 0.4f))).toLong()
+                }
 
                 _uiState.update { currentState ->
-                    val nextStep = currentState.currentStepIndex + 1
+                    val evaluatedNextStep = currentState.currentStepIndex + 1
 
-                    if (nextStep >= totalSteps) {
+                    if (evaluatedNextStep >= totalSteps) {
                         val arrangement = currentState.arrangement
                         if (arrangement.isNotEmpty()) {
                             val currentSec = arrangement.getOrNull(currentState.currentSectionIndex) ?: arrangement.first()
@@ -288,8 +321,8 @@ class SequencerStudioViewModel @Inject constructor(
                             currentState.copy(currentStepIndex = 0)
                         }
                     } else {
-                        playActiveStepsForColumn(nextStep)
-                        currentState.copy(currentStepIndex = nextStep)
+                        playActiveStepsForColumn(evaluatedNextStep)
+                        currentState.copy(currentStepIndex = evaluatedNextStep)
                     }
                 }
 
@@ -350,11 +383,19 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
-    // 🎚️ Reproductor inteligente
+    // 🎚️ Reproductor inteligente con Humanización Orgánica (Velocity Jitter) y Swing de Pista
     private fun playTrackSound(track: SequencerTrack, pitch: Int, velocity: Float) {
         try {
             val exportDir = File(context.filesDir, "exports")
             
+            // Si la humanización está activa, aplicamos una ligera variación orgánica aleatoria a la intensidad
+            val finalVelocity = if (track.humanizeEnabled) {
+                val jitter = (0.85f + (Math.random() * 0.30f)).toFloat() // Varía entre 0.85 y 1.15
+                (velocity * jitter).coerceIn(0.1f, 1.0f)
+            } else {
+                velocity
+            }
+
             val customPath = track.customPitchSamples[pitch]
             val sampleFile = if (customPath != null && File(customPath).exists()) {
                 File(customPath)
@@ -377,7 +418,7 @@ class SequencerStudioViewModel @Inject constructor(
             if (sampleFile.exists()) {
                 val mediaPlayer = MediaPlayer.create(context, Uri.fromFile(sampleFile))
                 mediaPlayer?.apply {
-                    setVolume(velocity, velocity)
+                    setVolume(finalVelocity, finalVelocity)
                     setOnCompletionListener { mp -> mp.release() }
                     start()
                 }
