@@ -45,7 +45,7 @@ fun SequencerStudioScreen(
     val context = LocalContext.current
     val scrollState = rememberScrollState() // 🟢 Desplazamiento global fluido para toda la pantalla
 
-    // Estado local para editar la velocity, duración, offset y probabilidad mediante pulsación larga
+    // Estado local para editar la velocity, duración, offset, probabilidad, pitch bend y modulación mediante pulsación larga
     var stepToEdit by remember { mutableStateOf<Pair<Int, Int>?>(null) } // (trackIndex, stepIndex)
     
     // Estado unificado para configurar kits: Pair(trackIndex, pitch)
@@ -771,12 +771,19 @@ fun SequencerStudioScreen(
                                                             else -> Color(0xFF22222F)
                                                         }
                                                     )
-                                                    .clickable {
-                                                        if (hasNoteAtThisPitch) {
-                                                            viewModel.toggleStep(state.selectedPianoTrackIndex, stepIndex)
-                                                        } else {
-                                                            viewModel.updateStepPitch(state.selectedPianoTrackIndex, stepIndex, actualPitch)
-                                                        }
+                                                    .pointerInput(Unit) {
+                                                        detectTapGestures(
+                                                            onTap = {
+                                                                if (hasNoteAtThisPitch) {
+                                                                    viewModel.toggleStep(state.selectedPianoTrackIndex, stepIndex)
+                                                                } else {
+                                                                    viewModel.updateStepPitch(state.selectedPianoTrackIndex, stepIndex, actualPitch)
+                                                                }
+                                                            },
+                                                            onLongPress = {
+                                                                stepToEdit = Pair(state.selectedPianoTrackIndex, stepIndex)
+                                                            }
+                                                        )
                                                     },
                                                 contentAlignment = Alignment.Center
                                             ) {}
@@ -839,7 +846,7 @@ fun SequencerStudioScreen(
         )
     }
 
-    // --- 🎚️ DIÁLOGO AVANZADO DE EDICIÓN DE PASO ---
+    // --- 🎚️ DIÁLOGO AVANZADO DE EDICIÓN DE PASO (CON PITCH BEND Y MODULACIÓN PRO) ---
     if (stepToEdit != null) {
         val (tIdx, sIdx) = stepToEdit!!
         val currentStep = state.tracks.getOrNull(tIdx)?.steps?.getOrNull(sIdx)
@@ -847,10 +854,12 @@ fun SequencerStudioScreen(
         var tempDuration by remember(currentStep?.durationMs) { mutableStateOf(currentStep?.durationMs ?: 125L) }
         var tempOffset by remember(currentStep?.offsetMs) { mutableStateOf(currentStep?.offsetMs ?: 0L) }
         var tempProbability by remember(currentStep?.probability) { mutableStateOf(currentStep?.probability ?: 1.0f) }
+        var tempPitchBend by remember(currentStep?.pitchBend) { mutableStateOf(currentStep?.pitchBend ?: 0.0f) }
+        var tempModulation by remember(currentStep?.modulation) { mutableStateOf(currentStep?.modulation ?: 0.0f) }
 
         AlertDialog(
             onDismissRequest = { stepToEdit = null },
-            title = { Text("Editor de Paso Avanzado", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold) },
+            title = { Text("Editor Pro de Expresividad y Paso", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold) },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text("Intensidad (Velocity): ${(tempVelocity * 100).toInt()}%", color = Color.White, fontSize = 11.sp)
@@ -858,34 +867,54 @@ fun SequencerStudioScreen(
                         value = tempVelocity,
                         onValueChange = { tempVelocity = it },
                         valueRange = 0.1f..1.0f,
-                        modifier = Modifier.height(24.dp)
+                        modifier = Modifier.height(22.dp)
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
 
                     Text("Duración nota: ${tempDuration} ms", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = tempDuration.toFloat(),
                         onValueChange = { tempDuration = it.toLong() },
                         valueRange = 20f..1000f,
-                        modifier = Modifier.height(24.dp)
+                        modifier = Modifier.height(22.dp)
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
 
                     Text("Desplazamiento (Shift): ${tempOffset} ms", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = tempOffset.toFloat(),
                         onValueChange = { tempOffset = it.toLong() },
                         valueRange = -50f..50f,
-                        modifier = Modifier.height(24.dp)
+                        modifier = Modifier.height(22.dp)
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
 
-                    Text("Probabilidad de Disparo: ${(tempProbability * 100).toInt()}%", color = Color.White, fontSize = 11.sp)
+                    Text("Probabilidad: ${(tempProbability * 100).toInt()}%", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = tempProbability,
                         onValueChange = { tempProbability = it },
                         valueRange = 0.0f..1.0f,
-                        modifier = Modifier.height(24.dp)
+                        modifier = Modifier.height(22.dp)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    // 🎚️ Control de Pitch Bend (-1.0 a 1.0)
+                    Text("Pitch Bend: ${String.format("%.2f", tempPitchBend)}", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Slider(
+                        value = tempPitchBend,
+                        onValueChange = { tempPitchBend = it },
+                        valueRange = -1.0f..1.0f,
+                        modifier = Modifier.height(22.dp)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    // 🎛️ Control de Modulation (0.0 a 1.0)
+                    Text("Modulation (Vibrato): ${(tempModulation * 100).toInt()}%", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Slider(
+                        value = tempModulation,
+                        onValueChange = { tempModulation = it },
+                        valueRange = 0.0f..1.0f,
+                        modifier = Modifier.height(22.dp)
                     )
                 }
             },
@@ -896,6 +925,8 @@ fun SequencerStudioScreen(
                         viewModel.updateStepDuration(tIdx, sIdx, tempDuration)
                         viewModel.updateStepOffset(tIdx, sIdx, tempOffset)
                         viewModel.updateStepProbability(tIdx, sIdx, tempProbability)
+                        viewModel.updateStepPitchBend(tIdx, sIdx, tempPitchBend)
+                        viewModel.updateStepModulation(tIdx, sIdx, tempModulation)
                         stepToEdit = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676))
