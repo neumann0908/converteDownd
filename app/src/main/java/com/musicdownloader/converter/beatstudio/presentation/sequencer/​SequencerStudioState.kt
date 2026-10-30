@@ -16,7 +16,7 @@ data class SequencerStep(
     val durationMs: Long = 125L // Cuánto dura sonando la nota
 )
 
-// Representa una pista de sonido (por ejemplo: el bombo, la caja, un sintetizador)
+// Representa una pista de sonido (por ejemplo: el bombo, la caja, un sintetizador) con soporte de Swing e Individual/Humanización
 data class SequencerTrack(
     val trackId: Int,
     val trackName: String,
@@ -24,7 +24,9 @@ data class SequencerTrack(
     val volume: Float = 1.0f,
     val isMuted: Boolean = false,
     val isSolo: Boolean = false,
-    val customPitchSamples: Map<Int, String> = emptyMap() // 🟢 Mapea Pitch (ej. 0 para C4) con la ruta del archivo .wav asignado
+    val customPitchSamples: Map<Int, String> = emptyMap(), // Mapea Pitch (ej. 0 para C4) con la ruta del archivo .wav asignado
+    val trackSwing: Float = 0.0f,          // 🟢 Parámetro de Swing individual por pista (0.0 a 1.0)
+    val humanizeEnabled: Boolean = false   // 🟢 Control de humanización orgánica de velocidad por pista
 )
 
 // Las partes de nuestra canción para construir un arreglo profesional
@@ -44,7 +46,7 @@ data class SequencerStudioState(
     val bpm: Float = 120.0f,             // Velocidad del ritmo (Tempo)
     val timeSignature: String = "4/4",   // Compás (4/4, 3/4, 6/8, etc.)
     val resolution: String = "1/16",     // Resolución de las notas (1/4, 1/8, 1/16, 1/32)
-    val swing: Float = 0.0f,             // Ritmo con "groove" o toque humano
+    val swing: Float = 0.0f,             // 🟢 Parámetro de Swing Global del Groove
     val isPlaying: Boolean = false,      // Si está sonando o detenido
     val currentStepIndex: Int = -1,      // El paso que va parpadeando mientras suena
     val isMetronomeEnabled: Boolean = false, // Estado de activación del metrónomo
