@@ -5,6 +5,9 @@ import android.media.MediaPlayer
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.musicdownloader.converter.beatstudio.presentation.midi.ChordType
+import com.musicdownloader.converter.beatstudio.presentation.midi.MidiEngineManager
+import com.musicdownloader.converter.beatstudio.presentation.midi.MusicalScaleType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -187,6 +190,38 @@ class SequencerStudioViewModel @Inject constructor(
                 } else {
                     track
                 }
+            }
+        }
+    }
+
+    // --- 🎹 MÉTODOS DEL MOTOR MIDI (MOTOR 4) ---
+
+    // 🎶 Cambiar la escala musical activa para composición inteligente
+    fun updateMusicalScale(scale: MusicalScaleType) {
+        _uiState.update { it.copy(selectedScale = scale) }
+    }
+
+    // 🎹 Cambiar la nota raíz global (Root Key) para los acordes y escalas
+    fun updateRootKey(newRootKey: Int) {
+        _uiState.update { it.copy(rootKey = newRootKey.coerceIn(0, 127)) }
+    }
+
+    // 🎸 Generar y aplicar un acorde automático utilizando el Motor 4
+    fun applyChordToPattern(rootPitch: Int, chordType: ChordType, targetTrackIndex: Int, stepIndex: Int) {
+        val chordNotes = MidiEngineManager.buildChordNotes(rootPitch, chordType, stepIndex.toLong(), 125L)
+        
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { tIdx, track ->
+                if (tIdx == targetTrackIndex) {
+                    val updatedSteps = track.steps.mapIndexed { sIdx, step ->
+                        if (sIdx == stepIndex) {
+                            step.copy(isActive = true, pitch = rootPitch)
+                        } else {
+                            step
+                        }
+                    }
+                    track.copy(steps = updatedSteps)
+                } else track
             }
         }
     }
