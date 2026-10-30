@@ -88,19 +88,20 @@ fun SamplerStudioScreen(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // 💾 Botón Guardar / Exportar Sampler
+                // 💾 Botón Guardar / Exportar Sampler hacia la carpeta 'exports' que lee la Biblioteca
                 IconButton(
                     onClick = {
                         val exportDir = File(context.filesDir, "exports")
                         if (!exportDir.exists()) exportDir.mkdirs()
-                        val fileName = "Sampler_${track.sampleName.substringBeforeLast(".")}_${System.currentTimeMillis()}.wav"
+                        val cleanName = track.sampleName.substringBeforeLast(".")
+                        val fileName = "Sampler_${cleanName}_${System.currentTimeMillis()}.wav"
                         val file = File(exportDir, fileName)
                         
                         val success = viewModel.exportSamplerAsWav(file.absolutePath)
-                        if (success || track.slices.isNotEmpty()) {
+                        if (success) {
                             Toast.makeText(
                                 context,
-                                "✅ ¡Sampler guardado con éxito en la Biblioteca!",
+                                "✅ ¡Sampler guardado y reflejado en la Biblioteca!",
                                 Toast.LENGTH_SHORT
                             ).show()
                         } else {
