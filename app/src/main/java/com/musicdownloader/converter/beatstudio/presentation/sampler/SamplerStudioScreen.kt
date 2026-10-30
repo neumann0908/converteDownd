@@ -247,7 +247,10 @@ fun SamplerStudioScreen(
                             pitch = slice.pitchShift,
                             volume = slice.volume,
                             isReversed = slice.isReversed,
-                            onPadClick = { viewModel.toggleSliceReverse(slice.id) },
+                            onPadClick = { 
+                                // 🎶 Conexión Quirúrgica: Reproduce el fragmento real al tocar el pad
+                                viewModel.playSlice(slice) 
+                            },
                             onPitchChange = { newPitch -> viewModel.updateSlicePitch(slice.id, newPitch) }
                         )
                     }
