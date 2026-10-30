@@ -52,7 +52,7 @@ fun SequencerStudioScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "BPM: ${state.bpm.toInt()} | Compás: ${state.timeSignature}",
+                    text = "BPM: ${state.bpm.toInt()} | Compás: ${state.timeSignature} | Res: ${state.resolution}",
                     color = Color.LightGray,
                     fontSize = 10.sp
                 )
@@ -99,6 +99,71 @@ fun SequencerStudioScreen(
                     onValueChange = { viewModel.updateBpm(it) },
                     valueRange = 60f..200f,
                     modifier = Modifier.height(20.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // --- 🎛️ CONTROLES AVANZADOS (Compás, Resolución y Metrónomo) ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // Selector de Compás
+            Button(
+                onClick = {
+                    val nextSig = when (state.timeSignature) {
+                        "4/4" -> "3/4"
+                        "3/4" -> "6/8"
+                        else -> "4/4"
+                    }
+                    viewModel.updateTimeSignature(nextSig)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E1E2C)),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(36.dp),
+                contentPadding = PaddingValues(2.dp)
+            ) {
+                Text("Compás: ${state.timeSignature}", color = Color.White, fontSize = 9.sp)
+            }
+
+            // Selector de Resolución
+            Button(
+                onClick = {
+                    val nextRes = when (state.resolution) {
+                        "1/16" -> "1/8"
+                        "1/8" -> "1/4"
+                        else -> "1/16"
+                    }
+                    viewModel.updateResolution(nextRes)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E1E2C)),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(36.dp),
+                contentPadding = PaddingValues(2.dp)
+            ) {
+                Text("Res: ${state.resolution}", color = Color.White, fontSize = 9.sp)
+            }
+
+            // Botón Metrónomo On/Off
+            Button(
+                onClick = { viewModel.toggleMetronome() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (state.isMetronomeEnabled) Color(0xFFFFD700) else Color(0xFF1E1E2C)
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(36.dp),
+                contentPadding = PaddingValues(2.dp)
+            ) {
+                Text(
+                    text = if (state.isMetronomeEnabled) "Click: ON" else "Click: OFF",
+                    color = if (state.isMetronomeEnabled) Color.Black else Color.White,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
