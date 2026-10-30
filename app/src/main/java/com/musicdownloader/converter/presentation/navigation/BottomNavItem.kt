@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Transform
 import androidx.compose.material.icons.filled.GraphicEq // 🎙️ Ícono de ondas/ecualizador para el Sampler Studio (Motor 2)
+import androidx.compose.material.icons.filled.Tune // 🎹 Ícono de controles/secuenciador para el Sequencer Studio (Motor 3)
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class BottomNavItem(
@@ -30,4 +31,7 @@ sealed class BottomNavItem(
 
     // 🎙️ FASE 2: Sampler Studio Pro (Motor 2 - Sampler Engine)
     object SamplerStudio : BottomNavItem("sampler_studio", "Sampler", Icons.Default.GraphicEq)
+
+    // 🎹 FASE 3: Sequencer Studio Pro (Motor 3 - Sequencer Engine)
+    object SequencerStudio : BottomNavItem("sequencer_studio", "Sequencer", Icons.Default.Tune)
 }
