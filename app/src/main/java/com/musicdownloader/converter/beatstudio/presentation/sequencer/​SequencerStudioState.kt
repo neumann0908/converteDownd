@@ -1,5 +1,7 @@
 package com.musicdownloader.converter.beatstudio.presentation.sequencer
 
+import com.musicdownloader.converter.beatstudio.presentation.midi.MusicalScaleType
+
 // 🟢 Estructura de Patrón independiente para el DAW (A, B, C)
 data class SequencerPattern(
     val id: String,
@@ -69,7 +71,11 @@ data class SequencerStudioState(
         SequencerPattern("A", "Patrón A", createDefaultTracks()),
         SequencerPattern("B", "Patrón B", createDefaultTracks()),
         SequencerPattern("C", "Patrón C", createDefaultTracks())
-    )
+    ),
+
+    // --- 🎹 CAMPOS DEL MOTOR MIDI (MOTOR 4) ---
+    val selectedScale: MusicalScaleType = MusicalScaleType.MAJOR, // Escala musical activa por defecto
+    val rootKey: Int = 60 // Nota raíz base por defecto (C4 / Do central)
 ) {
     // 🟢 Propiedad calculada para mantener compatibilidad absoluta con la UI y el reproductor
     val tracks: List<SequencerTrack>
