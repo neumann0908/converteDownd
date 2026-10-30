@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.musicdownloader.converter.beatstudio.presentation.midi.ChordType
+import com.musicdownloader.converter.beatstudio.presentation.midi.MusicalScaleType
 import java.io.File
 
 @Composable
@@ -608,105 +610,177 @@ fun SequencerStudioScreen(
                 }
             }
         } else {
-            // --- 🎹 VISTA PIANO ROLL PROFESIONAL ---
+            // --- 🎹 VISTA PIANO ROLL PROFESIONAL CON BARRA DEL MOTOR 4 ---
             val activeTrack = state.tracks.getOrNull(state.selectedPianoTrackIndex) ?: state.tracks.last()
             
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
-                shape = RoundedCornerShape(10.dp),
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(420.dp) // Altura fija controlada para el Piano Roll
+                    .height(460.dp)
             ) {
-                Column(modifier = Modifier.padding(8.dp)) {
-                    Text(
-                        text = "PIANO ROLL: ${activeTrack.trackName} (📁 Archivo Nativo | ⚙️ Kits)",
-                        color = Color(0xFFFFD700),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(3.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        val pitchNames = listOf("C5", "B4", "A4", "G4", "F4", "E4", "D4", "C4")
+                // 🎛️ BARRA DE CONTROL DEL MOTOR 4 (ESCALAS Y ACORDES)
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
+                ) {
+                    Column(modifier = Modifier.padding(6.dp)) {
+                        Text(
+                            text = "MOTOR 4: ESCALAS Y ACORDES",
+                            color = Color(0xFFFFD700),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
                         
-                        items(pitchNames.size) { pitchIndex ->
-                            val actualPitch = 7 - pitchIndex
-                            val hasKeySample = activeTrack.customPitchSamples.containsKey(actualPitch)
-                            
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.width(56.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                        // Selector de Escalas Musicales
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            MusicalScaleType.entries.forEach { scale ->
+                                val isSelected = state.selectedScale == scale
+                                Button(
+                                    onClick = { viewModel.updateMusicalScale(scale) },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isSelected) Color(0xFF00E676) else Color(0xFF28283D)
+                                    ),
+                                    modifier = Modifier.weight(1f).height(24.dp),
+                                    contentPadding = PaddingValues(2.dp)
                                 ) {
                                     Text(
-                                        text = pitchNames[pitchIndex],
-                                        color = if (hasKeySample) Color(0xFF00E676) else Color.LightGray,
-                                        fontSize = 9.sp,
+                                        text = scale.name.take(6),
+                                        color = if (isSelected) Color.Black else Color.White,
+                                        fontSize = 7.sp,
                                         fontWeight = FontWeight.Bold
                                     )
-                                    
-                                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        Icon(
-                                            imageVector = Icons.Default.FolderOpen,
-                                            contentDescription = "Cargar Archivo Nativo",
-                                            tint = Color(0xFF00E676),
-                                            modifier = Modifier
-                                                .size(13.dp)
-                                                .clickable {
-                                                    targetPickerTarget = Pair(state.selectedPianoTrackIndex, actualPitch)
-                                                    nativeFilePickerLauncher.launch("audio/*")
-                                                }
-                                        )
-                                        Icon(
-                                            imageVector = Icons.Default.Settings,
-                                            contentDescription = "Configurar Kit",
-                                            tint = if (hasKeySample) Color(0xFFFFD700) else Color.Gray,
-                                            modifier = Modifier
-                                                .size(13.dp)
-                                                .clickable { activeConfigTarget = Pair(state.selectedPianoTrackIndex, actualPitch) }
-                                        )
-                                    }
                                 }
-
-                                Row(
-                                    modifier = Modifier.weight(1f),
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(4.dp))
+                        
+                        // Botones de Acordes Automáticos
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            ChordType.entries.take(3).forEach { chord ->
+                                Button(
+                                    onClick = { 
+                                        viewModel.applyChordToPattern(state.rootKey, chord, state.selectedPianoTrackIndex, 0)
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF28283D)),
+                                    modifier = Modifier.weight(1f).height(24.dp),
+                                    contentPadding = PaddingValues(2.dp)
                                 ) {
-                                    activeTrack.steps.forEachIndexed { stepIndex, step ->
-                                        val hasNoteAtThisPitch = step.isActive && step.pitch == actualPitch
-                                        val isCurrentStepPlaying = (state.currentStepIndex == stepIndex)
+                                    Text(
+                                        text = "+ ${chord.name.take(8)}",
+                                        color = Color(0xFFFFD700),
+                                        fontSize = 7.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
 
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(24.dp)
-                                                .clip(RoundedCornerShape(3.dp))
-                                                .background(
-                                                    when {
-                                                        hasNoteAtThisPitch && isCurrentStepPlaying -> Color.White
-                                                        hasNoteAtThisPitch -> Color(0xFF9C27B0)
-                                                        isCurrentStepPlaying -> Color(0xFF3B3B4F)
-                                                        else -> Color(0xFF22222F)
+                // Tarjeta del Piano Roll
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth().weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        Text(
+                            text = "PIANO ROLL: ${activeTrack.trackName} | Escala: ${state.selectedScale.displayName}",
+                            color = Color(0xFFFFD700),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            val pitchNames = listOf("C5", "B4", "A4", "G4", "F4", "E4", "D4", "C4")
+                            
+                            items(pitchNames.size) { pitchIndex ->
+                                val actualPitch = 7 - pitchIndex
+                                val hasKeySample = activeTrack.customPitchSamples.containsKey(actualPitch)
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.width(56.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = pitchNames[pitchIndex],
+                                            color = if (hasKeySample) Color(0xFF00E676) else Color.LightGray,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        
+                                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Icon(
+                                                imageVector = Icons.Default.FolderOpen,
+                                                contentDescription = "Cargar Archivo Nativo",
+                                                tint = Color(0xFF00E676),
+                                                modifier = Modifier
+                                                    .size(13.dp)
+                                                    .clickable {
+                                                        targetPickerTarget = Pair(state.selectedPianoTrackIndex, actualPitch)
+                                                        nativeFilePickerLauncher.launch("audio/*")
                                                     }
-                                                )
-                                                .clickable {
-                                                    if (hasNoteAtThisPitch) {
-                                                        viewModel.toggleStep(state.selectedPianoTrackIndex, stepIndex)
-                                                    } else {
-                                                        viewModel.updateStepPitch(state.selectedPianoTrackIndex, stepIndex, actualPitch)
-                                                    }
-                                                },
-                                            contentAlignment = Alignment.Center
-                                        ) {}
+                                            )
+                                            Icon(
+                                                imageVector = Icons.Default.Settings,
+                                                contentDescription = "Configurar Kit",
+                                                tint = if (hasKeySample) Color(0xFFFFD700) else Color.Gray,
+                                                modifier = Modifier
+                                                    .size(13.dp)
+                                                    .clickable { activeConfigTarget = Pair(state.selectedPianoTrackIndex, actualPitch) }
+                                            )
+                                        }
+                                    }
+
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        activeTrack.steps.forEachIndexed { stepIndex, step ->
+                                            val hasNoteAtThisPitch = step.isActive && step.pitch == actualPitch
+                                            val isCurrentStepPlaying = (state.currentStepIndex == stepIndex)
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(24.dp)
+                                                    .clip(RoundedCornerShape(3.dp))
+                                                    .background(
+                                                        when {
+                                                            hasNoteAtThisPitch && isCurrentStepPlaying -> Color.White
+                                                            hasNoteAtThisPitch -> Color(0xFF9C27B0)
+                                                            isCurrentStepPlaying -> Color(0xFF3B3B4F)
+                                                            else -> Color(0xFF22222F)
+                                                        }
+                                                    )
+                                                    .clickable {
+                                                        if (hasNoteAtThisPitch) {
+                                                            viewModel.toggleStep(state.selectedPianoTrackIndex, stepIndex)
+                                                        } else {
+                                                            viewModel.updateStepPitch(state.selectedPianoTrackIndex, stepIndex, actualPitch)
+                                                        }
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {}
+                                        }
                                     }
                                 }
                             }
@@ -765,7 +839,7 @@ fun SequencerStudioScreen(
         )
     }
 
-    // --- 🎚️ DIÁLOGO AVANZADO DE EDICIÓN DE PASO (Velocity, Duración, Offset y Probabilidad) ---
+    // --- 🎚️ DIÁLOGO AVANZADO DE EDICIÓN DE PASO ---
     if (stepToEdit != null) {
         val (tIdx, sIdx) = stepToEdit!!
         val currentStep = state.tracks.getOrNull(tIdx)?.steps?.getOrNull(sIdx)
@@ -779,7 +853,6 @@ fun SequencerStudioScreen(
             title = { Text("Editor de Paso Avanzado", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold) },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    // Velocity
                     Text("Intensidad (Velocity): ${(tempVelocity * 100).toInt()}%", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = tempVelocity,
@@ -789,7 +862,6 @@ fun SequencerStudioScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Duration
                     Text("Duración nota: ${tempDuration} ms", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = tempDuration.toFloat(),
@@ -799,7 +871,6 @@ fun SequencerStudioScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Offset (Shift)
                     Text("Desplazamiento (Shift): ${tempOffset} ms", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = tempOffset.toFloat(),
@@ -809,7 +880,6 @@ fun SequencerStudioScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Probability
                     Text("Probabilidad de Disparo: ${(tempProbability * 100).toInt()}%", color = Color.White, fontSize = 11.sp)
                     Slider(
                         value = tempProbability,
