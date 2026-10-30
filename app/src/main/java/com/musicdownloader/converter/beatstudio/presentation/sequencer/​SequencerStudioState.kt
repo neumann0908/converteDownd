@@ -1,5 +1,12 @@
 package com.musicdownloader.converter.beatstudio.presentation.sequencer
 
+// 🟢 Estructura de Patrón independiente para el DAW (A, B, C)
+data class SequencerPattern(
+    val id: String,
+    val name: String,
+    val tracks: List<SequencerTrack>
+)
+
 // Representa un cuadrito (paso) individual en el secuenciador o piano roll
 data class SequencerStep(
     val id: Int,
@@ -41,12 +48,6 @@ data class SequencerStudioState(
     val isPlaying: Boolean = false,      // Si está sonando o detenido
     val currentStepIndex: Int = -1,      // El paso que va parpadeando mientras suena
     val isMetronomeEnabled: Boolean = false, // Estado de activación del metrónomo
-    val tracks: List<SequencerTrack> = listOf(
-        SequencerTrack(0, "Kick"),
-        SequencerTrack(1, "Snare"),
-        SequencerTrack(2, "HiHat"),
-        SequencerTrack(3, "SynthBass") // Pista adaptada para melodías en el Piano Roll
-    ),
     val arrangement: List<SongSection> = listOf(
         SongSection("1", SongSectionType.INTRO, "Intro", repeatCount = 1),
         SongSection("2", SongSectionType.VERSO, "Verso 1", repeatCount = 2),
@@ -55,5 +56,27 @@ data class SequencerStudioState(
     val currentSectionIndex: Int = 0,     // Índice de la sección del arreglo actual en reproducción
     val currentLoopInverses: Int = 0,     // Contador de bucles completados dentro de la sección actual
     val isPianoRollMode: Boolean = false, // Indica si la vista activa es el Piano Roll
-    val selectedPianoTrackIndex: Int = 3  // Pista seleccionada para editar en el Piano Roll
-)
+    val selectedPianoTrackIndex: Int = 3,  // Pista seleccionada para editar en el Piano Roll
+    
+    // --- 🎛️ CAMPOS DE PATRONES INDEPENDIENTES ---
+    val currentPatternIndex: Int = 0,
+    val patterns: List<SequencerPattern> = listOf(
+        SequencerPattern("A", "Patrón A", createDefaultTracks()),
+        SequencerPattern("B", "Patrón B", createDefaultTracks()),
+        SequencerPattern("C", "Patrón C", createDefaultTracks())
+    )
+) {
+    // 🟢 Propiedad calculada para mantener compatibilidad absoluta con la UI y el reproductor
+    val tracks: List<SequencerTrack>
+        get() = patterns.getOrNull(currentPatternIndex)?.tracks ?: patterns.first().tracks
+}
+
+// 🟢 Función auxiliar para inicializar las pistas por defecto en cada patrón
+fun createDefaultTracks(): List<SequencerTrack> {
+    return listOf(
+        SequencerTrack(0, "Kick"),
+        SequencerTrack(1, "Snare"),
+        SequencerTrack(2, "HiHat"),
+        SequencerTrack(3, "SynthBass")
+    )
+}
