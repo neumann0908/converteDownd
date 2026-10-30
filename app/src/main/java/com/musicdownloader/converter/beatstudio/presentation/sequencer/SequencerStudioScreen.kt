@@ -131,24 +131,46 @@ fun SequencerStudioScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // --- CONTROLADOR TEMPO (BPM) ---
+        // --- CONTROLADOR TEMPO (BPM) Y SWING GLOBAL (GROOVE) ---
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
             shape = RoundedCornerShape(10.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(10.dp)) {
-                Text(
-                    text = "TEMPO (BPM): ${state.bpm.toInt()}",
-                    color = Color.White,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "TEMPO: ${state.bpm.toInt()} BPM",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "SWING GROOVE: ${(state.swing * 100).toInt()}%",
+                        color = Color(0xFFFFD700),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                
                 Slider(
                     value = state.bpm,
                     onValueChange = { viewModel.updateBpm(it) },
                     valueRange = 60f..200f,
-                    modifier = Modifier.height(20.dp)
+                    modifier = Modifier.height(18.dp)
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Slider(
+                    value = state.swing,
+                    onValueChange = { viewModel.updateSwing(it) },
+                    valueRange = 0.0f..1.0f,
+                    modifier = Modifier.height(18.dp)
                 )
             }
         }
@@ -416,7 +438,7 @@ fun SequencerStudioScreen(
 
         // --- CONTENEDOR PRINCIPAL: STEP SEQUENCER VS PIANO ROLL ---
         if (!state.isPianoRollMode) {
-            // 🟢 REJILLA DE BATERÍA CON BOTONES 📁 Y ⚙️ PARA CADA PISTA (Kick, Snare, HiHat, SynthBass)
+            // 🟢 REJILLA DE BATERÍA CON BOTONES DE HUMANIZACIÓN (Hum), ARCHIVOS Y KITS
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -446,7 +468,23 @@ fun SequencerStudioScreen(
                                     fontWeight = FontWeight.Bold
                                 )
 
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    // 🟢 Botón de Humanización individual (Hum)
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(if (track.humanizeEnabled) Color(0xFFFFD700) else Color(0xFF28283D))
+                                            .clickable { viewModel.toggleTrackHumanize(trackIndex) }
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "Hum",
+                                            color = if (track.humanizeEnabled) Color.Black else Color.Gray,
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
                                     Icon(
                                         imageVector = Icons.Default.FolderOpen,
                                         contentDescription = "Cargar Archivo Nativo",
