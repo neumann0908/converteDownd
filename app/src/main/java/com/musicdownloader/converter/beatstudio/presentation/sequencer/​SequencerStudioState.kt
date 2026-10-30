@@ -39,7 +39,7 @@ data class SequencerStudioState(
     val swing: Float = 0.0f,             // Ritmo con "groove" o toque humano
     val isPlaying: Boolean = false,      // Si está sonando o detenido
     val currentStepIndex: Int = -1,      // El paso que va parpadeando mientras suena
-    val isMetronomeEnabled: Boolean = false, // 🟢 Nuevo: Estado de activación del metrónomo
+    val isMetronomeEnabled: Boolean = false, // Estado de activación del metrónomo
     val tracks: List<SequencerTrack> = listOf(
         SequencerTrack(0, "Kick"),
         SequencerTrack(1, "Snare"),
@@ -47,8 +47,10 @@ data class SequencerStudioState(
         SequencerTrack(3, "Clap")
     ),
     val arrangement: List<SongSection> = listOf(
-        SongSection("1", SongSectionType.INTRO, "Intro"),
-        SongSection("2", SongSectionType.VERSO, "Verso 1"),
-        SongSection("3", SongSectionType.ESTRIBILLO, "Estribillo")
-    )
+        SongSection("1", SongSectionType.INTRO, "Intro", repeatCount = 1),
+        SongSection("2", SongSectionType.VERSO, "Verso 1", repeatCount = 2),
+        SongSection("3", SongSectionType.ESTRIBILLO, "Estribillo", repeatCount = 2)
+    ),
+    val currentSectionIndex: Int = 0,     // 🟢 Índice de la sección del arreglo actual en reproducción
+    val currentLoopInverses: Int = 0      // 🟢 Contador de bucles completados dentro de la sección actual
 )
