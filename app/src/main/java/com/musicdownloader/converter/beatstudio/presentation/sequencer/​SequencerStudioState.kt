@@ -7,16 +7,17 @@ data class SequencerPattern(
     val tracks: List<SequencerTrack>
 )
 
-// Representa un cuadrito (paso) individual en el secuenciador o piano roll
+// Representa un cuadrito (paso) individual con control de duración y desplazamiento temporal (Offset/Shift)[span_1](start_span)[span_1](end_span)
 data class SequencerStep(
     val id: Int,
     val isActive: Boolean = false,
-    val velocity: Float = 1.0f, // Qué tan fuerte suena el golpe (Edición de Velocity)
-    val pitch: Int = 0,       // Altura de la nota musical para el Piano Roll
-    val durationMs: Long = 125L // Cuánto dura sonando la nota
+    val velocity: Float = 1.0f,     // Qué tan fuerte suena el golpe (Edición de Velocity)
+    val pitch: Int = 0,           // Altura de la nota musical para el Piano Roll
+    val durationMs: Long = 125L,  // 🟢 Duración exacta en milisegundos que suena la nota[span_2](start_span)[span_2](end_span)
+    val offsetMs: Long = 0L       // 🟢 Desplazamiento temporal (Shift/Offset) ligero de la posición[span_3](start_span)[span_3](end_span)
 )
 
-// Representa una pista de sonido (por ejemplo: el bombo, la caja, un sintetizador) con soporte de Swing e Individual/Humanización
+// Representa una pista de sonido con soporte de Swing e Individual/Humanización
 data class SequencerTrack(
     val trackId: Int,
     val trackName: String,
@@ -24,9 +25,9 @@ data class SequencerTrack(
     val volume: Float = 1.0f,
     val isMuted: Boolean = false,
     val isSolo: Boolean = false,
-    val customPitchSamples: Map<Int, String> = emptyMap(), // Mapea Pitch (ej. 0 para C4) con la ruta del archivo .wav asignado
-    val trackSwing: Float = 0.0f,          // 🟢 Parámetro de Swing individual por pista (0.0 a 1.0)
-    val humanizeEnabled: Boolean = false   // 🟢 Control de humanización orgánica de velocidad por pista
+    val customPitchSamples: Map<Int, String> = emptyMap(), // Mapea Pitch con la ruta del archivo .wav
+    val trackSwing: Float = 0.0f,          // Parámetro de Swing individual por pista (0.0 a 1.0)
+    val humanizeEnabled: Boolean = false   // Control de humanización orgánica de velocidad por pista
 )
 
 // Las partes de nuestra canción para construir un arreglo profesional
@@ -46,7 +47,7 @@ data class SequencerStudioState(
     val bpm: Float = 120.0f,             // Velocidad del ritmo (Tempo)
     val timeSignature: String = "4/4",   // Compás (4/4, 3/4, 6/8, etc.)
     val resolution: String = "1/16",     // Resolución de las notas (1/4, 1/8, 1/16, 1/32)
-    val swing: Float = 0.0f,             // 🟢 Parámetro de Swing Global del Groove
+    val swing: Float = 0.0f,             // Parámetro de Swing Global del Groove
     val isPlaying: Boolean = false,      // Si está sonando o detenido
     val currentStepIndex: Int = -1,      // El paso que va parpadeando mientras suena
     val isMetronomeEnabled: Boolean = false, // Estado de activación del metrónomo
