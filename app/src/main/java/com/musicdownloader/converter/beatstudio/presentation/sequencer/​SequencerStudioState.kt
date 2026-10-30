@@ -39,6 +39,7 @@ data class SequencerStudioState(
     val swing: Float = 0.0f,             // Ritmo con "groove" o toque humano
     val isPlaying: Boolean = false,      // Si está sonando o detenido
     val currentStepIndex: Int = -1,      // El paso que va parpadeando mientras suena
+    val isMetronomeEnabled: Boolean = false, // 🟢 Nuevo: Estado de activación del metrónomo
     val tracks: List<SequencerTrack> = listOf(
         SequencerTrack(0, "Kick"),
         SequencerTrack(1, "Snare"),
