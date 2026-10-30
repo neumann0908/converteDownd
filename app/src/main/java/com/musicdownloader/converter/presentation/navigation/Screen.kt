@@ -15,4 +15,7 @@ sealed class Screen(val route: String) {
 
     // 🎙️ FASE 2: Sampler Studio Pro (Motor 2 - Sampler Engine)
     object SamplerStudio : Screen("sampler_studio")
+
+    // 🎹 FASE 3: Sequencer Studio Pro (Motor 3 - Sequencer Engine)
+    object SequencerStudio : Screen("sequencer_studio")
 }
