@@ -44,13 +44,15 @@ data class SequencerStudioState(
         SequencerTrack(0, "Kick"),
         SequencerTrack(1, "Snare"),
         SequencerTrack(2, "HiHat"),
-        SequencerTrack(3, "Clap")
+        SequencerTrack(3, "SynthBass") // Pista adaptada para melodías en el Piano Roll
     ),
     val arrangement: List<SongSection> = listOf(
         SongSection("1", SongSectionType.INTRO, "Intro", repeatCount = 1),
         SongSection("2", SongSectionType.VERSO, "Verso 1", repeatCount = 2),
         SongSection("3", SongSectionType.ESTRIBILLO, "Estribillo", repeatCount = 2)
     ),
-    val currentSectionIndex: Int = 0,     // 🟢 Índice de la sección del arreglo actual en reproducción
-    val currentLoopInverses: Int = 0      // 🟢 Contador de bucles completados dentro de la sección actual
+    val currentSectionIndex: Int = 0,     // Índice de la sección del arreglo actual en reproducción
+    val currentLoopInverses: Int = 0,     // Contador de bucles completados dentro de la sección actual
+    val isPianoRollMode: Boolean = false, // 🟢 Nuevo: Indica si la vista activa es el Piano Roll
+    val selectedPianoTrackIndex: Int = 3  // 🟢 Nuevo: Pista seleccionada para editar en el Piano Roll
 )
