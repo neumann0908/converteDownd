@@ -2,7 +2,7 @@ package com.musicdownloader.converter.presentation.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.hilt.navigation.compose.hiltViewModel // <-- Importante para Hilt
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -22,6 +22,10 @@ import com.musicdownloader.converter.beatstudio.presentation.drum.DrumStudioView
 // 🎙️ 2. Importaciones de nuestro Sampler Studio Pro (Motor 2)
 import com.musicdownloader.converter.beatstudio.presentation.sampler.SamplerStudioScreen
 import com.musicdownloader.converter.beatstudio.presentation.sampler.SamplerStudioViewModel
+
+// 🎹 3. Importaciones de nuestro Sequencer Studio Pro (Motor 3)
+import com.musicdownloader.converter.beatstudio.presentation.sequencer.SequencerStudioScreen
+import com.musicdownloader.converter.beatstudio.presentation.sequencer.SequencerStudioViewModel
 
 @Composable
 fun AppNavGraph(navController: NavHostController, modifier: Modifier = Modifier) {
@@ -52,6 +56,12 @@ fun AppNavGraph(navController: NavHostController, modifier: Modifier = Modifier)
         composable("sampler_studio") {
             val samplerStudioViewModel: SamplerStudioViewModel = hiltViewModel()
             SamplerStudioScreen(viewModel = samplerStudioViewModel)
+        }
+
+        // 🎹 FASE 3: Integración Quirúrgica del Nuevo Sequencer Studio Pro (Motor 3)
+        composable("sequencer_studio") {
+            val sequencerStudioViewModel: SequencerStudioViewModel = hiltViewModel()
+            SequencerStudioScreen(viewModel = sequencerStudioViewModel)
         }
     }
 }
