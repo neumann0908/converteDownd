@@ -19,6 +19,13 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
+// 🟢 Estructura de Patrón independiente para el DAW
+data class SequencerPattern(
+    val id: String,
+    val name: String,
+    val tracks: List<SequencerTrack>
+)
+
 @HiltViewModel
 class SequencerStudioViewModel @Inject constructor(
     @ApplicationContext private val context: Context
@@ -29,10 +36,29 @@ class SequencerStudioViewModel @Inject constructor(
 
     private var playbackJob: Job? = null
 
-    // 🎵 Activar o desactivar un cuadrito (paso) cuando lo tocas con el dedo
-    fun toggleStep(trackIndex: Int, stepIndex: Int) {
+    // Memoria temporal para copiar y pegar patrones completos
+    private var copiedTracksMemory: List<SequencerTrack>? = null
+
+    // 🟢 Función auxiliar para actualizar las pistas del patrón activo de forma segura
+    private fun updateCurrentPatternTracks(updateAction: (List<SequencerTrack>) -> List<SequencerTrack>) {
         _uiState.update { currentState ->
-            val updatedTracks = currentState.tracks.mapIndexed { tIdx, track ->
+            val currentPattern = currentState.patterns[currentState.currentPatternIndex]
+            val updatedTracks = updateAction(currentPattern.tracks)
+            val updatedPatterns = currentState.patterns.mapIndexed { idx, pattern ->
+                if (idx == currentState.currentPatternIndex) {
+                    pattern.copy(tracks = updatedTracks)
+                } else {
+                    pattern
+                }
+            }
+            currentState.copy(patterns = updatedPatterns)
+        }
+    }
+
+    // 🎵 Activar o desactivar un cuadrito (paso) cuando lo tocas con el dedo en el patrón activo
+    fun toggleStep(trackIndex: Int, stepIndex: Int) {
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { tIdx, track ->
                 if (tIdx == trackIndex) {
                     val updatedSteps = track.steps.mapIndexed { sIdx, step ->
                         if (sIdx == stepIndex) {
@@ -46,14 +72,13 @@ class SequencerStudioViewModel @Inject constructor(
                     track
                 }
             }
-            currentState.copy(tracks = updatedTracks)
         }
     }
 
-    // 🎚️ Actualizar la velocity (intensidad/volumen) de un paso específico
+    // 🎚️ Actualizar la velocity (intensidad/volumen) de un paso específico en el patrón activo
     fun updateStepVelocity(trackIndex: Int, stepIndex: Int, newVelocity: Float) {
-        _uiState.update { currentState ->
-            val updatedTracks = currentState.tracks.mapIndexed { tIdx, track ->
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { tIdx, track ->
                 if (tIdx == trackIndex) {
                     val updatedSteps = track.steps.mapIndexed { sIdx, step ->
                         if (sIdx == stepIndex) {
@@ -67,7 +92,6 @@ class SequencerStudioViewModel @Inject constructor(
                     track
                 }
             }
-            currentState.copy(tracks = updatedTracks)
         }
     }
 
@@ -76,10 +100,10 @@ class SequencerStudioViewModel @Inject constructor(
         _uiState.update { it.copy(isPianoRollMode = enabled, selectedPianoTrackIndex = trackIndex) }
     }
 
-    // 🎵 Actualizar el tono (pitch) de un paso específico en el Piano Roll
+    // 🎵 Actualizar el tono (pitch) de un paso específico en el Piano Roll del patrón activo
     fun updateStepPitch(trackIndex: Int, stepIndex: Int, newPitch: Int) {
-        _uiState.update { currentState ->
-            val updatedTracks = currentState.tracks.mapIndexed { tIdx, track ->
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { tIdx, track ->
                 if (tIdx == trackIndex) {
                     val updatedSteps = track.steps.mapIndexed { sIdx, step ->
                         if (sIdx == stepIndex) {
@@ -93,14 +117,13 @@ class SequencerStudioViewModel @Inject constructor(
                     track
                 }
             }
-            currentState.copy(tracks = updatedTracks)
         }
     }
 
-    // 🟢 Asignar un archivo de audio (.wav) personalizado a una tecla/pitch específico
+    // 🟢 Asignar un archivo de audio (.wav) personalizado a una tecla/pitch específico en el patrón activo
     fun assignSampleToPitch(trackIndex: Int, pitch: Int, filePath: String) {
-        _uiState.update { currentState ->
-            val updatedTracks = currentState.tracks.mapIndexed { tIdx, track ->
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { tIdx, track ->
                 if (tIdx == trackIndex) {
                     val newMap = track.customPitchSamples.toMutableMap()
                     newMap[pitch] = filePath
@@ -109,7 +132,6 @@ class SequencerStudioViewModel @Inject constructor(
                     track
                 }
             }
-            currentState.copy(tracks = updatedTracks)
         }
     }
 
@@ -133,6 +155,64 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
+    // 🎛️ Cambiar el patrón activo (Patrón A, B, C)[span_1](start_span)[span_1](end_span)
+    fun selectPattern(patternIndex: Int) {
+        _uiState.update { currentState ->
+            if (patternIndex in currentState.patterns.indices) {
+                currentState.copy(currentPatternIndex = patternIndex)
+            } else {
+                currentState
+            }
+        }
+    }
+
+    // 🎛️ Duplicar el patrón actual hacia otro slot de patrón[span_2](start_span)[span_2](end_span)
+    fun duplicatePattern(targetIndex: Int) {
+        _uiState.update { currentState ->
+            val currentPattern = currentState.patterns[currentState.currentPatternIndex]
+            val updatedPatterns = currentState.patterns.mapIndexed { idx, pattern ->
+                if (idx == targetIndex) {
+                    pattern.copy(
+                        tracks = currentPattern.tracks.map { track ->
+                            track.copy(
+                                steps = track.steps.map { it.copy() },
+                                customPitchSamples = track.customPitchSamples.toMap()
+                            )
+                        }
+                    )
+                } else {
+                    pattern
+                }
+            }
+            currentState.copy(patterns = updatedPatterns)
+        }
+    }
+
+    // 📋 Copiar el patrón activo actual a memoria temporal[span_3](start_span)[span_3](end_span)
+    fun copyCurrentPattern() {
+        val currentPattern = _uiState.value.patterns[_uiState.value.currentPatternIndex]
+        copiedTracksMemory = currentPattern.tracks.map { track ->
+            track.copy(
+                steps = track.steps.map { it.copy() },
+                customPitchSamples = track.customPitchSamples.toMap()
+            )
+        }
+    }
+
+    // 📋 Pegar los pasos/pistas copiados en el patrón activo actual[span_4](start_span)[span_4](end_span)
+    fun pasteToCurrentPattern() {
+        copiedTracksMemory?.let { memoryTracks ->
+            updateCurrentPatternTracks { _ ->
+                memoryTracks.map { track ->
+                    track.copy(
+                        steps = track.steps.map { it.copy() },
+                        customPitchSamples = track.customPitchSamples.toMap()
+                    )
+                }
+            }
+        }
+    }
+
     // 💾 Guardar la canción actual directamente en la carpeta exports/ para que la Biblioteca la escanee de inmediato
     fun saveSongToLibrary(songName: String, onComplete: (Boolean) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -143,7 +223,6 @@ class SequencerStudioViewModel @Inject constructor(
                 val safeName = if (songName.isBlank()) "Beat_${System.currentTimeMillis()}" else songName.trim().replace(" ", "_")
                 val destinationFile = File(exportDir, "$safeName.wav")
 
-                // Tomamos la muestra principal activa o respaldamos con la primera pista disponible
                 val activeTrack = uiState.value.tracks.firstOrNull { it.steps.any { s -> s.isActive } } ?: uiState.value.tracks.first()
                 val customPath = activeTrack.customPitchSamples.values.firstOrNull()
                 
@@ -185,21 +264,18 @@ class SequencerStudioViewModel @Inject constructor(
             while (_uiState.value.isPlaying) {
                 val state = _uiState.value
                 val currentBpm = state.bpm
-                // Calculamos el tiempo exacto de espera entre cada paso según los BPM
                 val stepDelayMs = (60000f / currentBpm / 4f).toLong()
 
                 _uiState.update { currentState ->
                     val nextStep = currentState.currentStepIndex + 1
 
                     if (nextStep >= totalSteps) {
-                        // Fin de un loop de 16 pasos, evaluamos el bloque de arreglo actual
                         val arrangement = currentState.arrangement
                         if (arrangement.isNotEmpty()) {
                             val currentSec = arrangement.getOrNull(currentState.currentSectionIndex) ?: arrangement.first()
                             val loopsSoFar = currentState.currentLoopInverses + 1
 
                             if (loopsSoFar >= currentSec.repeatCount) {
-                                // Pasar a la siguiente sección del arreglo de manera circular
                                 val nextSecIndex = (currentState.currentSectionIndex + 1) % arrangement.size
                                 playActiveStepsForColumn(0)
                                 currentState.copy(
@@ -208,7 +284,6 @@ class SequencerStudioViewModel @Inject constructor(
                                     currentLoopInverses = 0
                                 )
                             } else {
-                                // Repetir la misma sección actual
                                 playActiveStepsForColumn(0)
                                 currentState.copy(
                                     currentStepIndex = 0,
@@ -241,7 +316,7 @@ class SequencerStudioViewModel @Inject constructor(
         _uiState.update { it.copy(isMetronomeEnabled = !it.isMetronomeEnabled) }
     }
 
-    // ➕ Añadir una nueva sección al arreglo (Intro, Verso, Estribillo, etc.)
+    // ➕ Añadir una nueva sección al arreglo
     fun addSongSection(type: SongSectionType) {
         val namePrefix = when (type) {
             SongSectionType.INTRO -> "Intro"
@@ -264,11 +339,10 @@ class SequencerStudioViewModel @Inject constructor(
         _uiState.update { it.copy(arrangement = it.arrangement.filter { sec -> sec.id != sectionId }) }
     }
 
-    // 🔊 Dispara los sonidos que están activos en la columna actual y el metrónomo
+    // 🔊 Dispara los sonidos activos en la columna actual y el metrónomo
     private fun playActiveStepsForColumn(stepIndex: Int) {
         val state = _uiState.value
         
-        // Si el metrónomo está activo, reproducimos un clic en cada tiempo principal (ej. cada 4 pasos)
         if (state.isMetronomeEnabled && stepIndex % 4 == 0) {
             playMetronomeClick()
         }
@@ -283,17 +357,15 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
-    // 🎚️ Reproductor inteligente que evalúa muestras personalizadas, kits o respaldos de la carpeta exports/
+    // 🎚️ Reproductor inteligente
     private fun playTrackSound(track: SequencerTrack, pitch: Int, velocity: Float) {
         try {
             val exportDir = File(context.filesDir, "exports")
             
-            // 1. Verificamos si hay una muestra personalizada asignada a esta tecla exacta
             val customPath = track.customPitchSamples[pitch]
             val sampleFile = if (customPath != null && File(customPath).exists()) {
                 File(customPath)
             } else {
-                // 2. Si no, buscamos en la carpeta de kits del instrumento
                 val kitFolderName = track.trackName.lowercase().replace(" ", "_")
                 val kitDir = File(exportDir, "kits/$kitFolderName")
                 val noteFileName = when (pitch) {
@@ -305,7 +377,6 @@ class SequencerStudioViewModel @Inject constructor(
                 if (kitFile.exists()) {
                     kitFile
                 } else {
-                    // 3. Respaldo general al archivo plano de la pista
                     File(exportDir, "${track.trackName.lowercase()}.wav")
                 }
             }
@@ -314,9 +385,7 @@ class SequencerStudioViewModel @Inject constructor(
                 val mediaPlayer = MediaPlayer.create(context, Uri.fromFile(sampleFile))
                 mediaPlayer?.apply {
                     setVolume(velocity, velocity)
-                    setOnCompletionListener { mp ->
-                        mp.release()
-                    }
+                    setOnCompletionListener { mp -> mp.release() }
                     start()
                 }
             }
@@ -347,12 +416,12 @@ class SequencerStudioViewModel @Inject constructor(
         _uiState.update { it.copy(bpm = newBpm.coerceIn(40f, 240f)) }
     }
 
-    // 🎚️ Cambiar el compás (Ej: "4/4", "3/4", "6/8")
+    // 🎚️ Cambiar el compás
     fun updateTimeSignature(signature: String) {
         _uiState.update { it.copy(timeSignature = signature) }
     }
 
-    // 🎛️ Cambiar la resolución (Ej: "1/16", "1/8")
+    // 🎛️ Cambiar la resolución
     fun updateResolution(res: String) {
         _uiState.update { it.copy(resolution = res) }
     }
