@@ -66,7 +66,7 @@ class SamplerStudioViewModel @Inject constructor(
         }
     }
 
-    // ▶️ Reproducir el fragmento específico del Pad al tocarlo
+    // ▶️ Reproducir el fragmento específico del Pad con prepareAsync utilizando sus propios milisegundos
     fun playSlice(slice: AudioSlice) {
         val track = _uiState.value.currentTrack
         if (track.filePath.isNullOrEmpty()) return
@@ -79,17 +79,41 @@ class SamplerStudioViewModel @Inject constructor(
                 } else {
                     setDataSource(track.filePath)
                 }
-                prepare()
-                
-                // Posicionar en el inicio del fragmento (milisegundos)
-                val startMs = slice.startSample.coerceAtLeast(0L).toInt()
-                if (startMs < duration) {
-                    seekTo(startMs)
+
+                // Carga asíncrona limpia y posicionamiento exacto en el startSample del pad
+                setOnPreparedListener { mp ->
+                    val startMs = slice.startSample.coerceAtLeast(0L).toInt()
+                    if (startMs < mp.duration) {
+                        mp.seekTo(startMs)
+                    }
+                    mp.start()
                 }
-                start()
+
+                prepareAsync()
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    // 🎛️ Modificar milisegundos de inicio y fin de un Pad (Slice) individual de forma manual
+    fun updateSliceRange(sliceId: Int, newStart: Long, newEnd: Long) {
+        _uiState.update { currentState ->
+            val track = currentState.currentTrack
+            val updatedSlices = track.slices.map { slice ->
+                if (slice.id == sliceId) {
+                    val validStart = newStart.coerceAtLeast(0L)
+                    val validEnd = newEnd.coerceAtMost(track.totalDurationMs)
+                    if (validStart < validEnd) {
+                        slice.copy(startSample = validStart, endSample = validEnd)
+                    } else {
+                        slice
+                    }
+                } else {
+                    slice
+                }
+            }
+            currentState.copy(currentTrack = track.copy(slices = updatedSlices))
         }
     }
 
@@ -143,7 +167,7 @@ class SamplerStudioViewModel @Inject constructor(
         }
     }
 
-    // 🎛️ Modificar puntos de inicio y final de la muestra
+    // 🎛️ Modificar puntos globales de inicio y final de la muestra
     fun updateStartEndPoints(start: Long, end: Long) {
         _uiState.update { currentState ->
             val track = currentState.currentTrack
