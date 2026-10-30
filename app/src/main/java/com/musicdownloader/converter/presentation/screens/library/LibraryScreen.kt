@@ -1,5 +1,6 @@
 package com.musicdownloader.converter.presentation.screens.library
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,10 +29,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.musicdownloader.converter.presentation.viewmodel.AudioFileItem
 import com.musicdownloader.converter.presentation.viewmodel.LibraryViewModel
 import com.musicdownloader.converter.presentation.viewmodel.PlaylistsViewModel
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,7 +94,7 @@ fun LibraryScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
-                placeholder = { Text("Buscar canción...", color = Color.LightGray) },
+                placeholder = { Text("Buscar canción o beat...", color = Color.LightGray) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFFFD700)) },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
@@ -111,7 +115,7 @@ fun LibraryScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No se encontraron canciones.",
+                        text = "No se encontraron audios o beats exportados.",
                         color = Color.LightGray,
                         fontSize = 13.sp
                     )
@@ -126,6 +130,28 @@ fun LibraryScreen(
                             audio = audio,
                             onPlayClick = {
                                 viewModel.playerManager.playFile(audio.path, audio.name)
+                            },
+                            onShareClick = {
+                                try {
+                                    val file = File(audio.path)
+                                    if (file.exists()) {
+                                        val uri = FileProvider.getUriForFile(
+                                            context,
+                                            "${context.packageName}.fileprovider",
+                                            file
+                                        )
+                                        val intent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "audio/*"
+                                            putExtra(Intent.EXTRA_STREAM, uri)
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(Intent.createChooser(intent, "Compartir Audio/Beat"))
+                                    } else {
+                                        Toast.makeText(context, "El archivo no existe", Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Error al compartir: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                }
                             },
                             onTrimClick = {
                                 audioToTrim = audio
@@ -336,6 +362,7 @@ fun LibraryScreen(
 fun AudioItemRow(
     audio: AudioFileItem,
     onPlayClick: () -> Unit,
+    onShareClick: () -> Unit,
     onTrimClick: () -> Unit,
     onAddToPlaylistClick: () -> Unit,
     onDeleteClick: () -> Unit
@@ -387,6 +414,14 @@ fun AudioItemRow(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Reproducir",
                     tint = Color(0xFFFFD700)
+                )
+            }
+
+            IconButton(onClick = onShareClick) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "Compartir",
+                    tint = Color(0xFF00E676)
                 )
             }
 
