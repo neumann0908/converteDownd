@@ -2,6 +2,7 @@ package com.musicdownloader.converter.beatstudio.presentation.sequencer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -174,6 +175,50 @@ fun SequencerStudioScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        // --- 🎹 CONMUTADOR DE VISTA: STEP SEQUENCER vs PIANO ROLL ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Button(
+                onClick = { viewModel.togglePianoRollMode(false) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (!state.isPianoRollMode) Color(0xFFFFD700) else Color(0xFF1E1E2C)
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(32.dp),
+                contentPadding = PaddingValues(2.dp)
+            ) {
+                Text(
+                    text = "Batería (Steps)",
+                    color = if (!state.isPianoRollMode) Color.Black else Color.White,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Button(
+                onClick = { viewModel.togglePianoRollMode(true, 3) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (state.isPianoRollMode) Color(0xFFFFD700) else Color(0xFF1E1E2C)
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(32.dp),
+                contentPadding = PaddingValues(2.dp)
+            ) {
+                Text(
+                    text = "Piano Roll (Melodía)",
+                    color = if (state.isPianoRollMode) Color.Black else Color.White,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         // --- 🎵 SISTEMA DE ARREGLOS (Línea de tiempo de la canción) ---
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
@@ -193,7 +238,6 @@ fun SequencerStudioScreen(
                         fontWeight = FontWeight.Bold
                     )
                     
-                    // Botones rápidos para añadir bloques al arreglo
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Button(
                             onClick = { viewModel.addSongSection(SongSectionType.VERSO) },
@@ -216,7 +260,6 @@ fun SequencerStudioScreen(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Fila horizontal de bloques de secciones (toca una sección para eliminarla)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -261,70 +304,148 @@ fun SequencerStudioScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // --- REJILLA DEL SECUENCIADOR (STEP SEQUENCER GRID) ---
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFF181822))
-                .border(1.dp, Color(0xFF28283D), RoundedCornerShape(10.dp))
-                .padding(8.dp)
-        ) {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxSize()
+        // --- 🎛️ CONTENEDOR PRINCIPAL: STEP SEQUENCER VS PIANO ROLL ---
+        if (!state.isPianoRollMode) {
+            // REJILLA DEL SECUENCIADOR (STEP SEQUENCER GRID)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF181822))
+                    .border(1.dp, Color(0xFF28283D), RoundedCornerShape(10.dp))
+                    .padding(8.dp)
             ) {
-                itemsIndexed(state.tracks) { trackIndex, track ->
-                    Column {
-                        // Nombre del Instrumento / Pista
-                        Text(
-                            text = track.trackName,
-                            color = Color(0xFF00E676),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 2.dp)
-                        )
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    itemsIndexed(state.tracks) { trackIndex, track ->
+                        Column {
+                            Text(
+                                text = track.trackName,
+                                color = Color(0xFF00E676),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
 
-                        // Fila de 16 pasos
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            track.steps.forEachIndexed { stepIndex, step ->
-                                val isCurrentStepPlaying = (state.currentStepIndex == stepIndex)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                track.steps.forEachIndexed { stepIndex, step ->
+                                    val isCurrentStepPlaying = (state.currentStepIndex == stepIndex)
 
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(32.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(
-                                            when {
-                                                step.isActive && isCurrentStepPlaying -> Color.White // Activado y sonando ahora mismo
-                                                step.isActive -> Color(0xFF00E676).copy(alpha = 0.5f + (step.velocity * 0.5f)) // Brillo dinámico por velocity
-                                                isCurrentStepPlaying -> Color(0xFF3B3B4F) // Paso actual inactivo
-                                                else -> Color(0xFF28283D) // Apagado normal
-                                            }
-                                        )
-                                        .pointerInput(Unit) {
-                                            detectTapGestures(
-                                                onTap = {
-                                                    viewModel.toggleStep(trackIndex, stepIndex)
-                                                },
-                                                onLongPress = {
-                                                    // 🟢 Mantener presionado abre el diálogo flotante de Velocity
-                                                    stepToEdit = Pair(trackIndex, stepIndex)
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(32.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(
+                                                when {
+                                                    step.isActive && isCurrentStepPlaying -> Color.White 
+                                                    step.isActive -> Color(0xFF00E676).copy(alpha = 0.5f + (step.velocity * 0.5f))
+                                                    isCurrentStepPlaying -> Color(0xFF3B3B4F) 
+                                                    else -> Color(0xFF28283D) 
                                                 }
                                             )
-                                        },
-                                    contentAlignment = Alignment.Center
+                                            .pointerInput(Unit) {
+                                                detectTapGestures(
+                                                    onTap = {
+                                                        viewModel.toggleStep(trackIndex, stepIndex)
+                                                    },
+                                                    onLongPress = {
+                                                        stepToEdit = Pair(trackIndex, stepIndex)
+                                                    }
+                                                )
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "${stepIndex + 1}",
+                                            color = if (step.isActive) Color.Black else Color.Gray,
+                                            fontSize = 7.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // 🎹 VISTA PIANO ROLL PROFESIONAL
+            val activeTrack = state.tracks.getOrNull(state.selectedPianoTrackIndex) ?: state.tracks.last()
+            
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Text(
+                        text = "PIANO ROLL: ${activeTrack.trackName}",
+                        color = Color(0xFFFFD700),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        val pitchNames = listOf("C5", "B4", "A4", "G4", "F4", "E4", "D4", "C4")
+                        
+                        items(pitchNames.size) { pitchIndex ->
+                            val actualPitch = 7 - pitchIndex
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = pitchNames[pitchIndex],
+                                    color = Color.LightGray,
+                                    fontSize = 9.sp,
+                                    modifier = Modifier.width(24.dp)
+                                )
+
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
-                                    Text(
-                                        text = "${stepIndex + 1}",
-                                        color = if (step.isActive) Color.Black else Color.Gray,
-                                        fontSize = 7.sp
-                                    )
+                                    activeTrack.steps.forEachIndexed { stepIndex, step ->
+                                        val hasNoteAtThisPitch = step.isActive && step.pitch == actualPitch
+                                        val isCurrentStepPlaying = (state.currentStepIndex == stepIndex)
+
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(24.dp)
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(
+                                                    when {
+                                                        hasNoteAtThisPitch && isCurrentStepPlaying -> Color.White
+                                                        hasNoteAtThisPitch -> Color(0xFF9C27B0) // Morado Pro para notas melódicas
+                                                        isCurrentStepPlaying -> Color(0xFF3B3B4F)
+                                                        else -> Color(0xFF22222F)
+                                                    }
+                                                )
+                                                .clickable {
+                                                    if (hasNoteAtThisPitch) {
+                                                        viewModel.toggleStep(state.selectedPianoTrackIndex, stepIndex)
+                                                    } else {
+                                                        viewModel.updateStepPitch(state.selectedPianoTrackIndex, stepIndex, actualPitch)
+                                                    }
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {}
+                                    }
                                 }
                             }
                         }
