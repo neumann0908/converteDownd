@@ -1,15 +1,20 @@
 package com.musicdownloader.converter.beatstudio.presentation.sampler
 
 import android.content.Context
+import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.net.Uri
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import java.io.File
 
@@ -22,6 +27,7 @@ class SamplerStudioViewModel @Inject constructor(
     val uiState: StateFlow<SamplerStudioState> = _uiState.asStateFlow()
 
     private var mediaPlayer: MediaPlayer? = null
+    private var stopJob: Job? = null
 
     // 🎙️ Simular o iniciar grabación de muestras desde el micrófono
     fun toggleRecording() {
@@ -44,34 +50,79 @@ class SamplerStudioViewModel @Inject constructor(
         }
     }
 
-    // 📂 Importar archivos de audio reales compatibles (WAV, MP3, FLAC) con su ruta URI
-    fun importAudioFile(fileName: String, durationMs: Long, filePath: String = "") {
+    // 📂 Importar archivos de audio reales extrayendo su duración exacta en milisegundos
+    fun importAudioFile(fileName: String, initialDurationMs: Long, filePath: String = "") {
+        var durationMs = initialDurationMs
+        
+        if (durationMs <= 0 && !filePath.isNullOrEmpty()) {
+            // Intento 1: MediaMetadataRetriever
+            try {
+                val retriever = MediaMetadataRetriever()
+                if (filePath.startsWith("content://")) {
+                    retriever.setDataSource(context, Uri.parse(filePath))
+                } else {
+                    retriever.setDataSource(filePath)
+                }
+                val timeString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                if (timeString != null) {
+                    durationMs = timeString.toLong()
+                }
+                retriever.release()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            // Intento 2: MediaPlayer como respaldo seguro para URIs de contenido
+            if (durationMs <= 0) {
+                try {
+                    val tempMp = if (filePath.startsWith("content://")) {
+                        MediaPlayer.create(context, Uri.parse(filePath))
+                    } else {
+                        MediaPlayer.create(context, Uri.parse(File(filePath).toURI().toString()))
+                    }
+                    if (tempMp != null) {
+                        durationMs = tempMp.duration.toLong()
+                        tempMp.release()
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+
+        if (durationMs <= 0) durationMs = 10000L // Fallback predeterminado de 10s
+
         _uiState.update { currentState ->
-            val initialSlices = listOf(
-                AudioSlice(id = 0, startSample = 0L, endSample = durationMs / 4),
-                AudioSlice(id = 1, startSample = durationMs / 4, endSample = (durationMs / 4) * 2),
-                AudioSlice(id = 2, startSample = (durationMs / 4) * 2, endSample = (durationMs / 4) * 3),
-                AudioSlice(id = 3, startSample = (durationMs / 4) * 3, endSample = durationMs)
-            )
+            val sliceCount = currentState.currentTrack.slices.size.coerceAtLeast(4)
+            val sliceDuration = durationMs / sliceCount
+            val initialSlices = List(sliceCount) { index ->
+                AudioSlice(
+                    id = index,
+                    startSample = index * sliceDuration,
+                    endSample = (index + 1) * sliceDuration
+                )
+            }
             currentState.copy(
                 currentTrack = SamplerTrack(
                     sampleName = fileName,
                     filePath = filePath.ifEmpty { "storage/emulated/0/Music/$fileName" },
                     totalDurationMs = durationMs,
                     detectedBpm = 124.0f,
-                    endPoint = durationMs, // Inicializado al total de la muestra
-                    slices = initialSlices
+                    endPoint = durationMs,
+                    slices = initialSlices,
+                    autoChopMode = currentState.currentTrack.autoChopMode
                 )
             )
         }
     }
 
-    // ▶️ Reproducir el fragmento específico del Pad con prepareAsync utilizando sus propios milisegundos
+    // ▶️ Reproducir fragmento exacto con Seek Completion Listener y parada automática por pad
     fun playSlice(slice: AudioSlice) {
         val track = _uiState.value.currentTrack
         if (track.filePath.isNullOrEmpty()) return
 
         try {
+            stopJob?.cancel()
             mediaPlayer?.release()
             mediaPlayer = MediaPlayer().apply {
                 if (track.filePath!!.startsWith("content://")) {
@@ -80,13 +131,36 @@ class SamplerStudioViewModel @Inject constructor(
                     setDataSource(track.filePath)
                 }
 
-                // Carga asíncrona limpia y posicionamiento exacto en el startSample del pad
                 setOnPreparedListener { mp ->
                     val startMs = slice.startSample.coerceAtLeast(0L).toInt()
-                    if (startMs < mp.duration) {
-                        mp.seekTo(startMs)
+                    val endMs = if (slice.endSample > startMs) slice.endSample.toInt() else mp.duration
+
+                    // Aplicar volumen y loop
+                    val vol = slice.volume.coerceIn(0f, 2f)
+                    mp.setVolume(vol, vol)
+                    mp.isLooping = track.isLooping
+
+                    // Aplicar Pitch si la versión de Android lo soporta (API 23+)
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                        try {
+                            val pitch = slice.pitchShift.coerceIn(0.25f, 4.0f)
+                            mp.playbackParams = mp.playbackParams.setPitch(pitch).setSpeed(pitch)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                     }
-                    mp.start()
+
+                    // Salto milimétrico preciso asegurando que seekTo termine antes de iniciar
+                    if (startMs > 0 && startMs < mp.duration) {
+                        mp.setOnSeekCompleteListener { seekMp ->
+                            seekMp.start()
+                            scheduleStop(seekMp, startMs, endMs)
+                        }
+                        mp.seekTo(startMs)
+                    } else {
+                        mp.start()
+                        scheduleStop(mp, startMs, endMs)
+                    }
                 }
 
                 prepareAsync()
@@ -96,7 +170,23 @@ class SamplerStudioViewModel @Inject constructor(
         }
     }
 
-    // 🎛️ Modificar milisegundos de inicio y fin de un Pad (Slice) individual de forma manual
+    private fun scheduleStop(mp: MediaPlayer, startMs: Int, endMs: Int) {
+        val durationToPlay = (endMs - startMs).toLong()
+        if (durationToPlay > 0) {
+            stopJob = viewModelScope.launch {
+                delay(durationToPlay)
+                try {
+                    if (mp.isPlaying) {
+                        mp.stop()
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
+    // 🎛️ Modificar milisegundos de inicio y fin de un Pad individual
     fun updateSliceRange(sliceId: Int, newStart: Long, newEnd: Long) {
         _uiState.update { currentState ->
             val track = currentState.currentTrack
@@ -137,7 +227,7 @@ class SamplerStudioViewModel @Inject constructor(
         }
     }
 
-    // ⚡ Función Diferencial: Auto Chop Inteligente (Transitorios, Silencios, Energía, Compases)
+    // ⚡ Función Diferencial: Auto Chop Inteligente distribuido sobre la duración real
     fun executeAutoChop(type: AutoChopType) {
         _uiState.update { currentState ->
             val track = currentState.currentTrack
@@ -254,13 +344,14 @@ class SamplerStudioViewModel @Inject constructor(
         }
     }
 
-    // ▶️ Reproducción del sample principal o un fragmento específico
+    // ▶️ Reproducción del sample principal
     fun togglePlaySample() {
         _uiState.update { it.copy(isPlayingSample = !it.isPlayingSample) }
     }
 
     override fun onCleared() {
         super.onCleared()
+        stopJob?.cancel()
         mediaPlayer?.release()
         mediaPlayer = null
     }
