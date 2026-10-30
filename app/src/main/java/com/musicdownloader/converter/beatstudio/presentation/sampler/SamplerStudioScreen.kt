@@ -51,8 +51,8 @@ fun SamplerStudioScreen(
                     fileName = cursor.getString(nameIndex)
                 }
             }
-            // Cargamos el archivo seleccionado con una duración simulada de base de 5000ms y la URI real
-            viewModel.importAudioFile(fileName, 5000L, selectedUri.toString())
+            // 🎶 Pasamos 0L para que el ViewModel calcule automáticamente la duración real de la canción
+            viewModel.importAudioFile(fileName, 0L, selectedUri.toString())
         }
     }
 
