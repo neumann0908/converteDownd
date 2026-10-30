@@ -11,8 +11,10 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PlayArrow
@@ -39,6 +41,7 @@ fun SequencerStudioScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scrollState = rememberScrollState() // 🟢 Desplazamiento global fluido para toda la pantalla
 
     // Estado local para editar la velocity, duración, offset y probabilidad mediante pulsación larga
     var stepToEdit by remember { mutableStateOf<Pair<Int, Int>?>(null) } // (trackIndex, stepIndex)
@@ -70,6 +73,7 @@ fun SequencerStudioScreen(
             .fillMaxSize()
             .background(Color(0xFF13131A))
             .padding(10.dp)
+            .verticalScroll(scrollState) // 🟢 Habilitamos scroll vertical en toda la vista para cero amontonamiento
     ) {
         // --- CABEZAL DE CONTROLES PRINCIPALES CON BOTÓN DE GUARDADO ---
         Row(
@@ -438,11 +442,11 @@ fun SequencerStudioScreen(
 
         // --- CONTENEDOR PRINCIPAL: STEP SEQUENCER VS PIANO ROLL ---
         if (!state.isPianoRollMode) {
-            // 🟢 REJILLA DE BATERÍA CON CONTROLES AVANZADOS DE PISTA (Mute, Solo, Volumen, Paneo)
+            // 🟢 REJILLA DE BATERÍA CON CONTROLES AVANZADOS DE PISTA Y ALTURA CONTROLADA
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .height(420.dp) // Altura fija ideal para desplazamiento suave dentro del scroll general
                     .clip(RoundedCornerShape(10.dp))
                     .background(Color(0xFF181822))
                     .border(1.dp, Color(0xFF28283D), RoundedCornerShape(10.dp))
@@ -610,7 +614,9 @@ fun SequencerStudioScreen(
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
                 shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth().weight(1f)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(420.dp) // Altura fija controlada para el Piano Roll
             ) {
                 Column(modifier = Modifier.padding(8.dp)) {
                     Text(
