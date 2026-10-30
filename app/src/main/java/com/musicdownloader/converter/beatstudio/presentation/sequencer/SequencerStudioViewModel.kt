@@ -48,24 +48,56 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
-    // ▶️ Iniciar el reloj maestro para reproducir el ritmo paso a paso
+    // ▶️ Iniciar el reloj maestro adaptado al sistema de arreglos musicales
     fun startPlayback() {
         if (_uiState.value.isPlaying) return
         
-        _uiState.update { it.copy(isPlaying = true) }
+        _uiState.update { it.copy(isPlaying = true, currentSectionIndex = 0, currentLoopInverses = 0, currentStepIndex = -1) }
         
         playbackJob?.cancel()
         playbackJob = viewModelScope.launch {
             val totalSteps = 16
             while (_uiState.value.isPlaying) {
-                val currentBpm = _uiState.value.bpm
+                val state = _uiState.value
+                val currentBpm = state.bpm
                 // Calculamos el tiempo exacto de espera entre cada paso según los BPM
                 val stepDelayMs = (60000f / currentBpm / 4f).toLong()
 
-                _uiState.update { state ->
-                    val nextStep = (state.currentStepIndex + 1) % totalSteps
-                    playActiveStepsForColumn(nextStep)
-                    state.copy(currentStepIndex = nextStep)
+                _uiState.update { currentState ->
+                    val nextStep = currentState.currentStepIndex + 1
+
+                    if (nextStep >= totalSteps) {
+                        // Fin de un loop de 16 pasos, evaluamos el bloque de arreglo actual
+                        val arrangement = currentState.arrangement
+                        if (arrangement.isNotEmpty()) {
+                            val currentSec = arrangement.getOrNull(currentState.currentSectionIndex) ?: arrangement.first()
+                            val loopsSoFar = currentState.currentLoopInverses + 1
+
+                            if (loopsSoFar >= currentSec.repeatCount) {
+                                // Pasar a la siguiente sección del arreglo de manera circular
+                                val nextSecIndex = (currentState.currentSectionIndex + 1) % arrangement.size
+                                playActiveStepsForColumn(0)
+                                currentState.copy(
+                                    currentStepIndex = 0,
+                                    currentSectionIndex = nextSecIndex,
+                                    currentLoopInverses = 0
+                                )
+                            } else {
+                                // Repetir la misma sección actual
+                                playActiveStepsForColumn(0)
+                                currentState.copy(
+                                    currentStepIndex = 0,
+                                    currentLoopInverses = loopsSoFar
+                                )
+                            }
+                        } else {
+                            playActiveStepsForColumn(0)
+                            currentState.copy(currentStepIndex = 0)
+                        }
+                    } else {
+                        playActiveStepsForColumn(nextStep)
+                        currentState.copy(currentStepIndex = nextStep)
+                    }
                 }
 
                 delay(stepDelayMs)
@@ -82,6 +114,29 @@ class SequencerStudioViewModel @Inject constructor(
     // 🟢 Activar o desactivar el metrónomo
     fun toggleMetronome() {
         _uiState.update { it.copy(isMetronomeEnabled = !it.isMetronomeEnabled) }
+    }
+
+    // ➕ Añadir una nueva sección al arreglo (Intro, Verso, Estribillo, etc.)
+    fun addSongSection(type: SongSectionType) {
+        val namePrefix = when (type) {
+            SongSectionType.INTRO -> "Intro"
+            SongSectionType.VERSO -> "Verso"
+            SongSectionType.ESTRIBILLO -> "Estribillo"
+            SongSectionType.PUENTE -> "Puente"
+            SongSectionType.OUTRO -> "Outro"
+        }
+        val newSection = SongSection(
+            id = System.currentTimeMillis().toString(),
+            type = type,
+            name = "$namePrefix ${(_uiState.value.arrangement.size + 1)}",
+            repeatCount = 2
+        )
+        _uiState.update { it.copy(arrangement = it.arrangement + newSection) }
+    }
+
+    // ❌ Eliminar una sección del arreglo por su ID
+    fun removeSongSection(sectionId: String) {
+        _uiState.update { it.copy(arrangement = it.arrangement.filter { sec -> sec.id != sectionId }) }
     }
 
     // 🔊 Dispara los sonidos que están activos en la columna actual y el metrónomo
