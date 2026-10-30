@@ -332,6 +332,88 @@ fun SequencerStudioScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        // --- 🎛️ GESTOR DE PATRONES INDEPENDIENTES (A, B, C) Y COPIAR/PEGAR/DUPLICAR ---
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "PATRONES Y EDICIÓN",
+                        color = Color(0xFFFFD700),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    // Herramientas Copiar / Pegar / Duplicar
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Button(
+                            onClick = { viewModel.copyCurrentPattern() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF28283D)),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                            modifier = Modifier.height(24.dp)
+                        ) {
+                            Text("Copiar", color = Color.White, fontSize = 9.sp)
+                        }
+                        Button(
+                            onClick = { viewModel.pasteToCurrentPattern() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF28283D)),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                            modifier = Modifier.height(24.dp)
+                        ) {
+                            Text("Pegar", color = Color.White, fontSize = 9.sp)
+                        }
+                        Button(
+                            onClick = { 
+                                val nextIndex = (state.currentPatternIndex + 1) % state.patterns.size
+                                viewModel.duplicatePattern(nextIndex)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700)),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                            modifier = Modifier.height(24.dp)
+                        ) {
+                            Text("Duplicar", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Selector visual de Patrones (A, B, C)
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(32.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    state.patterns.forEachIndexed { index, pattern ->
+                        val isSelected = state.currentPatternIndex == index
+                        Button(
+                            onClick = { viewModel.selectPattern(index) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSelected) Color(0xFF00E676) else Color(0xFF28283D)
+                            ),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            contentPadding = PaddingValues(2.dp)
+                        ) {
+                            Text(
+                                text = pattern.name,
+                                color = if (isSelected) Color.Black else Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         // --- CONTENEDOR PRINCIPAL: STEP SEQUENCER VS PIANO ROLL ---
         if (!state.isPianoRollMode) {
             // 🟢 REJILLA DE BATERÍA CON BOTONES 📁 Y ⚙️ PARA CADA PISTA (Kick, Snare, HiHat, SynthBass)
