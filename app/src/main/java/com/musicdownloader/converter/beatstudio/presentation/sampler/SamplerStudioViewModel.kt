@@ -3,6 +3,7 @@ package com.musicdownloader.converter.beatstudio.presentation.sampler
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
+import android.media.MediaScannerConnection
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -207,22 +208,40 @@ class SamplerStudioViewModel @Inject constructor(
         }
     }
 
-    // 💾 Guardar / Exportar el Sampler actual a la memoria interna
+    // 💾 Guardar / Exportar el Sampler actual clonando el archivo físico a la carpeta 'exports' y escaneándolo
     fun exportSamplerAsWav(outputPath: String): Boolean {
         return try {
             val track = _uiState.value.currentTrack
-            if (track.slices.isEmpty()) return false
+            if (track.filePath.isNullOrEmpty() || track.slices.isEmpty()) return false
             
-            if (!track.filePath.isNullOrEmpty() && track.filePath.startsWith("content://")) {
-                true
+            val destFile = File(outputPath)
+            destFile.parentFile?.mkdirs()
+
+            if (track.filePath!!.startsWith("content://")) {
+                context.contentResolver.openInputStream(Uri.parse(track.filePath))?.use { inputStream ->
+                    destFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                } ?: return false
             } else {
-                val file = File(outputPath)
-                if (!file.exists()) {
-                    file.createNewFile()
+                val sourceFile = File(track.filePath!!)
+                if (sourceFile.exists()) {
+                    sourceFile.copyTo(destFile, overwrite = true)
+                } else {
+                    return false
                 }
-                true
             }
+
+            // 🔍 Registrar el archivo en el MediaScanner para indexación instantánea en la Biblioteca
+            MediaScannerConnection.scanFile(
+                context,
+                arrayOf(destFile.absolutePath),
+                arrayOf("audio/wav", "audio/mpeg", "audio/mp3", "audio/flac")
+            ) { _, _ -> }
+
+            true
         } catch (e: Exception) {
+            e.printStackTrace()
             false
         }
     }
