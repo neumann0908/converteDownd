@@ -1,6 +1,7 @@
 package com.musicdownloader.converter.beatstudio.presentation.sequencer
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -15,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
@@ -47,6 +49,10 @@ fun SequencerStudioScreen(
     // Estado unificado para el selector de archivos nativos: Pair(trackIndex, pitch)
     var targetPickerTarget by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
+    // Estado para controlar el diálogo de guardado en la biblioteca
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var songNameInput by remember { mutableStateOf("Mi_Nuevo_Beat") }
+
     // Lanzador exclusivo para cargar archivos de audio nativos de Android
     val nativeFilePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -65,7 +71,7 @@ fun SequencerStudioScreen(
             .background(Color(0xFF13131A))
             .padding(10.dp)
     ) {
-        // --- CABEZAL DE CONTROLES PRINCIPALES ---
+        // --- CABEZAL DE CONTROLES PRINCIPALES CON BOTÓN DE GUARDADO ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -75,7 +81,7 @@ fun SequencerStudioScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "SEQUENCER ENGINE PRO",
                     color = Color(0xFFFFD700),
@@ -89,19 +95,37 @@ fun SequencerStudioScreen(
                 )
             }
 
-            IconButton(
-                onClick = {
-                    if (state.isPlaying) viewModel.stopPlayback() else viewModel.startPlayback()
-                },
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(if (state.isPlaying) Color.Red else Color(0xFF00E676), CircleShape)
-            ) {
-                Icon(
-                    imageVector = if (state.isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
-                    contentDescription = "Play/Stop",
-                    tint = Color.Black
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                // 💾 Botón de Guardado en Biblioteca
+                IconButton(
+                    onClick = { showSaveDialog = true },
+                    modifier = Modifier
+                        .size(38.dp)
+                        .background(Color(0xFFFFD700), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Save,
+                        contentDescription = "Guardar en Biblioteca",
+                        tint = Color.Black,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Botón Reproducir / Detener
+                IconButton(
+                    onClick = {
+                        if (state.isPlaying) viewModel.stopPlayback() else viewModel.startPlayback()
+                    },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(if (state.isPlaying) Color.Red else Color(0xFF00E676), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = if (state.isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                        contentDescription = "Play/Stop",
+                        tint = Color.Black
+                    )
+                }
             }
         }
 
@@ -335,12 +359,11 @@ fun SequencerStudioScreen(
                             ) {
                                 Text(
                                     text = track.trackName,
-                                    color = if (hasCustomSample) Color(0xFF00E676) else Color(0xFF00E676),
+                                    color = Color(0xFF00E676),
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
                                 )
 
-                                // Botones de configuración para cada pista de batería/pasos
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Icon(
                                         imageVector = Icons.Default.FolderOpen,
@@ -516,6 +539,54 @@ fun SequencerStudioScreen(
         }
     }
 
+    // --- DIÁLOGO PARA GUARDAR EN BIBLIOTECA ---
+    if (showSaveDialog) {
+        AlertDialog(
+            onDismissRequest = { showSaveDialog = false },
+            title = { Text("Guardar Beat en Biblioteca", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("Introduce un nombre para tu creación musical:", color = Color.White, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = songNameInput,
+                        onValueChange = { songNameInput = it },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF00E676),
+                            unfocusedBorderColor = Color.Gray,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.saveSongToLibrary(songNameInput) { success ->
+                            if (success) {
+                                Toast.makeText(context, "¡Guardado en Biblioteca con éxito!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Error al guardar el beat", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        showSaveDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676))
+                ) {
+                    Text("Guardar", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSaveDialog = false }) {
+                    Text("Cancelar", color = Color.Gray)
+                }
+            },
+            containerColor = Color(0xFF1E1E2C)
+        )
+    }
+
     // --- DIÁLOGO VELOCITY ---
     if (stepToEdit != null) {
         val (tIdx, sIdx) = stepToEdit!!
@@ -549,28 +620,17 @@ fun SequencerStudioScreen(
         )
     }
 
-    // --- 📂 DIÁLOGO UNIFICADO PARA CONFIGURAR MUESTRAS DE KITS ---
+    // --- DIÁLOGO DE KITS ---
     if (activeConfigTarget != null) {
         val (tIdx, pitch) = activeConfigTarget!!
         val targetTrack = state.tracks.getOrNull(tIdx)
 
         AlertDialog(
             onDismissRequest = { activeConfigTarget = null },
-            title = { 
-                Text(
-                    text = "Kit para ${targetTrack?.trackName ?: "Pista"} (Pitch: $pitch)", 
-                    color = Color(0xFFFFD700), 
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                ) 
-            },
+            title = { Text("Kit para ${targetTrack?.trackName ?: "Pista"} (Pitch: $pitch)", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold) },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "Elige un archivo de la carpeta de kits internos:", 
-                        color = Color.LightGray, 
-                        fontSize = 11.sp
-                    )
+                    Text("Elige un archivo de la carpeta de kits internos:", color = Color.LightGray, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(6.dp))
 
                     val kitName = targetTrack?.trackName?.lowercase()?.replace(" ", "_") ?: "kick"
@@ -582,11 +642,7 @@ fun SequencerStudioScreen(
                     }
 
                     if (wavFiles.isEmpty()) {
-                        Text(
-                            text = "No hay archivos en /exports/kits/$kitName/", 
-                            color = Color.Gray, 
-                            fontSize = 10.sp
-                        )
+                        Text("No hay archivos en /exports/kits/$kitName/", color = Color.Gray, fontSize = 10.sp)
                     } else {
                         LazyColumn(modifier = Modifier.height(140.dp)) {
                             items(wavFiles.size) { index ->
@@ -598,11 +654,7 @@ fun SequencerStudioScreen(
                                     },
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Text(
-                                        text = "📁 ${file.name}", 
-                                        color = Color(0xFFFFD700), 
-                                        fontSize = 11.sp
-                                    )
+                                    Text("📁 ${file.name}", color = Color(0xFFFFD700), fontSize = 11.sp)
                                 }
                             }
                         }
@@ -610,9 +662,7 @@ fun SequencerStudioScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { activeConfigTarget = null }) {
-                    Text("Cerrar", color = Color.Gray)
-                }
+                TextButton(onClick = { activeConfigTarget = null }) { Text("Cerrar", color = Color.Gray) }
             },
             containerColor = Color(0xFF1E1E2C)
         )
