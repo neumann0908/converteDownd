@@ -1,7 +1,11 @@
 package com.musicdownloader.converter.beatstudio.presentation.sampler
 
+import android.content.Context
+import android.media.MediaPlayer
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,10 +14,14 @@ import javax.inject.Inject
 import java.io.File
 
 @HiltViewModel
-class SamplerStudioViewModel @Inject constructor() : ViewModel() {
+class SamplerStudioViewModel @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SamplerStudioState())
     val uiState: StateFlow<SamplerStudioState> = _uiState.asStateFlow()
+
+    private var mediaPlayer: MediaPlayer? = null
 
     // 🎙️ Simular o iniciar grabación de muestras desde el micrófono
     fun toggleRecording() {
@@ -58,18 +66,42 @@ class SamplerStudioViewModel @Inject constructor() : ViewModel() {
         }
     }
 
+    // ▶️ Reproducir el fragmento específico del Pad al tocarlo
+    fun playSlice(slice: AudioSlice) {
+        val track = _uiState.value.currentTrack
+        if (track.filePath.isNullOrEmpty()) return
+
+        try {
+            mediaPlayer?.release()
+            mediaPlayer = MediaPlayer().apply {
+                if (track.filePath!!.startsWith("content://")) {
+                    setDataSource(context, Uri.parse(track.filePath))
+                } else {
+                    setDataSource(track.filePath)
+                }
+                prepare()
+                
+                // Posicionar en el inicio del fragmento (milisegundos)
+                val startMs = slice.startSample.coerceAtLeast(0L).toInt()
+                if (startMs < duration) {
+                    seekTo(startMs)
+                }
+                start()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     // 💾 Guardar / Exportar el Sampler actual a la memoria interna
     fun exportSamplerAsWav(outputPath: String): Boolean {
         return try {
             val track = _uiState.value.currentTrack
             if (track.slices.isEmpty()) return false
             
-            // Lógica de respaldo del archivo procesado en la ruta de exportación
             if (!track.filePath.isNullOrEmpty() && track.filePath.startsWith("content://")) {
-                // El archivo proviene de una URI del sistema; validamos su existencia lógica
                 true
             } else {
-                // Generar o copiar archivo físico de salida si es necesario
                 val file = File(outputPath)
                 if (!file.exists()) {
                     file.createNewFile()
@@ -201,5 +233,11 @@ class SamplerStudioViewModel @Inject constructor() : ViewModel() {
     // ▶️ Reproducción del sample principal o un fragmento específico
     fun togglePlaySample() {
         _uiState.update { it.copy(isPlayingSample = !it.isPlayingSample) }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        mediaPlayer?.release()
+        mediaPlayer = null
     }
 }
