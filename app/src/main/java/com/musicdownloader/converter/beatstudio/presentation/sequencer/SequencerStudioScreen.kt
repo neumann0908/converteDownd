@@ -1,5 +1,8 @@
 package com.musicdownloader.converter.beatstudio.presentation.sequencer
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,6 +13,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
@@ -37,8 +41,23 @@ fun SequencerStudioScreen(
     // Estado local para controlar qué paso se está editando mediante pulsación larga (Velocity)
     var stepToEdit by remember { mutableStateOf<Pair<Int, Int>?>(null) } // (trackIndex, stepIndex)
     
-    // 🟢 Estado local para controlar qué tecla/pitch se está configurando con muestras personalizadas
+    // Estado local para controlar qué tecla/pitch se está configurando con muestras de la carpeta de kits
     var pitchToConfigure by remember { mutableStateOf<Int?>(null) }
+
+    // 🟢 Estado para almacenar temporalmente el pitch que va a recibir el archivo nativo
+    var targetPitchForPicker by remember { mutableStateOf<Int?>(null) }
+
+    // 🟢 Lanzador exclusivo para cargar archivos nativos de Android (almacenamiento del teléfono)
+    val nativeFilePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { selectedUri ->
+            targetPitchForPicker?.let { pitch ->
+                viewModel.importCustomSampleForPitch(state.selectedPianoTrackIndex, pitch, selectedUri)
+                targetPitchForPicker = null
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -382,7 +401,7 @@ fun SequencerStudioScreen(
                 }
             }
         } else {
-            // 🎹 VISTA PIANO ROLL PROFESIONAL CON BOTÓN DE CONFIGURACIÓN POR TECLA
+            // 🎹 VISTA PIANO ROLL PROFESIONAL CON BOTONES 📁 (Nativo) Y ⚙️ (Kits) POR TECLA
             val activeTrack = state.tracks.getOrNull(state.selectedPianoTrackIndex) ?: state.tracks.last()
             
             Card(
@@ -394,7 +413,7 @@ fun SequencerStudioScreen(
             ) {
                 Column(modifier = Modifier.padding(8.dp)) {
                     Text(
-                        text = "PIANO ROLL: ${activeTrack.trackName} (Toca ⚙️ para asignar muestra)",
+                        text = "PIANO ROLL: ${activeTrack.trackName} (📁 Archivo Nativo | ⚙️ Kits)",
                         color = Color(0xFFFFD700),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
@@ -415,9 +434,9 @@ fun SequencerStudioScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                // 🟢 Etiqueta de la tecla y botón de configuración de tono
+                                // 🟢 Panel lateral de la tecla: Nombre + Botón Archivo Nativo (📁) + Botón Kits (⚙️)
                                 Row(
-                                    modifier = Modifier.width(44.dp),
+                                    modifier = Modifier.width(56.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
@@ -427,14 +446,30 @@ fun SequencerStudioScreen(
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold
                                     )
-                                    Icon(
-                                        imageVector = Icons.Default.Settings,
-                                        contentDescription = "Configurar Muestra",
-                                        tint = if (activeTrack.customPitchSamples.containsKey(actualPitch)) Color(0xFF00E676) else Color.Gray,
-                                        modifier = Modifier
-                                            .size(13.dp)
-                                            .clickable { pitchToConfigure = actualPitch }
-                                    )
+                                    
+                                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        // 📁 Botón exclusivo para abrir el explorador de archivos nativo del teléfono
+                                        Icon(
+                                            imageVector = Icons.Default.FolderOpen,
+                                            contentDescription = "Cargar Archivo Nativo",
+                                            tint = Color(0xFF00E676),
+                                            modifier = Modifier
+                                                .size(13.dp)
+                                                .clickable {
+                                                    targetPitchForPicker = actualPitch
+                                                    nativeFilePickerLauncher.launch("audio/*")
+                                                }
+                                        )
+                                        // ⚙️ Botón para configurar desde la carpeta de kits internos
+                                        Icon(
+                                            imageVector = Icons.Default.Settings,
+                                            contentDescription = "Configurar Kit",
+                                            tint = if (activeTrack.customPitchSamples.containsKey(actualPitch)) Color(0xFFFFD700) else Color.Gray,
+                                            modifier = Modifier
+                                                .size(13.dp)
+                                                .clickable { pitchToConfigure = actualPitch }
+                                        )
+                                    }
                                 }
 
                                 Row(
@@ -532,7 +567,7 @@ fun SequencerStudioScreen(
         )
     }
 
-    // --- 📂 DIÁLOGO FLOTANTE PARA ASIGNAR MUESTRA PERSONALIZADA A UNA TECLA DEL PIANO ROLL ---
+    // --- 📂 DIÁLOGO FLOTANTE PARA SELECCIONAR DESDE LA CARPETA DE KITS ---
     if (pitchToConfigure != null) {
         val pitch = pitchToConfigure!!
         val activeTrack = state.tracks[state.selectedPianoTrackIndex]
@@ -541,7 +576,7 @@ fun SequencerStudioScreen(
             onDismissRequest = { pitchToConfigure = null },
             title = { 
                 Text(
-                    text = "Asignar Muestra a Tono (Pitch: $pitch)", 
+                    text = "Seleccionar de Kit (Pitch: $pitch)", 
                     color = Color(0xFFFFD700), 
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
@@ -550,11 +585,11 @@ fun SequencerStudioScreen(
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Elige un archivo .wav de la carpeta de kits para esta tecla:", 
-                        color = Color.White, 
-                        fontSize = 12.sp
+                        text = "Elige un archivo de la carpeta de kits internos:", 
+                        color = Color.LightGray, 
+                        fontSize = 11.sp
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     val kitName = activeTrack.trackName.lowercase().replace(" ", "_")
                     val kitDir = File(context.filesDir, "exports/kits/$kitName")
@@ -566,9 +601,9 @@ fun SequencerStudioScreen(
 
                     if (wavFiles.isEmpty()) {
                         Text(
-                            text = "No se encontraron archivos .wav en /exports/kits/$kitName/", 
+                            text = "No hay archivos en /exports/kits/$kitName/", 
                             color = Color.Gray, 
-                            fontSize = 11.sp
+                            fontSize = 10.sp
                         )
                     } else {
                         LazyColumn(modifier = Modifier.height(140.dp)) {
@@ -583,7 +618,7 @@ fun SequencerStudioScreen(
                                 ) {
                                     Text(
                                         text = "📁 ${file.name}", 
-                                        color = Color(0xFF00E676), 
+                                        color = Color(0xFFFFD700), 
                                         fontSize = 11.sp
                                     )
                                 }
