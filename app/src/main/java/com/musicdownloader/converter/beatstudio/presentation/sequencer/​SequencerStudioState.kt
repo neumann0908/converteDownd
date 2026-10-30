@@ -16,7 +16,8 @@ data class SequencerTrack(
     val steps: List<SequencerStep> = List(16) { SequencerStep(it) }, // 16 pasos por compás por defecto
     val volume: Float = 1.0f,
     val isMuted: Boolean = false,
-    val isSolo: Boolean = false
+    val isSolo: Boolean = false,
+    val customPitchSamples: Map<Int, String> = emptyMap() // 🟢 Mapea Pitch (ej. 0 para C4) con la ruta del archivo .wav asignado
 )
 
 // Las partes de nuestra canción para construir un arreglo profesional
@@ -53,6 +54,6 @@ data class SequencerStudioState(
     ),
     val currentSectionIndex: Int = 0,     // Índice de la sección del arreglo actual en reproducción
     val currentLoopInverses: Int = 0,     // Contador de bucles completados dentro de la sección actual
-    val isPianoRollMode: Boolean = false, // 🟢 Nuevo: Indica si la vista activa es el Piano Roll
-    val selectedPianoTrackIndex: Int = 3  // 🟢 Nuevo: Pista seleccionada para editar en el Piano Roll
+    val isPianoRollMode: Boolean = false, // Indica si la vista activa es el Piano Roll
+    val selectedPianoTrackIndex: Int = 3  // Pista seleccionada para editar en el Piano Roll
 )
