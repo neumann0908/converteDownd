@@ -19,13 +19,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
-// 🟢 Estructura de Patrón independiente para el DAW
-data class SequencerPattern(
-    val id: String,
-    val name: String,
-    val tracks: List<SequencerTrack>
-)
-
 @HiltViewModel
 class SequencerStudioViewModel @Inject constructor(
     @ApplicationContext private val context: Context
