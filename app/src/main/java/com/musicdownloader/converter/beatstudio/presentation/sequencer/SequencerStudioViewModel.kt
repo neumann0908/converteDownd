@@ -116,6 +116,56 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
+    // 🎲 Actualizar la probabilidad de disparo de un paso específico
+    fun updateStepProbability(trackIndex: Int, stepIndex: Int, newProb: Float) {
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { tIdx, track ->
+                if (tIdx == trackIndex) {
+                    val updatedSteps = track.steps.mapIndexed { sIdx, step ->
+                        if (sIdx == stepIndex) step.copy(probability = newProb.coerceIn(0.0f, 1.0f)) else step
+                    }
+                    track.copy(steps = updatedSteps)
+                } else track
+            }
+        }
+    }
+
+    // 🎚️ Actualizar el volumen general de una pista específica
+    fun updateTrackVolume(trackIndex: Int, newVolume: Float) {
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { idx, track ->
+                if (idx == trackIndex) track.copy(volume = newVolume.coerceIn(0.0f, 1.0f)) else track
+            }
+        }
+    }
+
+    // 🎧 Actualizar el paneo estéreo de una pista (-1.0 Izquierda a 1.0 Derecha)
+    fun updateTrackPan(trackIndex: Int, newPan: Float) {
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { idx, track ->
+                if (idx == trackIndex) track.copy(pan = newPan.coerceIn(-1.0f, 1.0f)) else track
+            }
+        }
+    }
+
+    // 🔇 Alternar el estado Mute (Silenciar) de una pista
+    fun toggleTrackMute(trackIndex: Int) {
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { idx, track ->
+                if (idx == trackIndex) track.copy(isMuted = !track.isMuted) else track
+            }
+        }
+    }
+
+    // 🎧 Alternar el estado Solo (Aislar) de una pista
+    fun toggleTrackSolo(trackIndex: Int) {
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { idx, track ->
+                if (idx == trackIndex) track.copy(isSolo = !track.isSolo) else track
+            }
+        }
+    }
+
     // 🎹 Cambiar entre vista de Secuenciador de Batería y Piano Roll
     fun togglePianoRollMode(enabled: Boolean, trackIndex: Int = 3) {
         _uiState.update { it.copy(isPianoRollMode = enabled, selectedPianoTrackIndex = trackIndex) }
@@ -393,7 +443,7 @@ class SequencerStudioViewModel @Inject constructor(
         _uiState.update { it.copy(arrangement = it.arrangement.filter { sec -> sec.id != sectionId }) }
     }
 
-    // 🔊 Dispara los sonidos activos aplicando el offset temporal (Shift) y duración (durationMs) de cada paso
+    // 🔊 Dispara los sonidos aplicando reglas de Solo/Mute, Probabilidad, Offset y Duración
     private fun playActiveStepsForColumn(stepIndex: Int) {
         val state = _uiState.value
         
@@ -401,25 +451,35 @@ class SequencerStudioViewModel @Inject constructor(
             playMetronomeClick()
         }
 
-        for (track in state.tracks) {
-            if (!track.isMuted) {
+        val tracks = state.tracks
+        val anySoloActive = tracks.any { it.isSolo }
+
+        for (track in tracks) {
+            // Regla DAW: Si hay pistas en Solo, solo suenan las que tengan Solo activo. Si no, se respeta Mute.
+            val shouldPlay = if (anySoloActive) track.isSolo else !track.isMuted
+            
+            if (shouldPlay) {
                 val step = track.steps.getOrNull(stepIndex)
                 if (step != null && step.isActive) {
-                    val totalDelay = (step.offsetMs).coerceAtLeast(0L)
-                    if (totalDelay > 0L) {
-                        viewModelScope.launch {
-                            delay(totalDelay)
+                    // 🎲 Evaluación de probabilidad de disparo
+                    val passesProbability = step.probability >= 1.0f || (Math.random() <= step.probability)
+                    if (passesProbability) {
+                        val totalDelay = (step.offsetMs).coerceAtLeast(0L)
+                        if (totalDelay > 0L) {
+                            viewModelScope.launch {
+                                delay(totalDelay)
+                                playTrackSound(track, step.pitch, step.velocity, step.durationMs)
+                            }
+                        } else {
                             playTrackSound(track, step.pitch, step.velocity, step.durationMs)
                         }
-                    } else {
-                        playTrackSound(track, step.pitch, step.velocity, step.durationMs)
                     }
                 }
             }
         }
     }
 
-    // 🎚️ Reproductor inteligente con Humanización, Duración y Desplazamiento
+    // 🎚️ Reproductor inteligente adaptado con Paneo Estéreo (-1.0 a 1.0) y Volumen por Pista
     private fun playTrackSound(track: SequencerTrack, pitch: Int, velocity: Float, durationMs: Long) {
         try {
             val exportDir = File(context.filesDir, "exports")
@@ -453,7 +513,13 @@ class SequencerStudioViewModel @Inject constructor(
             if (sampleFile.exists()) {
                 val mediaPlayer = MediaPlayer.create(context, Uri.fromFile(sampleFile))
                 mediaPlayer?.apply {
-                    setVolume(finalVelocity, finalVelocity)
+                    // 🎧 Cálculo de Paneo Estéreo y Volumen Real
+                    val baseVol = track.volume * finalVelocity
+                    val pan = track.pan.coerceIn(-1.0f, 1.0f)
+                    val leftVol = baseVol * (1.0f - pan.coerceAtLeast(0.0f))
+                    val rightVol = baseVol * (1.0f + pan.coerceAtMost(0.0f))
+
+                    setVolume(leftVol, rightVol)
                     start()
                     viewModelScope.launch {
                         delay(durationMs)
