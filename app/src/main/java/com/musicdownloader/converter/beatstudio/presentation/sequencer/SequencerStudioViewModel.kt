@@ -69,6 +69,32 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
+    // 🎹 Cambiar entre vista de Secuenciador de Batería y Piano Roll
+    fun togglePianoRollMode(enabled: Boolean, trackIndex: Int = 3) {
+        _uiState.update { it.copy(isPianoRollMode = enabled, selectedPianoTrackIndex = trackIndex) }
+    }
+
+    // 🎵 Actualizar el tono (pitch) de un paso específico en el Piano Roll
+    fun updateStepPitch(trackIndex: Int, stepIndex: Int, newPitch: Int) {
+        _uiState.update { currentState ->
+            val updatedTracks = currentState.tracks.mapIndexed { tIdx, track ->
+                if (tIdx == trackIndex) {
+                    val updatedSteps = track.steps.mapIndexed { sIdx, step ->
+                        if (sIdx == stepIndex) {
+                            step.copy(pitch = newPitch, isActive = true)
+                        } else {
+                            step
+                        }
+                    }
+                    track.copy(steps = updatedSteps)
+                } else {
+                    track
+                }
+            }
+            currentState.copy(tracks = updatedTracks)
+        }
+    }
+
     // ▶️ Iniciar el reloj maestro adaptado al sistema de arreglos musicales
     fun startPlayback() {
         if (_uiState.value.isPlaying) return
