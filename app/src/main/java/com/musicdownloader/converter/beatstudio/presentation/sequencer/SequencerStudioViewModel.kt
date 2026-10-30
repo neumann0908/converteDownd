@@ -111,6 +111,26 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
+    // 🟢 Importar y copiar un archivo nativo de Android al almacenamiento interno seguro de la app
+    fun importCustomSampleForPitch(trackIndex: Int, pitch: Int, uri: Uri) {
+        try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val customDir = File(context.filesDir, "exports/custom_samples")
+            if (!customDir.exists()) customDir.mkdirs()
+
+            val destinationFile = File(customDir, "track_${trackIndex}_pitch_${pitch}_${System.currentTimeMillis()}.wav")
+            inputStream?.use { input ->
+                destinationFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            assignSampleToPitch(trackIndex, pitch, destinationFile.absolutePath)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     // ▶️ Iniciar el reloj maestro adaptado al sistema de arreglos musicales
     fun startPlayback() {
         if (_uiState.value.isPlaying) return
