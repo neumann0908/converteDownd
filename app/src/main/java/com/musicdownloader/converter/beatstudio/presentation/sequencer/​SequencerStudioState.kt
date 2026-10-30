@@ -9,7 +9,7 @@ data class SequencerPattern(
     val tracks: List<SequencerTrack>
 )
 
-// Representa un cuadrito (paso) individual con control de duración, desplazamiento temporal y probabilidad de disparo
+// Representa un cuadrito (paso) individual con control de duración, desplazamiento temporal, probabilidad, pitch bend y modulación
 data class SequencerStep(
     val id: Int,
     val isActive: Boolean = false,
@@ -17,7 +17,9 @@ data class SequencerStep(
     val pitch: Int = 0,           // Altura de la nota musical para el Piano Roll
     val durationMs: Long = 125L,  // Duración exacta en milisegundos que suena la nota
     val offsetMs: Long = 0L,      // Desplazamiento temporal (Shift/Offset) ligero de la posición
-    val probability: Float = 1.0f // 🟢 Probabilidad de disparo (0.0 a 1.0 / 0% a 100% de que suene el paso)
+    val probability: Float = 1.0f, // Probabilidad de disparo (0.0 a 1.0 / 0% a 100% de que suene el paso)
+    val pitchBend: Float = 0.0f,    // 🎚️ Pitch Bend (-1.0 a 1.0) para modificar la afinación de la nota[span_0](start_span)[span_0](end_span)
+    val modulation: Float = 0.0f    // 🎛️ Modulation (0.0 a 1.0) para efectos de vibrato y modulación[span_1](start_span)[span_1](end_span)
 )
 
 // Representa una pista de sonido con soporte de Volumen, Paneo Estéreo, Mute, Solo y Swing
