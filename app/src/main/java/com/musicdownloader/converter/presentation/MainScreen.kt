@@ -10,7 +10,8 @@ import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.QueueMusic
-import androidx.compose.material.icons.filled.GraphicEq // 🎙️ Ícono de ecualizador/onda para el Sampler Studio (Motor 2)
+import androidx.compose.material.icons.filled.GraphicEq // 🎙️ Ícono de onda para el Sampler Studio (Motor 2)
+import androidx.compose.material.icons.filled.Tune // 🎹 Ícono de controles/secuenciador para el Sequencer Engine (Motor 3)
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -38,6 +39,10 @@ import com.musicdownloader.converter.beatstudio.presentation.drum.DrumStudioView
 import com.musicdownloader.converter.beatstudio.presentation.sampler.SamplerStudioScreen
 import com.musicdownloader.converter.beatstudio.presentation.sampler.SamplerStudioViewModel
 
+// 🎹 Importaciones del Motor 3: Sequencer Studio (Sequencer Engine)
+import com.musicdownloader.converter.beatstudio.presentation.sequencer.SequencerStudioScreen
+import com.musicdownloader.converter.beatstudio.presentation.sequencer.SequencerStudioViewModel
+
 sealed class Screen(val route: String, val title: String, val icon: @Composable () -> Unit) {
     object Download : Screen("download", "Descargar", { Icon(Icons.Default.Download, contentDescription = null) })
     object Library : Screen("library", "Biblioteca", { Icon(Icons.Default.LibraryMusic, contentDescription = null) })
@@ -48,8 +53,11 @@ sealed class Screen(val route: String, val title: String, val icon: @Composable 
     // 🥁 Motor 1: Drum Studio
     object BeatStudio : Screen("beat_studio", "Beat Studio", { Icon(Icons.Default.GridOn, contentDescription = null) })
 
-    // 🎙️ Motor 2: Sampler Studio (Muestreo profesional integrado)
+    // 🎙️ Motor 2: Sampler Studio
     object SamplerStudio : Screen("sampler_studio", "Sampler", { Icon(Icons.Default.GraphicEq, contentDescription = null) })
+
+    // 🎹 Motor 3: Sequencer Studio (Secuenciador profesional)
+    object SequencerStudio : Screen("sequencer_studio", "Sequencer", { Icon(Icons.Default.Tune, contentDescription = null) })
 }
 
 @Composable
@@ -68,7 +76,8 @@ fun MainScreen(
         Screen.Player,
         Screen.DjTurntables,
         Screen.BeatStudio,
-        Screen.SamplerStudio // <--- ¡Motor 2 añadido formalmente a la barra de navegación inferior!
+        Screen.SamplerStudio,
+        Screen.SequencerStudio // <--- ¡Motor 3 añadido formalmente a la barra de navegación inferior!
     )
 
     Scaffold(
@@ -149,10 +158,16 @@ fun MainScreen(
                 BeatStudioScreen(viewModel = drumStudioViewModel)
             }
 
-            // 🎙️ Motor 2: Sampler Studio (Conectado con su ViewModel de Hilt)
+            // 🎙️ Motor 2: Sampler Studio
             composable(Screen.SamplerStudio.route) {
                 val samplerStudioViewModel: SamplerStudioViewModel = hiltViewModel()
                 SamplerStudioScreen(viewModel = samplerStudioViewModel)
+            }
+
+            // 🎹 Motor 3: Sequencer Studio (Conectado con su ViewModel de Hilt)
+            composable(Screen.SequencerStudio.route) {
+                val sequencerStudioViewModel: SequencerStudioViewModel = hiltViewModel()
+                SequencerStudioScreen(viewModel = sequencerStudioViewModel)
             }
         }
     }
