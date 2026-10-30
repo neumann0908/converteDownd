@@ -1,5 +1,9 @@
 package com.musicdownloader.converter.beatstudio.presentation.sampler
 
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,16 +22,36 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun SamplerStudioScreen(
-    viewModel: SamplerStudioViewModel
+    viewModel: SamplerStudioViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
     val track = state.currentTrack
+
+    // 📂 Selector de archivos nativo real de Android para importar audio
+    val audioPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { selectedUri ->
+            var fileName = "Sample_Pro.wav"
+            context.contentResolver.query(selectedUri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (cursor.moveToFirst() && nameIndex != -1) {
+                    fileName = cursor.getString(nameIndex)
+                }
+            }
+            // Cargamos el archivo seleccionado con una duración simulada de base de 5000ms
+            viewModel.importAudioFile(fileName, 5000L, selectedUri.toString())
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -61,16 +85,16 @@ fun SamplerStudioScreen(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Botón Cargar Archivo (WAV, MP3, FLAC)[span_4](start_span)[span_4](end_span)
+                // 📂 Botón Cargar Archivo (Abre el explorador real del sistema)
                 IconButton(
-                    onClick = { viewModel.importAudioFile("AudioSample_Pro.wav", 5000L) },
+                    onClick = { audioPickerLauncher.launch("audio/*") },
                     modifier = Modifier.size(34.dp).background(Color(0xFF28283D), CircleShape)
                 ) {
                     Icon(Icons.Default.FolderOpen, contentDescription = "Importar", tint = Color(0xFFFFD700), modifier = Modifier.size(16.dp))
                 }
                 Spacer(modifier = Modifier.width(6.dp))
 
-                // Botón Micrófono (Grabar sample)[span_5](start_span)[span_5](end_span)
+                // 🎙️ Botón Micrófono (Grabar sample en tiempo real)
                 IconButton(
                     onClick = { viewModel.toggleRecording() },
                     modifier = Modifier.size(34.dp).background(if (state.isRecording) Color.Red else Color(0xFF28283D), CircleShape)
@@ -136,7 +160,6 @@ fun SamplerStudioScreen(
                     Text(text = "Fin: ${track.endPoint}ms", color = Color.Red, fontSize = 9.sp)
                 }
 
-                // Sliders de Start y End para control visual de onda[span_6](start_span)[span_6](end_span)[span_7](start_span)[span_7](end_span)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Slider(
                         value = track.startPoint.toFloat(),
@@ -223,7 +246,6 @@ fun SamplerStudioScreen(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Controles ADSR completos (Attack, Decay, Sustain, Release)[span_8](start_span)[span_8](end_span)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = "A: ${String.format("%.2f", track.attack)}s", color = Color.LightGray, fontSize = 8.sp)
