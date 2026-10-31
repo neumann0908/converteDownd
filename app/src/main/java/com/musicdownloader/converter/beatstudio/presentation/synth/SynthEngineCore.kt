@@ -4,53 +4,83 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.sin
 
 object SynthEngineCore {
     private const val SAMPLE_RATE = 44100 // Calidad de audio estándar de CD
 
-    // 🎵 Función principal para disparar una nota musical desde cero con matemáticas
+    // 🎵 Función principal para disparar notas con DSP, Filtro y ADSR reactivo
     fun playTone(frequency: Float, durationMs: Long, patch: SynthPatch, volume: Float, pan: Float) {
         Thread {
             try {
-                val numSamples = ((durationMs * SAMPLE_RATE) / 1000).toInt()
+                // Duración mínima garantizada de 600ms para apreciar perfectamente el ADSR y Release
+                val effectiveDurationMs = durationMs.coerceAtLeast(600L)
+                val numSamples = ((effectiveDurationMs * SAMPLE_RATE) / 1000).toInt()
                 val buffer = ShortArray(numSamples)
                 
-                val attackSamples = ((patch.adsr.attackMs * SAMPLE_RATE) / 1000).toInt()
-                val decaySamples = ((patch.adsr.decayMs * SAMPLE_RATE) / 1000).toInt()
-                val releaseSamples = ((patch.adsr.releaseMs * SAMPLE_RATE) / 1000).toInt()
-                val sustainLevel = patch.adsr.sustainLevel
+                val attackSamples = ((patch.adsr.attackMs * SAMPLE_RATE) / 1000).toInt().coerceAtLeast(1)
+                val decaySamples = ((patch.adsr.decayMs * SAMPLE_RATE) / 1000).toInt().coerceAtLeast(1)
+                val releaseSamples = ((patch.adsr.releaseMs * SAMPLE_RATE) / 1000).toInt().coerceAtLeast(1)
+                val sustainLevel = patch.adsr.sustainLevel.coerceIn(0.0f, 1.0f)
+
+                // 🎛️ Configuración del Filtro Pasa-Bajos (Low-Pass Filter) con el Cutoff del Patch
+                val cutoff = patch.cutoffFreq.coerceIn(100f, 20000f)
+                val dt = 1.0f / SAMPLE_RATE
+                val rc = 1.0f / (2.0f * PI.toFloat() * cutoff)
+                val alpha = dt / (rc + dt)
+                var filteredSample = 0.0f
+
+                val releaseStartSample = (numSamples - releaseSamples).coerceAtLeast(0)
 
                 for (i in 0 until numSamples) {
                     val t = i.toFloat() / SAMPLE_RATE
                     
-                    // 1. Dibujar la onda matemática según el tipo elegido (Senoidal, Sierra, Cuadrada, Triangular)
-                    val rawSample = when (patch.waveform) {
-                        WaveformType.SINE -> sin(2.0 * PI * frequency * t).toFloat()
-                        WaveformType.SAW -> (2.0 * (t * frequency - kotlin.math.floor(0.5 + t * frequency))).toFloat()
-                        WaveformType.SQUARE -> if (sin(2.0 * PI * frequency * t) >= 0) 1.0f else -1.0f
-                        WaveformType.TRIANGLE -> (2.0 * kotlin.math.abs(2.0 * (t * frequency - kotlin.math.floor(t * frequency + 0.5))) - 1.0f).toFloat()
+                    // 🥁 Efecto dinámico de caída de frecuencia (Pitch Drop) exclusivo para el 808 Synth
+                    val currentFreq = if (patch.instrumentType == SynthInstrumentType.SYNTH_808 && i < SAMPLE_RATE * 0.12f) {
+                        frequency + (80f * (1.0f - (i / (SAMPLE_RATE * 0.12f))))
+                    } else {
+                        frequency
                     }
 
-                    // 2. Aplicar la envolvente ADSR (El ciclo de vida del volumen de la nota)
+                    // 1. Generación de onda base según el instrumento y la waveform elegida
+                    val rawSample = when (patch.waveform) {
+                        WaveformType.SINE -> {
+                            val base = sin(2.0 * PI * currentFreq * t).toFloat()
+                            if (patch.instrumentType == SynthInstrumentType.SUB_BASS) {
+                                base * 0.7f + sin(2.0 * PI * (currentFreq / 2.0) * t).toFloat() * 0.3f
+                            } else {
+                                base
+                            }
+                        }
+                        WaveformType.SAW -> (2.0 * (t * currentFreq - floor(0.5 + t * currentFreq))).toFloat()
+                        WaveformType.SQUARE -> if (sin(2.0 * PI * currentFreq * t) >= 0) 1.0f else -1.0f
+                        WaveformType.TRIANGLE -> (2.0 * abs(2.0 * (t * currentFreq - floor(t * currentFreq + 0.5))) - 1.0f).toFloat()
+                    }
+
+                    // 2. Aplicar el Filtro Pasa-Bajos (Modifica el brillo del sonido en tiempo real)
+                    filteredSample += alpha * (rawSample - filteredSample)
+
+                    // 3. Envolvente ADSR Precisa y Suave
                     val envelope = when {
-                        i < attackSamples -> if (attackSamples > 0) i.toFloat() / attackSamples else 1f
+                        i < attackSamples -> i.toFloat() / attackSamples
                         i < attackSamples + decaySamples -> {
-                            val decayProgress = (i - attackSamples).toFloat() / decaySamples
+                            val decayProgress = (i - attackSamples).toFloat() / decaySamples.coerceAtLeast(1)
                             1.0f - (1.0f - sustainLevel) * decayProgress
                         }
-                        i > numSamples - releaseSamples -> {
-                            val releaseProgress = (numSamples - i).toFloat() / releaseSamples
-                            sustainLevel * releaseProgress
+                        i >= releaseStartSample -> {
+                            val releaseProgress = (i - releaseStartSample).toFloat() / releaseSamples.coerceAtLeast(1)
+                            (sustainLevel * (1.0f - releaseProgress)).coerceAtLeast(0.0f)
                         }
                         else -> sustainLevel
                     }
 
-                    val sampleVal = (rawSample * envelope * 15000f * volume).toInt().coerceIn(-32768, 32767)
+                    val sampleVal = (filteredSample * envelope * 16000f * volume).toInt().coerceIn(-32768, 32767)
                     buffer[i] = sampleVal.toShort()
                 }
 
-                // 3. Configurar el canal de audio físico de Android para reproducirlo al instante
+                // 4. Configuración del canal de audio físico de Android
                 val audioTrack = AudioTrack.Builder()
                     .setAudioAttributes(
                         AudioAttributes.Builder()
@@ -69,7 +99,7 @@ object SynthEngineCore {
                     .setTransferMode(AudioTrack.MODE_STATIC)
                     .build()
 
-                // 4. Calcular el Paneo Estéreo (Izquierda / Derecha)
+                // 5. Calcular Paneo Estéreo (Izquierda / Derecha)
                 val stereoBuffer = ShortArray(numSamples * 2)
                 val leftFactor = (1.0f - pan.coerceAtLeast(0.0f))
                 val rightFactor = (1.0f + pan.coerceAtMost(0.0f))
@@ -83,7 +113,7 @@ object SynthEngineCore {
                 audioTrack.setStereoVolume(leftFactor, rightFactor)
                 audioTrack.play()
                 
-                Thread.sleep(durationMs)
+                Thread.sleep(effectiveDurationMs)
                 audioTrack.stop()
                 audioTrack.release()
             } catch (e: Exception) {
