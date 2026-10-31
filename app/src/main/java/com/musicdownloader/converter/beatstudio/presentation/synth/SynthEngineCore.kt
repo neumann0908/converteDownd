@@ -17,9 +17,9 @@ import kotlin.math.sin
 import kotlin.math.tanh
 
 /**
- * SynthEngineCore v2.3 (Optimizado, Estable y de Alta Fidelidad)
+ * SynthEngineCore v2.5 (Definitivo - Alta Fidelidad y Compatibilidad Universal)
  *
- * Motor de síntesis DSP profesional.
+ * Motor de síntesis DSP profesional con AudioTrack MODE_STREAM robusto.
  */
 object SynthEngineCore {
 
@@ -75,7 +75,7 @@ object SynthEngineCore {
             DEFAULT_FREQUENCY
         }
 
-        val safeDuration = durationMs.coerceIn(1L, MAX_DURATION_MS)
+        val safeDuration = durationMs.coerceAtLeast(1L)
 
         val safeVolume = if (volume.isFinite()) {
             volume.coerceIn(0.0f, 1.0f)
@@ -404,8 +404,15 @@ object SynthEngineCore {
         var audioTrack: AudioTrack? = null
         try {
             val bufferSizeBytes = stereoBuffer.size * BYTES_PER_SAMPLE
+            val minBufferSize = AudioTrack.getMinBufferSize(
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_OUT_STEREO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
 
-            val track = AudioTrack.Builder()
+            val finalBufferSize = max(bufferSizeBytes, minBufferSize * 2)
+
+            audioTrack = AudioTrack.Builder()
                 .setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -419,35 +426,21 @@ object SynthEngineCore {
                         .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
                         .build()
                 )
-                .setBufferSizeInBytes(bufferSizeBytes)
-                .setTransferMode(AudioTrack.MODE_STATIC)
+                .setBufferSizeInBytes(finalBufferSize)
+                .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
 
-            audioTrack = track
-
-            if (track.state != AudioTrack.STATE_INITIALIZED) {
+            if (audioTrack.state != AudioTrack.STATE_INITIALIZED) {
                 Log.e(TAG, "AudioTrack no pudo inicializarse.")
                 return
             }
 
-            var writtenSamples = 0
-            while (writtenSamples < stereoBuffer.size) {
-                val remaining = stereoBuffer.size - writtenSamples
-                val written = track.write(stereoBuffer, writtenSamples, remaining)
-                if (written <= 0) {
-                    throw IllegalStateException("AudioTrack.write devolvió $written")
-                }
-                writtenSamples += written
-            }
+            // Se invoca play() antes de escribir para asegurar el flujo continuo de hardware
+            audioTrack.play()
+            audioTrack.write(stereoBuffer, 0, stereoBuffer.size)
 
-            track.play()
+            Thread.sleep(durationMs + 60L)
 
-            // Control de tiempo seguro y fluido sin bloqueos de cabezal
-            Thread.sleep(durationMs + 30L)
-
-        } catch (exception: InterruptedException) {
-            Thread.currentThread().interrupt()
-            Log.w(TAG, "Reproducción interrumpida", exception)
         } catch (exception: Exception) {
             Log.e(TAG, "Error reproduciendo audio DSP", exception)
         } finally {
