@@ -660,7 +660,7 @@ fun SequencerStudioScreen(
                         
                         Spacer(modifier = Modifier.height(4.dp))
                         
-                        // Botones de Acordes Automáticos
+                        // Botones de Acordes Automáticos sincronizados con la rejilla visual (0 a 7)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -668,7 +668,7 @@ fun SequencerStudioScreen(
                             ChordType.entries.take(3).forEach { chord ->
                                 Button(
                                     onClick = { 
-                                        viewModel.applyChordToPattern(state.rootKey, chord, state.selectedPianoTrackIndex, 0)
+                                        viewModel.applyChordToPattern(chord, state.selectedPianoTrackIndex, 0)
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF28283D)),
                                     modifier = Modifier.weight(1f).height(24.dp),
