@@ -44,11 +44,11 @@ fun SynthStudioScreen(
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(text = "MOTOR 5: SYNTH STUDIO", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 Text(text = "Instrumento Activo: ${state.currentPatch.instrumentType.displayName}", color = Color.White, fontSize = 12.sp)
-                Text(text = "Onda: ${state.currentPatch.waveform.name}", color = Color(0xFF00E676), fontSize = 10.sp)
+                Text(text = "Onda: ${state.currentPatch.waveform.name} | Cutoff: ${state.currentPatch.cutoffFreq.toInt()} Hz", color = Color(0xFF00E676), fontSize = 10.sp)
             }
         }
 
-        // --- CATÁLOGO DE INSTRUMENTOS (10 Recomendados) ---
+        // --- CATÁLOGO DE INSTRUMENTOS ---
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
             shape = RoundedCornerShape(10.dp),
@@ -99,17 +99,22 @@ fun SynthStudioScreen(
             }
         }
 
-        // --- LABORATORIO ADSR (ENVOLVENTES) ---
+        // --- LABORATORIO DE FILTRO Y ADSR ---
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
             shape = RoundedCornerShape(10.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(10.dp)) {
-                Text(text = "ENVOLVENTE ADSR", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text(text = "FILTRO Y ENVOLVENTE ADSR", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
 
-                val adsr = state.currentPatch.adsr
+                val patch = state.currentPatch
+                val adsr = patch.adsr
+
+                // Filtro Cutoff
+                Text(text = "Filtro Cutoff: ${patch.cutoffFreq.toInt()} Hz", color = Color.White, fontSize = 10.sp)
+                Slider(value = patch.cutoffFreq, onValueChange = { viewModel.updateCutoff(it) }, valueRange = 200f..10000f, modifier = Modifier.height(20.dp))
 
                 // Attack
                 Text(text = "Attack: ${adsr.attackMs.toInt()} ms", color = Color.White, fontSize = 10.sp)
@@ -129,7 +134,7 @@ fun SynthStudioScreen(
             }
         }
 
-        // --- TECLADO VIRTUAL TÁCTIL PARA PRUEBAS EN VIVO ---
+        // --- TECLADO VIRTUAL TÁCTIL ---
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
             shape = RoundedCornerShape(10.dp),
