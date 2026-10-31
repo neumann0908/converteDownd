@@ -27,6 +27,10 @@ import com.musicdownloader.converter.beatstudio.presentation.sampler.SamplerStud
 import com.musicdownloader.converter.beatstudio.presentation.sequencer.SequencerStudioScreen
 import com.musicdownloader.converter.beatstudio.presentation.sequencer.SequencerStudioViewModel
 
+// 🎹 5. Importaciones de nuestro Synth Studio Pro (Motor 5)
+import com.musicdownloader.converter.beatstudio.presentation.synth.SynthStudioScreen
+import com.musicdownloader.converter.beatstudio.presentation.synth.SynthViewModel
+
 @Composable
 fun AppNavGraph(navController: NavHostController, modifier: Modifier = Modifier) {
     NavHost(
@@ -62,6 +66,12 @@ fun AppNavGraph(navController: NavHostController, modifier: Modifier = Modifier)
         composable("sequencer_studio") {
             val sequencerStudioViewModel: SequencerStudioViewModel = hiltViewModel()
             SequencerStudioScreen(viewModel = sequencerStudioViewModel)
+        }
+
+        // 🎹 FASE 5: Integración Quirúrgica del Nuevo Synth Studio Pro (Motor 5)
+        composable("synth_studio") {
+            val synthViewModel: SynthViewModel = hiltViewModel()
+            SynthStudioScreen(viewModel = synthViewModel)
         }
     }
 }
