@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.GridOn // Cuadrícula para Beat Studio (Motor 1)
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.GraphicEq // 🎙️ Ícono de onda para el Sampler Studio (Motor 2)
 import androidx.compose.material.icons.filled.Tune // 🎹 Ícono de controles/secuenciador para el Sequencer Engine (Motor 3)
+import androidx.compose.material.icons.filled.Piano // 🎹 Ícono de piano para el Synth Studio (Motor 5)
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -43,6 +45,10 @@ import com.musicdownloader.converter.beatstudio.presentation.sampler.SamplerStud
 import com.musicdownloader.converter.beatstudio.presentation.sequencer.SequencerStudioScreen
 import com.musicdownloader.converter.beatstudio.presentation.sequencer.SequencerStudioViewModel
 
+// 🎹 Importaciones del Motor 5: Synth Studio (Synth Engine)
+import com.musicdownloader.converter.beatstudio.presentation.synth.SynthStudioScreen
+import com.musicdownloader.converter.beatstudio.presentation.synth.SynthViewModel
+
 sealed class Screen(val route: String, val title: String, val icon: @Composable () -> Unit) {
     object Download : Screen("download", "Descargar", { Icon(Icons.Default.Download, contentDescription = null) })
     object Library : Screen("library", "Biblioteca", { Icon(Icons.Default.LibraryMusic, contentDescription = null) })
@@ -58,6 +64,9 @@ sealed class Screen(val route: String, val title: String, val icon: @Composable 
 
     // 🎹 Motor 3: Sequencer Studio (Secuenciador profesional)
     object SequencerStudio : Screen("sequencer_studio", "Sequencer", { Icon(Icons.Default.Tune, contentDescription = null) })
+
+    // 🎹 Motor 5: Synth Studio (Sintetizador profesional)
+    object SynthStudio : Screen("synth_studio", "Synth", { Icon(Icons.Default.Piano, contentDescription = null) })
 }
 
 @Composable
@@ -77,7 +86,8 @@ fun MainScreen(
         Screen.DjTurntables,
         Screen.BeatStudio,
         Screen.SamplerStudio,
-        Screen.SequencerStudio // <--- ¡Motor 3 añadido formalmente a la barra de navegación inferior!
+        Screen.SequencerStudio,
+        Screen.SynthStudio // <--- ¡Motor 5 añadido formalmente a la barra de navegación inferior!
     )
 
     Scaffold(
@@ -168,6 +178,12 @@ fun MainScreen(
             composable(Screen.SequencerStudio.route) {
                 val sequencerStudioViewModel: SequencerStudioViewModel = hiltViewModel()
                 SequencerStudioScreen(viewModel = sequencerStudioViewModel)
+            }
+
+            // 🎹 Motor 5: Synth Studio (Conectado con su SynthViewModel de Hilt)
+            composable(Screen.SynthStudio.route) {
+                val synthViewModel: SynthViewModel = hiltViewModel()
+                SynthStudioScreen(viewModel = synthViewModel)
             }
         }
     }
