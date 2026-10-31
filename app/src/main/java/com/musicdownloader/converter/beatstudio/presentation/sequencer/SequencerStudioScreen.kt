@@ -755,7 +755,8 @@ fun SequencerStudioScreen(
                                         horizontalArrangement = Arrangement.spacedBy(2.dp)
                                     ) {
                                         activeTrack.steps.forEachIndexed { stepIndex, step ->
-                                            val hasNoteAtThisPitch = step.isActive && step.pitch == actualPitch
+                                            // 🎹 Verificamos si el paso está activo y corresponde al pitch principal o a los acordes polifónicos
+                                            val isRootOrChordNote = step.isActive && (step.pitch == actualPitch || step.chordPitches.contains(actualPitch))
                                             val isCurrentStepPlaying = (state.currentStepIndex == stepIndex)
 
                                             Box(
@@ -765,8 +766,8 @@ fun SequencerStudioScreen(
                                                     .clip(RoundedCornerShape(3.dp))
                                                     .background(
                                                         when {
-                                                            hasNoteAtThisPitch && isCurrentStepPlaying -> Color.White
-                                                            hasNoteAtThisPitch -> Color(0xFF9C27B0)
+                                                            isRootOrChordNote && isCurrentStepPlaying -> Color.White
+                                                            isRootOrChordNote -> Color(0xFF9C27B0) // Morado pro para acordes
                                                             isCurrentStepPlaying -> Color(0xFF3B3B4F)
                                                             else -> Color(0xFF22222F)
                                                         }
@@ -774,7 +775,7 @@ fun SequencerStudioScreen(
                                                     .pointerInput(Unit) {
                                                         detectTapGestures(
                                                             onTap = {
-                                                                if (hasNoteAtThisPitch) {
+                                                                if (isRootOrChordNote) {
                                                                     viewModel.toggleStep(state.selectedPianoTrackIndex, stepIndex)
                                                                 } else {
                                                                     viewModel.updateStepPitch(state.selectedPianoTrackIndex, stepIndex, actualPitch)
