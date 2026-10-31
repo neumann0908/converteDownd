@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 
-// Estado visual del panel del sintetizador
 data class SynthUiState(
     val currentPatch: SynthPatch = SynthPatch(instrumentType = SynthInstrumentType.SYNTH_808),
     val masterVolume: Float = 1.0f,
@@ -21,7 +20,6 @@ class SynthViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow(SynthUiState())
     val uiState: StateFlow<SynthUiState> = _uiState.asStateFlow()
 
-    // 🎹 Cambiar de instrumento (ej: de 808 a Pad Synth o Lead)
     fun selectInstrument(instrumentType: SynthInstrumentType) {
         _uiState.update { state ->
             state.copy(
@@ -33,14 +31,19 @@ class SynthViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 🌊 Cambiar la forma de onda matemática manualmente
     fun updateWaveform(waveform: WaveformType) {
         _uiState.update { state ->
             state.copy(currentPatch = state.currentPatch.copy(waveform = waveform))
         }
     }
 
-    // ⏱️ Actualizar valores del ADSR (Attack, Decay, Sustain, Release)
+    // 🎛️ Actualizar el corte de frecuencia del filtro (Cutoff)
+    fun updateCutoff(cutoff: Float) {
+        _uiState.update { state ->
+            state.copy(currentPatch = state.currentPatch.copy(cutoffFreq = cutoff))
+        }
+    }
+
     fun updateAdsr(attack: Float, decay: Float, sustain: Float, release: Float) {
         _uiState.update { state ->
             val newAdsr = ADSRState(attackMs = attack, decayMs = decay, sustainLevel = sustain, releaseMs = release)
@@ -48,7 +51,6 @@ class SynthViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // 🎚️ Tocar una nota de prueba en tiempo real al presionar una tecla del piano virtual
     fun playTestNote(frequency: Float) {
         val patch = _uiState.value.currentPatch
         val volume = _uiState.value.masterVolume
@@ -56,7 +58,7 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
         SynthEngineCore.playTone(
             frequency = frequency,
-            durationMs = 400L, // Nota de 400 milisegundos para pruebas en vivo
+            durationMs = 600L,
             patch = patch,
             volume = volume,
             pan = pan
