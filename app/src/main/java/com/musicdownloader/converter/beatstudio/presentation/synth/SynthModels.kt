@@ -1,41 +1,40 @@
 package com.musicdownloader.converter.beatstudio.presentation.synth
 
-// 🎹 Catálogo de los 10 instrumentos recomendados basados en nuestras referencias
-enum class SynthInstrumentType(val displayName: String, val defaultWaveform: WaveformType) {
-    SYNTH_808("808 Synth", WaveformType.SINE),
-    SUB_BASS("Sub Bass", WaveformType.SINE),
-    ANALOG_BASS("Analog Bass", WaveformType.SAW),
-    ELECTRIC_PIANO("Electric Piano", WaveformType.TRIANGLE),
-    KEYS("Keys", WaveformType.SQUARE),
-    PAD_SYNTH("Pad Synth", WaveformType.SAW),
-    LEAD_SYNTH("Lead Synth", WaveformType.SAW),
-    BELL_SYNTH("Bell Synth", WaveformType.SINE),
-    STRINGS("Strings", WaveformType.SAW),
-    PLUCKS("Plucks", WaveformType.SQUARE)
-}
-
-// 🌊 Las formas de onda matemática que crean el sonido básico
+// Formas de onda disponibles para el oscilador
 enum class WaveformType {
-    SINE,      // Sonido suave y puro (como un silbido)
-    SAW,       // Sonido brillante y con fuerza (ideal para bajos y leads)
-    SQUARE,    // Sonido hueco y retro (tipo videojuego antiguo)
-    TRIANGLE   // Sonido cálido y dulce
+    SINE,
+    SAW,
+    SQUARE,
+    TRIANGLE
 }
 
-// 🎚️ El sistema ADSR (Controla cómo sube, se mantiene y se apaga el sonido con el tiempo)
+// Catálogo oficial de los 10 instrumentos recomendados para el DAW
+enum class SynthInstrumentType(val displayName: String, val defaultWaveform: WaveformType) {
+    SYNTH_808("808 Bass", WaveformType.SINE),
+    SUB_BASS("Sub Bass", WaveformType.SINE),
+    LEAD_SAW("Lead Saw", WaveformType.SAW),
+    SQUARE_PLUCK("Square Pluck", WaveformType.SQUARE),
+    PAD_WARM("Warm Pad", WaveformType.TRIANGLE),
+    BRASS_SYNTH("Brass Synth", WaveformType.SAW),
+    CHIP_TUNE("ChipTune", WaveformType.SQUARE),
+    PLUCK_BELL("Bell Pluck", WaveformType.SINE),
+    ORGAN_CLASSIC("Classic Organ", WaveformType.SQUARE),
+    ACID_BASS("Acid Bass", WaveformType.SAW)
+}
+
+// Configuración de la Envolvente ADSR (Attack, Decay, Sustain, Release)
 data class ADSRState(
-    val attackMs: Float = 10f,    // Tiempo que tarda en abrirse el sonido al tocar
-    val decayMs: Float = 100f,    // Tiempo que tarda en bajar al nivel de sustain
-    val sustainLevel: Float = 0.7f, // Nivel en el que se queda mientras mantienes presionado
-    val releaseMs: Float = 200f   // Tiempo que tarda en apagarse por completo al soltar
+    val attackMs: Float = 15f,
+    val decayMs: Float = 200f,
+    val sustainLevel: Float = 0.7f,
+    val releaseMs: Float = 300f
 )
 
-// 🎛️ El "Parche" o configuración actual del sintetizador
+// Parche de síntesis activa (Metadata y parámetros editables desde la UI)
 data class SynthPatch(
-    val instrumentType: SynthInstrumentType,
-    val waveform: WaveformType = instrumentType.defaultWaveform,
-    val cutoffFreq: Float = 2000f,
-    val resonance: Float = 1.0f,
+    val instrumentType: SynthInstrumentType = SynthInstrumentType.SYNTH_808,
+    val waveform: WaveformType = SynthInstrumentType.SYNTH_808.defaultWaveform,
     val adsr: ADSRState = ADSRState(),
-    val isPolyphonic: Boolean = true // Permite tocar varios dedos a la vez (acordes)
+    val cutoffFreq: Float = 5000f,
+    val resonance: Float = 0.707f
 )
