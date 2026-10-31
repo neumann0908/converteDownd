@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.musicdownloader.converter.beatstudio.presentation.midi.ChordType
 import com.musicdownloader.converter.beatstudio.presentation.midi.MidiEngineManager
 import com.musicdownloader.converter.beatstudio.presentation.midi.MusicalScaleType
+import com.musicdownloader.converter.beatstudio.presentation.synth.SynthEngineCore
+import com.musicdownloader.converter.beatstudio.presentation.synth.SynthPatch
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -48,6 +50,19 @@ class SequencerStudioViewModel @Inject constructor(
                 }
             }
             currentState.copy(patterns = updatedPatterns)
+        }
+    }
+
+    // 🎹 Asignar o actualizar el SynthPatch (Motor 5) a una pista específica del secuenciador
+    fun updateTrackSynthPatch(trackIndex: Int, synthPatch: SynthPatch?) {
+        updateCurrentPatternTracks { tracks ->
+            tracks.mapIndexed { idx, track ->
+                if (idx == trackIndex) {
+                    track.copy(synthPatch = synthPatch)
+                } else {
+                    track
+                }
+            }
         }
     }
 
@@ -321,7 +336,8 @@ class SequencerStudioViewModel @Inject constructor(
                         tracks = currentPattern.tracks.map { track ->
                             track.copy(
                                 steps = track.steps.map { it.copy() },
-                                customPitchSamples = track.customPitchSamples.toMap()
+                                customPitchSamples = track.customPitchSamples.toMap(),
+                                synthPatch = track.synthPatch?.copy()
                             )
                         }
                     )
@@ -339,7 +355,8 @@ class SequencerStudioViewModel @Inject constructor(
         copiedTracksMemory = currentPattern.tracks.map { track ->
             track.copy(
                 steps = track.steps.map { it.copy() },
-                customPitchSamples = track.customPitchSamples.toMap()
+                customPitchSamples = track.customPitchSamples.toMap(),
+                synthPatch = track.synthPatch?.copy()
             )
         }
     }
@@ -351,7 +368,8 @@ class SequencerStudioViewModel @Inject constructor(
                 memoryTracks.map { track ->
                     track.copy(
                         steps = track.steps.map { it.copy() },
-                        customPitchSamples = track.customPitchSamples.toMap()
+                        customPitchSamples = track.customPitchSamples.toMap(),
+                        synthPatch = track.synthPatch?.copy()
                     )
                 }
             }
@@ -558,11 +576,9 @@ class SequencerStudioViewModel @Inject constructor(
         }
     }
 
-    // 🎚️ Reproductor inteligente adaptado con Paneo Estéreo (-1.0 a 1.0) y Volumen por Pista
+    // 🎚️ Reproductor inteligente adaptado para Samples o para el Synth Engine (Motor 5)
     private fun playTrackSound(track: SequencerTrack, pitch: Int, velocity: Float, durationMs: Long) {
         try {
-            val exportDir = File(context.filesDir, "exports")
-            
             val finalVelocity = if (track.humanizeEnabled) {
                 val jitter = (0.85f + (Math.random() * 0.30f)).toFloat()
                 (velocity * jitter).coerceIn(0.1f, 1.0f)
@@ -570,6 +586,23 @@ class SequencerStudioViewModel @Inject constructor(
                 velocity
             }
 
+            // 🎹 SI LA PISTA TIENE UN SINTETIZADOR CONFIGURADO (MOTOR 5)
+            if (track.synthPatch != null) {
+                val frequencies = listOf(261.63f, 293.66f, 329.63f, 349.23f, 392.00f, 440.00f, 493.88f, 523.25f) // C4 a C5
+                val freq = frequencies.getOrNull(pitch) ?: 261.63f
+                
+                SynthEngineCore.playTone(
+                    frequency = freq,
+                    durationMs = durationMs,
+                    patch = track.synthPatch,
+                    volume = track.volume * finalVelocity,
+                    pan = track.pan
+                )
+                return
+            }
+
+            // 📂 SI NO, USAMOS EL MÉTODO TRADICIONAL DE ARCHIVOS .WAV
+            val exportDir = File(context.filesDir, "exports")
             val customPath = track.customPitchSamples[pitch]
             val sampleFile = if (customPath != null && File(customPath).exists()) {
                 File(customPath)
