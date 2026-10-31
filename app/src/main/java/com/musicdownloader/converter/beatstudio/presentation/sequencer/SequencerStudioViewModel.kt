@@ -58,7 +58,7 @@ class SequencerStudioViewModel @Inject constructor(
                 if (tIdx == trackIndex) {
                     val updatedSteps = track.steps.mapIndexed { sIdx, step ->
                         if (sIdx == stepIndex) {
-                            step.copy(isActive = !step.isActive)
+                            step.copy(isActive = !step.isActive, chordPitches = emptyList())
                         } else {
                             step
                         }
@@ -209,7 +209,7 @@ class SequencerStudioViewModel @Inject constructor(
                 if (tIdx == trackIndex) {
                     val updatedSteps = track.steps.mapIndexed { sIdx, step ->
                         if (sIdx == stepIndex) {
-                            step.copy(pitch = newPitch, isActive = true)
+                            step.copy(pitch = newPitch, isActive = true, chordPitches = emptyList())
                         } else {
                             step
                         }
@@ -234,16 +234,27 @@ class SequencerStudioViewModel @Inject constructor(
         _uiState.update { it.copy(rootKey = newRootKey.coerceIn(0, 127)) }
     }
 
-    // 🎸 Generar y aplicar un acorde automático utilizando el Motor 4 sincronizado con la rejilla visual (0 a 7)
+    // 🎸 Generar y aplicar un acorde polifónico utilizando el Motor 4 sincronizado con la rejilla visual (0 a 7)
     fun applyChordToPattern(chordType: ChordType, targetTrackIndex: Int, stepIndex: Int) {
-        val rootPitch = 0 // C4 por defecto en la matriz visual de la pantalla (0 a 7)
-        
+        val basePitch = 0 // C4 base por defecto en la matriz visual de la pantalla (0 a 7)
+        val chordIntervals = chordType.intervals // Intervalos musicales del acorde (ej: [0, 4, 7])
+        val mappedPitches = chordIntervals.map { interval ->
+            (basePitch + (interval / 2)).coerceIn(0, 7)
+        }.distinct()
+
+        val mainPitch = mappedPitches.firstOrNull() ?: basePitch
+        val extraPitches = mappedPitches.drop(1)
+
         updateCurrentPatternTracks { tracks ->
             tracks.mapIndexed { tIdx, track ->
                 if (tIdx == targetTrackIndex) {
                     val updatedSteps = track.steps.mapIndexed { sIdx, step ->
                         if (sIdx == stepIndex) {
-                            step.copy(isActive = true, pitch = rootPitch)
+                            step.copy(
+                                isActive = true,
+                                pitch = mainPitch,
+                                chordPitches = extraPitches
+                            )
                         } else {
                             step
                         }
@@ -506,7 +517,7 @@ class SequencerStudioViewModel @Inject constructor(
         _uiState.update { it.copy(arrangement = it.arrangement.filter { sec -> sec.id != sectionId }) }
     }
 
-    // 🔊 Dispara los sonidos aplicando reglas de Solo/Mute, Probabilidad, Offset y Duración
+    // 🔊 Dispara los sonidos aplicando reglas de Solo/Mute, Probabilidad, Offset, Duración y Polifonía de Acordes
     private fun playActiveStepsForColumn(stepIndex: Int) {
         val state = _uiState.value
         
@@ -518,23 +529,28 @@ class SequencerStudioViewModel @Inject constructor(
         val anySoloActive = tracks.any { it.isSolo }
 
         for (track in tracks) {
-            // Regla DAW: Si hay pistas en Solo, solo suenan las que tengan Solo activo. Si no, se respeta Mute.
             val shouldPlay = if (anySoloActive) track.isSolo else !track.isMuted
             
             if (shouldPlay) {
                 val step = track.steps.getOrNull(stepIndex)
                 if (step != null && step.isActive) {
-                    // 🎲 Evaluación de probabilidad de disparo
                     val passesProbability = step.probability >= 1.0f || (Math.random() <= step.probability)
                     if (passesProbability) {
                         val totalDelay = (step.offsetMs).coerceAtLeast(0L)
+                        // 🎹 Lista completa de pitches a reproducir (Nota principal + Notas del acorde polifónico)
+                        val pitchesToPlay = listOf(step.pitch) + step.chordPitches
+
                         if (totalDelay > 0L) {
                             viewModelScope.launch {
                                 delay(totalDelay)
-                                playTrackSound(track, step.pitch, step.velocity, step.durationMs)
+                                pitchesToPlay.forEach { p ->
+                                    playTrackSound(track, p, step.velocity, step.durationMs)
+                                }
                             }
                         } else {
-                            playTrackSound(track, step.pitch, step.velocity, step.durationMs)
+                            pitchesToPlay.forEach { p ->
+                                playTrackSound(track, p, step.velocity, step.durationMs)
+                            }
                         }
                     }
                 }
@@ -576,7 +592,6 @@ class SequencerStudioViewModel @Inject constructor(
             if (sampleFile.exists()) {
                 val mediaPlayer = MediaPlayer.create(context, Uri.fromFile(sampleFile))
                 mediaPlayer?.apply {
-                    // 🎧 Cálculo de Paneo Estéreo y Volumen Real
                     val baseVol = track.volume * finalVelocity
                     val pan = track.pan.coerceIn(-1.0f, 1.0f)
                     val leftVol = baseVol * (1.0f - pan.coerceAtLeast(0.0f))
