@@ -1,6 +1,7 @@
 package com.musicdownloader.converter.beatstudio.presentation.sequencer
 
 import com.musicdownloader.converter.beatstudio.presentation.midi.MusicalScaleType
+import com.musicdownloader.converter.beatstudio.presentation.synth.SynthPatch
 
 // 🟢 Estructura de Patrón independiente para el DAW (A, B, C)
 data class SequencerPattern(
@@ -23,7 +24,7 @@ data class SequencerStep(
     val modulation: Float = 0.0f    // 🎛️ Modulation (0.0 a 1.0) para efectos de vibrato y modulación
 )
 
-// Representa una pista de sonido con soporte de Volumen, Paneo Estéreo, Mute, Solo y Swing
+// Representa una pista de sonido con soporte de Volumen, Paneo Estéreo, Mute, Solo, Swing y Synth Engine (Motor 5)
 data class SequencerTrack(
     val trackId: Int,
     val trackName: String,
@@ -34,7 +35,8 @@ data class SequencerTrack(
     val isSolo: Boolean = false,   // 🟢 Aislar pista (Solo)
     val customPitchSamples: Map<Int, String> = emptyMap(), // Mapea Pitch con la ruta del archivo .wav
     val trackSwing: Float = 0.0f,          // Parámetro de Swing individual por pista (0.0 a 1.0)
-    val humanizeEnabled: Boolean = false   // Control de humanización orgánica de velocidad por pista
+    val humanizeEnabled: Boolean = false,   // Control de humanización orgánica de velocidad por pista
+    val synthPatch: SynthPatch? = null     // 🎹 MOTOR 5: Configuración de síntesis en tiempo real (si es null, usa samples .wav)
 )
 
 // Las partes de nuestra canción para construir un arreglo profesional
