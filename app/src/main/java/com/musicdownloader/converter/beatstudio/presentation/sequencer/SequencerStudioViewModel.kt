@@ -234,9 +234,9 @@ class SequencerStudioViewModel @Inject constructor(
         _uiState.update { it.copy(rootKey = newRootKey.coerceIn(0, 127)) }
     }
 
-    // 🎸 Generar y aplicar un acorde automático utilizando el Motor 4
-    fun applyChordToPattern(rootPitch: Int, chordType: ChordType, targetTrackIndex: Int, stepIndex: Int) {
-        val chordNotes = MidiEngineManager.buildChordNotes(rootPitch, chordType, stepIndex.toLong(), 125L)
+    // 🎸 Generar y aplicar un acorde automático utilizando el Motor 4 sincronizado con la rejilla visual (0 a 7)
+    fun applyChordToPattern(chordType: ChordType, targetTrackIndex: Int, stepIndex: Int) {
+        val rootPitch = 0 // C4 por defecto en la matriz visual de la pantalla (0 a 7)
         
         updateCurrentPatternTracks { tracks ->
             tracks.mapIndexed { tIdx, track ->
