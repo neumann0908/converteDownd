@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,6 +28,7 @@ fun SynthStudioScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -287,6 +289,136 @@ fun SynthStudioScreen(
                     valueRange = 0.0f..1.0f,
                     modifier = Modifier.height(20.dp)
                 )
+            }
+        }
+
+        // --- SISTEMA DE PRESETS Y BIBLIOTECA DE MELODÍAS ---
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(text = "PRESETS Y BIBLIOTECA DE MELODÍAS", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(6.dp))
+
+                val presetsMap by viewModel.savedPresets.collectAsState()
+                val currentPreset by viewModel.currentPresetName.collectAsState()
+                var presetInputName by remember { mutableStateOf("") }
+                var projectTitleInput by remember { mutableStateOf("") }
+                var isRecording by remember { mutableStateOf(false) }
+
+                // Sección Presets
+                Text(text = "Preset Activo: $currentPreset", color = Color(0xFF00E676), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedTextField(
+                        value = presetInputName,
+                        onValueChange = { presetInputName = it },
+                        placeholder = { Text("Nombre del preset", fontSize = 9.sp, color = Color.Gray) },
+                        modifier = Modifier.weight(1f).height(46.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFFFFD700),
+                            unfocusedBorderColor = Color.DarkGray
+                        )
+                    )
+                    Button(
+                        onClick = {
+                            if (presetInputName.isNotBlank()) {
+                                viewModel.saveCurrentPreset(presetInputName)
+                                presetInputName = ""
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700)),
+                        modifier = Modifier.height(46.dp)
+                    ) {
+                        Text(text = "Guardar Preset", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                if (presetsMap.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        items(presetsMap.keys.toList()) { name ->
+                            Button(
+                                onClick = { viewModel.loadPreset(name) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (currentPreset == name) Color(0xFF00E676) else Color(0xFF28283D)
+                                ),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                modifier = Modifier.height(26.dp)
+                            ) {
+                                Text(text = name, color = if (currentPreset == name) Color.Black else Color.White, fontSize = 8.sp)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(color = Color.DarkGray, thickness = 1.dp)
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Sección Grabación y Biblioteca
+                Text(text = "SECUENCIADOR Y BIBLIOTECA", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Button(
+                        onClick = {
+                            if (!isRecording) {
+                                viewModel.startRecordingMelody()
+                                isRecording = true
+                            } else {
+                                viewModel.stopRecordingMelody()
+                                isRecording = false
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isRecording) Color(0xFFFF5252) else Color(0xFF28283D)
+                        ),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Text(
+                            text = if (isRecording) "⏹ Detener Grabación" else "⏺ Grabar Melodía",
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedTextField(
+                        value = projectTitleInput,
+                        onValueChange = { projectTitleInput = it },
+                        placeholder = { Text("Título de la melodía", fontSize = 9.sp, color = Color.Gray) },
+                        modifier = Modifier.weight(1f).height(46.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF00E676),
+                            unfocusedBorderColor = Color.DarkGray
+                        )
+                    )
+                    Button(
+                        onClick = {
+                            val title = projectTitleInput.ifBlank { "Proyecto Synth" }
+                            viewModel.saveMelodyToLibrary(title) { success ->
+                                if (success) {
+                                    projectTitleInput = ""
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
+                        modifier = Modifier.height(46.dp)
+                    ) {
+                        Text(text = "A Biblioteca", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
 
