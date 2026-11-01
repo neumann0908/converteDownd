@@ -18,9 +18,9 @@ import kotlin.math.sin
 import kotlin.math.tanh
 
 /**
- * SynthEngineCore v3.0 (Con Polifonía Real, Voice Allocation, Voice Stealing y LFO/Portamento)
+ * SynthEngineCore v4.0 (Con Polifonía Real, Voice Allocation, Voice Stealing, Unison/Detune SuperSaw, LFO y Portamento)
  *
- * Motor de síntesis DSP profesional con gestión estática de voces y asignación dinámica.
+ * Motor de síntesis DSP profesional con arquitectura de estudio avanzada.
  */
 object SynthEngineCore {
 
@@ -97,7 +97,7 @@ object SynthEngineCore {
     }
 
     /**
-     * Método principal de reproducción con gestión de voces y Voice Stealing.
+     * Método principal de reproducción con gestión de voces, Voice Stealing y Unison/Detune.
      */
     fun playTone(
         frequency: Float,
@@ -257,8 +257,7 @@ object SynthEngineCore {
         val totalSamples = (safeDuration * SAMPLE_RATE / 1000L)
             .coerceIn(1L, MAX_DURATION_SAMPLES).toInt()
 
-        val totalValues = totalSamples * CHANNELS
-        val stereoBuffer = ShortArray(totalValues)
+        val stereoBuffer = ShortArray(totalSamples * CHANNELS)
 
         val attackSamples = millisecondsToSamples(patch.adsr.attackMs)
         val decaySamples = millisecondsToSamples(patch.adsr.decayMs)
@@ -282,9 +281,26 @@ object SynthEngineCore {
         )
 
         val portamentoSamples = millisecondsToSamples(portamentoMs)
+        val safeCutoff = if (patch.cutoffFreq.isFinite()) patch.cutoffFreq else DEFAULT_CUTOFF
 
-        val cutoffValue = patch.cutoffFreq
-        val safeCutoff = if (cutoffValue.isFinite()) cutoffValue else DEFAULT_CUTOFF
+        // --- CONFIGURACIÓN DE UNISON Y DETUNE (SUPERSAW) ---
+        val unisonCount = patch.unisonVoices.coerceIn(1, 5)
+        val detuneIntensity = patch.detuneAmount.coerceIn(0.0f, 1.0f)
+
+        val voiceFrequencies = FloatArray(unisonCount)
+        val voicePans = FloatArray(unisonCount)
+        for (v in 0 until unisonCount) {
+            val offsetMultiplier = if (unisonCount > 1) {
+                (v.toFloat() / (unisonCount - 1)) - 0.5f
+            } else {
+                0.0f
+            }
+            val detuneOffset = offsetMultiplier * detuneIntensity * 15.0f * (frequency / 440.0f)
+            voiceFrequencies[v] = frequency + detuneOffset
+
+            val voicePanSpread = pan + (offsetMultiplier * 1.2f * detuneIntensity)
+            voicePans[v] = voicePanSpread.coerceIn(-1.0f, 1.0f)
+        }
 
         // Configuración del LFO
         val lfoRate = patch.lfo.rateHz.coerceIn(0.1f, 20.0f)
@@ -292,19 +308,17 @@ object SynthEngineCore {
         var lfoPhase = 0.0
         val lfoPhaseIncrement = lfoRate / SAMPLE_RATE
 
-        var phase = 0.0
-        var subPhase = 0.0
-        val baseFrequency = frequency.coerceIn(MIN_FREQUENCY, MAX_FREQUENCY)
-
-        var filteredSample = 0.0f
+        val phases = DoubleArray(unisonCount) { 0.0 }
+        val subPhases = DoubleArray(unisonCount) { 0.0 }
+        val filteredSamples = FloatArray(unisonCount) { 0.0f }
         val dt = 1.0f / SAMPLE_RATE
 
-        val panAngle = ((pan.coerceIn(-1.0f, 1.0f) + 1.0f) * 0.25f) * PI.toFloat()
-        val leftPan = cos(panAngle)
-        val rightPan = sin(panAngle)
+        val masterPanAngle = ((pan.coerceIn(-1.0f, 1.0f) + 1.0f) * 0.25f) * PI.toFloat()
+        val masterLeftPan = cos(masterPanAngle)
+        val masterRightPan = sin(masterPanAngle)
 
         for (i in 0 until totalSamples) {
-            val currentFrequency = if (portamentoSamples > 0 && i < portamentoSamples) {
+            val currentFreqBase = if (portamentoSamples > 0 && i < portamentoSamples) {
                 val progress = i.toFloat() / portamentoSamples
                 startFrequency + (frequency - startFrequency) * progress
             } else {
@@ -320,32 +334,46 @@ object SynthEngineCore {
             val rc = 1.0f / (2.0f * PI.toFloat() * dynamicCutoff)
             val alpha = dt / (rc + dt)
 
-            val pitchCorrectedFreq = calculatePitch(
-                baseFrequency = currentFrequency,
-                instrumentType = patch.instrumentType,
-                sampleIndex = i
-            ).coerceIn(MIN_FREQUENCY, MAX_FREQUENCY)
+            var mixedLeft = 0.0f
+            var mixedRight = 0.0f
 
-            val phaseIncrement = (pitchCorrectedFreq / SAMPLE_RATE)
-                .coerceIn(0.000001f, 0.49f).toDouble()
-            val subPhaseIncrement = phaseIncrement * 0.5
+            for (v in 0 until unisonCount) {
+                val voiceTargetFreq = voiceFrequencies[v] + (currentFreqBase - frequency)
+                val pitchCorrectedFreq = calculatePitch(
+                    baseFrequency = voiceTargetFreq,
+                    instrumentType = patch.instrumentType,
+                    sampleIndex = i
+                ).coerceIn(MIN_FREQUENCY, MAX_FREQUENCY)
 
-            val rawSample = generateWaveform(
-                waveform = patch.waveform,
-                phase = phase,
-                subPhase = subPhase,
-                phaseIncrement = phaseIncrement,
-                frequency = pitchCorrectedFreq,
-                instrumentType = patch.instrumentType
-            )
+                val phaseIncrement = (pitchCorrectedFreq / SAMPLE_RATE)
+                    .coerceIn(0.000001f, 0.49f).toDouble()
+                val subPhaseIncrement = phaseIncrement * 0.5
 
-            phase += phaseIncrement
-            if (phase >= 1.0) phase -= floor(phase)
+                val rawSample = generateWaveform(
+                    waveform = patch.waveform,
+                    phase = phases[v],
+                    subPhase = subPhases[v],
+                    phaseIncrement = phaseIncrement,
+                    frequency = pitchCorrectedFreq,
+                    instrumentType = patch.instrumentType
+                )
 
-            subPhase += subPhaseIncrement
-            if (subPhase >= 1.0) subPhase -= floor(subPhase)
+                phases[v] += phaseIncrement
+                if (phases[v] >= 1.0) phases[v] -= floor(phases[v])
+                subPhases[v] += subPhaseIncrement
+                if (subPhases[v] >= 1.0) subPhases[v] -= floor(subPhases[v])
 
-            filteredSample += alpha * (rawSample - filteredSample)
+                filteredSamples[v] += alpha * (rawSample - filteredSamples[v])
+
+                val voicePanAngle = ((voicePans[v] + 1.0f) * 0.25f) * PI.toFloat()
+                mixedLeft += filteredSamples[v] * cos(voicePanAngle)
+                mixedRight += filteredSamples[v] * sin(voicePanAngle)
+            }
+
+            // Normalización de ganancia de Unison para evitar saturación
+            val unisonGainCorrection = 1.0f / kotlin.math.sqrt(unisonCount.toFloat())
+            mixedLeft *= unisonGainCorrection
+            mixedRight *= unisonGainCorrection
 
             val envelope = calculateEnvelope(
                 sampleIndex = i,
@@ -357,15 +385,12 @@ object SynthEngineCore {
                 releaseInitialLevel = releaseInitialLevel
             )
 
-            val amplitude = filteredSample * envelope * volume * MASTER_HEADROOM
-            val protectedSample = softClip(amplitude)
-
-            val leftSample = protectedSample * leftPan
-            val rightSample = protectedSample * rightPan
+            val finalLeft = softClip(mixedLeft * envelope * volume * MASTER_HEADROOM)
+            val finalRight = softClip(mixedRight * envelope * volume * MASTER_HEADROOM)
 
             val bufferIndex = i * CHANNELS
-            stereoBuffer[bufferIndex] = floatToPcm(leftSample)
-            stereoBuffer[bufferIndex + 1] = floatToPcm(rightSample)
+            stereoBuffer[bufferIndex] = floatToPcm(finalLeft * masterLeftPan)
+            stereoBuffer[bufferIndex + 1] = floatToPcm(finalRight * masterRightPan)
         }
 
         return stereoBuffer
