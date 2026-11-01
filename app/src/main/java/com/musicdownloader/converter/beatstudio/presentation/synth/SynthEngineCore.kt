@@ -269,7 +269,7 @@ object SynthEngineCore {
     private fun shortToByteArray(value: Short): ByteArray {
         return byteArrayOf(
             value.toByte(),
-            (value shr 8).toByte()
+            (value.toInt() shr 8).toByte()
         )
     }
 
