@@ -135,6 +135,39 @@ fun SynthStudioScreen(
             }
         }
 
+        // --- LABORATORIO DE MODULACIÓN LFO ---
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(text = "MODULACIÓN LFO (FILTRO CUTOFF)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+
+                val patch = state.currentPatch
+                val lfo = patch.lfo
+
+                // LFO Rate
+                Text(text = "LFO Rate: String = ${String.format("%.1f", lfo.rateHz)} Hz", color = Color.White, fontSize = 10.sp)
+                Slider(
+                    value = lfo.rateHz,
+                    onValueChange = { viewModel.updateLfo(it, lfo.depth) },
+                    valueRange = 0.1f..20.0f,
+                    modifier = Modifier.height(20.dp)
+                )
+
+                // LFO Depth
+                Text(text = "LFO Depth: ${(lfo.depth * 100).toInt()}%", color = Color.White, fontSize = 10.sp)
+                Slider(
+                    value = lfo.depth,
+                    onValueChange = { viewModel.updateLfo(lfo.rateHz, it) },
+                    valueRange = 0.0f..1.0f,
+                    modifier = Modifier.height(20.dp)
+                )
+            }
+        }
+
         // --- TECLADO VIRTUAL TÁCTIL (CON DETECCIÓN DE PRESIÓN Y RELEASE) ---
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
