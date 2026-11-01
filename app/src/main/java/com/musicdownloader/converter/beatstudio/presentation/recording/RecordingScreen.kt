@@ -69,7 +69,7 @@ fun RecordingScreen(
                 Text(text = "MEDIDOR DE NIVEL (VU METER)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(10.dp))
                 LinearProgressIndicator(
-                    progress = { state.currentMeterLevel },
+                    progress = state.currentMeterLevel, // <-- Corregido sin llaves de lambda
                     modifier = Modifier.fillMaxWidth().height(14.dp),
                     color = if (state.currentMeterLevel > 0.85f) Color(0xFFFF5252) else Color(0xFF00E676),
                     trackColor = Color.DarkGray
