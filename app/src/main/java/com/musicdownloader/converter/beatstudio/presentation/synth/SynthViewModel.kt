@@ -445,7 +445,7 @@ class SynthViewModel @Inject constructor(
     private val _savedPresets = MutableStateFlow>(emptyMap())
     val savedPresets: StateFlow> = _savedPresets.asStateFlow()
 
-    private val _currentPresetName = MutableStateFlow("Default Patch")
+    private val _currentPresetName = MutableStateFlow<String>("Default Patch")
     val currentPresetName: StateFlow<String> = _currentPresetName.asStateFlow()
 
     // Secuenciador en memoria para registrar notas interpretadas en vivo
