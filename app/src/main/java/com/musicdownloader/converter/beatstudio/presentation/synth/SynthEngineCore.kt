@@ -4,6 +4,8 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.util.Log
+import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.ThreadPoolExecutor
@@ -18,9 +20,9 @@ import kotlin.math.sin
 import kotlin.math.tanh
 
 /**
- * SynthEngineCore v4.2 (Con Polifonía Real, Voice Stealing, Unison/Detune, LFO Matrix, Portamento y FX Rack)
+ * SynthEngineCore v4.3 (Con Polifonía Real, Voice Stealing, Unison/Detune, LFO Matrix, Portamento, FX Rack y Exportador WAV)
  *
- * Motor de síntesis DSP profesional con matriz de modulación expandida y efectos nativos.
+ * Motor de síntesis DSP profesional con matriz de modulación expandida, efectos nativos y exportación de audio para Biblioteca.
  */
 object SynthEngineCore {
 
@@ -207,6 +209,68 @@ object SynthEngineCore {
         } catch (exception: Exception) {
             Log.w(TAG, "Nota descartada por sobrecarga del ejecutor", exception)
         }
+    }
+
+    /**
+     * Renderiza y exporta un archivo físico .wav con cabecera RIFF dentro de la carpeta exports de la app.
+     */
+    fun exportSynthToWav(
+        outputFile: File,
+        frequency: Float,
+        durationMs: Long,
+        patch: SynthPatch,
+        volume: Float,
+        pan: Float
+    ) {
+        val audioData = generateAudio(
+            frequency = frequency,
+            startFrequency = frequency,
+            portamentoMs = patch.portamentoMs,
+            durationMs = durationMs,
+            patch = patch,
+            volume = volume,
+            pan = pan
+        )
+
+        val dataSize = audioData.size * BYTES_PER_SAMPLE
+        val totalDataLen = dataSize + 36
+
+        FileOutputStream(outputFile).use { fos ->
+            fos.write("RIFF".toByteArray())
+            fos.write(intToByteArray(totalDataLen), 0, 4)
+            fos.write("WAVE".toByteArray())
+            fos.write("fmt ".toByteArray())
+            fos.write(intToByteArray(16), 0, 4) // SubChunk1Size (16 para PCM)
+            fos.write(shortToByteArray(1.toShort()), 0, 2) // AudioFormat (1 = PCM)
+            fos.write(shortToByteArray(CHANNELS.toShort()), 0, 2) // NumChannels
+            fos.write(intToByteArray(SAMPLE_RATE), 0, 4) // SampleRate
+            fos.write(intToByteArray(SAMPLE_RATE * CHANNELS * BYTES_PER_SAMPLE), 0, 4) // ByteRate
+            fos.write(shortToByteArray((CHANNELS * BYTES_PER_SAMPLE).toShort()), 0, 2) // BlockAlign
+            fos.write(shortToByteArray((BYTES_PER_SAMPLE * 8).toShort()), 0, 2) // BitsPerSample
+            fos.write("data".toByteArray())
+            fos.write(intToByteArray(dataSize), 0, 4)
+
+            for (shortVal in audioData) {
+                fos.write(shortToByteArray(shortVal))
+            }
+            fos.flush()
+        }
+    }
+
+    private fun intToByteArray(value: Int): ByteArray {
+        return byteArrayOf(
+            value.toByte(),
+            (value shr 8).toByte(),
+            (value shr 16).toByte(),
+            (value shr 24).toByte()
+        )
+    }
+
+    private fun shortToByteArray(value: Short): ByteArray {
+        return byteArrayOf(
+            value.toByte(),
+            (value shr 8).toByte()
+        )
     }
 
     private fun createAudioTrack(bufferSizeBytes: Int): AudioTrack? {
