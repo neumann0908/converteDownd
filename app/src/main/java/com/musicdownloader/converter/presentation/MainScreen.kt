@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.GraphicEq // 🎙️ Ícono de onda para el Sampler Studio (Motor 2)
 import androidx.compose.material.icons.filled.Tune // 🎹 Ícono de controles/secuenciador para el Sequencer Engine (Motor 3)
 import androidx.compose.material.icons.filled.Piano // 🎹 Ícono de piano para el Synth Studio (Motor 5)
+import androidx.compose.material.icons.filled.Mic // 🎙️ Ícono de micrófono para el Recording Engine (Motor 8)
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -49,6 +50,10 @@ import com.musicdownloader.converter.beatstudio.presentation.sequencer.Sequencer
 import com.musicdownloader.converter.beatstudio.presentation.synth.SynthStudioScreen
 import com.musicdownloader.converter.beatstudio.presentation.synth.SynthViewModel
 
+// 🎙️ Importaciones del Motor 8: Recording Engine (Grabación)
+import com.musicdownloader.converter.beatstudio.presentation.recording.RecordingScreen
+import com.musicdownloader.converter.beatstudio.presentation.recording.RecordingViewModel
+
 sealed class Screen(val route: String, val title: String, val icon: @Composable () -> Unit) {
     object Download : Screen("download", "Descargar", { Icon(Icons.Default.Download, contentDescription = null) })
     object Library : Screen("library", "Biblioteca", { Icon(Icons.Default.LibraryMusic, contentDescription = null) })
@@ -67,6 +72,9 @@ sealed class Screen(val route: String, val title: String, val icon: @Composable 
 
     // 🎹 Motor 5: Synth Studio (Sintetizador profesional)
     object SynthStudio : Screen("synth_studio", "Synth", { Icon(Icons.Default.Piano, contentDescription = null) })
+
+    // 🎙️ Motor 8: Recording Engine (Estudio de grabación y tomas)
+    object RecordingStudio : Screen("recording_studio", "Record", { Icon(Icons.Default.Mic, contentDescription = null) })
 }
 
 @Composable
@@ -87,7 +95,8 @@ fun MainScreen(
         Screen.BeatStudio,
         Screen.SamplerStudio,
         Screen.SequencerStudio,
-        Screen.SynthStudio // <--- ¡Motor 5 añadido formalmente a la barra de navegación inferior!
+        Screen.SynthStudio,
+        Screen.RecordingStudio // <--- ¡Motor 8 integrado formalmente en la barra inferior!
     )
 
     Scaffold(
@@ -184,6 +193,12 @@ fun MainScreen(
             composable(Screen.SynthStudio.route) {
                 val synthViewModel: SynthViewModel = hiltViewModel()
                 SynthStudioScreen(viewModel = synthViewModel)
+            }
+
+            // 🎙️ Motor 8: Recording Engine (Estudio de grabación integrado con Hilt)
+            composable(Screen.RecordingStudio.route) {
+                val recordingViewModel: RecordingViewModel = hiltViewModel()
+                RecordingScreen(viewModel = recordingViewModel)
             }
         }
     }
