@@ -108,6 +108,19 @@ data class LFOState(
 )
 
 /**
+ * Estado del Rack de Efectos (FX Rack).
+ *
+ * reverbMix: Mezcla de reverberación / espacio (0.0 a 1.0).
+ * delayMix: Mezcla de retardo / eco rítmico (0.0 a 1.0).
+ * distortionDrive: Saturación o distorsión cálida (0.0 a 1.0).
+ */
+data class FXState(
+    val reverbMix: Float = 0.0f,
+    val delayMix: Float = 0.0f,
+    val distortionDrive: Float = 0.0f
+)
+
+/**
  * Parche de síntesis.
  *
  * Contiene la configuración completa del instrumento:
@@ -119,6 +132,7 @@ data class LFOState(
  * - Tiempo de Portamento (Glide) en milisegundos
  * - Cantidad de voces Unison (apilamiento SuperSaw)
  * - Intensidad del microdesfase de afinación (Detune)
+ * - Rack de efectos nativos (FX Rack: Reverb, Delay, Distorsión)
  */
 data class SynthPatch(
 
@@ -158,5 +172,10 @@ data class SynthPatch(
     /**
      * Intensidad del microdesfase de afinación (Detune) entre 0.0 y 1.0.
      */
-    val detuneAmount: Float = 0.0f
+    val detuneAmount: Float = 0.0f,
+
+    /**
+     * Configuración del Rack de Efectos Nativos (Reverb, Delay, Distorsión).
+     */
+    val fx: FXState = FXState()
 )
