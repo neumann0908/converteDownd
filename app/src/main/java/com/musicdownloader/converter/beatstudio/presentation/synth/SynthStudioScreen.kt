@@ -16,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,7 +27,6 @@ fun SynthStudioScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
-    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -455,7 +453,6 @@ fun SynthStudioScreen(
                                 .pointerInput(freq) {
                                     detectTapGestures(
                                         onPress = {
-                                            // Se ejecuta al presionar la tecla (Note-On)
                                             viewModel.playTestNote(freq)
                                         }
                                     )
