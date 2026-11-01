@@ -291,10 +291,10 @@ class SynthViewModel @Inject constructor(
                 val volume = _uiState.value.masterVolume
                 val pan = _uiState.value.pan
 
-                SynthEngineCore.exportSynthToWav(
+                // Exportación secuenciada nota por nota basada en la grabación real
+                SynthEngineCore.exportSynthMelodyToWav(
                     outputFile = wavFile,
-                    frequency = 440.0f,
-                    durationMs = 4000L,
+                    notes = recordedNotes.toList(),
                     patch = patch,
                     volume = volume,
                     pan = pan
