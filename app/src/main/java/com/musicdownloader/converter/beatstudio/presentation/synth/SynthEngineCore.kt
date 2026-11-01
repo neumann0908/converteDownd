@@ -18,9 +18,9 @@ import kotlin.math.sin
 import kotlin.math.tanh
 
 /**
- * SynthEngineCore v4.0 (Con Polifonía Real, Voice Allocation, Voice Stealing, Unison/Detune SuperSaw, LFO y Portamento)
+ * SynthEngineCore v4.1 (Con Polifonía Real, Voice Stealing, Unison/Detune SuperSaw, LFO, Portamento y FX Rack)
  *
- * Motor de síntesis DSP profesional con arquitectura de estudio avanzada.
+ * Motor de síntesis DSP profesional con arquitectura de estudio avanzada y efectos nativos.
  */
 object SynthEngineCore {
 
@@ -97,7 +97,7 @@ object SynthEngineCore {
     }
 
     /**
-     * Método principal de reproducción con gestión de voces, Voice Stealing y Unison/Detune.
+     * Método principal de reproducción con gestión de voces, Voice Stealing, Unison/Detune y FX Rack.
      */
     fun playTone(
         frequency: Float,
@@ -166,7 +166,6 @@ object SynthEngineCore {
 
                     // --- GESTIÓN DE POOL Y VOICE STEALING ---
                     synchronized(activeVoices) {
-                        // Si alcanzamos el límite de voces simultáneas, aplicamos Voice Stealing (reciclamos la más antigua)
                         if (activeVoices.size >= MAX_VOICES) {
                             val oldestVoice = activeVoices.removeAt(0)
                             try {
@@ -190,7 +189,6 @@ object SynthEngineCore {
                 } catch (exception: Exception) {
                     Log.e(TAG, "Error en ejecución de voz $currentVoiceId", exception)
                 } finally {
-                    // Limpieza de la voz activa al terminar su ciclo
                     audioTrack?.let { track ->
                         synchronized(activeVoices) {
                             activeVoices.removeAll { it.voiceId == currentVoiceId }
@@ -302,6 +300,23 @@ object SynthEngineCore {
             voicePans[v] = voicePanSpread.coerceIn(-1.0f, 1.0f)
         }
 
+        // --- CONFIGURACIÓN DEL FX RACK ---
+        val reverbMix = patch.fx.reverbMix.coerceIn(0.0f, 1.0f)
+        val delayMix = patch.fx.delayMix.coerceIn(0.0f, 1.0f)
+        val distortionDrive = patch.fx.distortionDrive.coerceIn(0.0f, 1.0f)
+
+        // Línea de retardo para Delay (~220 ms)
+        val delayTimeSamples = (SAMPLE_RATE * 0.22f).toInt()
+        val delayBufferLeft = FloatArray(delayTimeSamples)
+        val delayBufferRight = FloatArray(delayTimeSamples)
+        var delayIndex = 0
+
+        // Filtros de peine para Reverb espacial
+        val revComb1 = FloatArray((SAMPLE_RATE * 0.037f).toInt())
+        val revComb2 = FloatArray((SAMPLE_RATE * 0.043f).toInt())
+        var rIdx1 = 0
+        var rIdx2 = 0
+
         // Configuración del LFO
         val lfoRate = patch.lfo.rateHz.coerceIn(0.1f, 20.0f)
         val lfoDepth = patch.lfo.depth.coerceIn(0.0f, 1.0f)
@@ -370,7 +385,7 @@ object SynthEngineCore {
                 mixedRight += filteredSamples[v] * sin(voicePanAngle)
             }
 
-            // Normalización de ganancia de Unison para evitar saturación
+            // Normalización de ganancia de Unison
             val unisonGainCorrection = 1.0f / kotlin.math.sqrt(unisonCount.toFloat())
             mixedLeft *= unisonGainCorrection
             mixedRight *= unisonGainCorrection
@@ -388,9 +403,50 @@ object SynthEngineCore {
             val finalLeft = softClip(mixedLeft * envelope * volume * MASTER_HEADROOM)
             val finalRight = softClip(mixedRight * envelope * volume * MASTER_HEADROOM)
 
+            var processedLeft = finalLeft
+            var processedRight = finalRight
+
+            // --- PROCESAMIENTO FX RACK ---
+
+            // 1. Distorsión cálida (Saturation)
+            if (distortionDrive > 0.0f) {
+                val driveFactor = 1.0f + (distortionDrive * 5.0f)
+                processedLeft = tanh(processedLeft * driveFactor) / tanh(driveFactor)
+                processedRight = tanh(processedRight * driveFactor) / tanh(driveFactor)
+            }
+
+            // 2. Delay (Eco rítmico)
+            if (delayMix > 0.0f) {
+                val delayedL = delayBufferLeft[delayIndex]
+                val delayedR = delayBufferRight[delayIndex]
+
+                delayBufferLeft[delayIndex] = processedLeft + (delayedL * 0.4f)
+                delayBufferRight[delayIndex] = processedRight + (delayedR * 0.4f)
+
+                processedLeft += delayedL * delayMix
+                processedRight += delayedR * delayMix
+
+                delayIndex = (delayIndex + 1) % delayTimeSamples
+            }
+
+            // 3. Reverb (Profundidad y espacio)
+            if (reverbMix > 0.0f) {
+                val c1 = revComb1[rIdx1]
+                val c2 = revComb2[rIdx2]
+
+                revComb1[rIdx1] = processedLeft + (c1 * 0.5f)
+                revComb2[rIdx2] = processedRight + (c2 * 0.5f)
+
+                rIdx1 = (rIdx1 + 1) % revComb1.size
+                rIdx2 = (rIdx2 + 1) % revComb2.size
+
+                processedLeft += (c1 - processedLeft) * reverbMix * 0.5f
+                processedRight += (c2 - processedRight) * reverbMix * 0.5f
+            }
+
             val bufferIndex = i * CHANNELS
-            stereoBuffer[bufferIndex] = floatToPcm(finalLeft * masterLeftPan)
-            stereoBuffer[bufferIndex + 1] = floatToPcm(finalRight * masterRightPan)
+            stereoBuffer[bufferIndex] = floatToPcm(processedLeft * masterLeftPan)
+            stereoBuffer[bufferIndex + 1] = floatToPcm(processedRight * masterRightPan)
         }
 
         return stereoBuffer
