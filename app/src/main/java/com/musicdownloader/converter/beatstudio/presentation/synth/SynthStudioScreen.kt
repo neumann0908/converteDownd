@@ -135,18 +135,44 @@ fun SynthStudioScreen(
             }
         }
 
-        // --- LABORATORIO DE MODULACIÓN LFO ---
+        // --- LABORATORIO DE MODULACIÓN LFO & MATRIZ EXPANDIDA ---
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
             shape = RoundedCornerShape(10.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(10.dp)) {
-                Text(text = "MODULACIÓN LFO (FILTRO CUTOFF)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "MATRIZ DE MODULACIÓN LFO", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(6.dp))
 
                 val patch = state.currentPatch
                 val lfo = patch.lfo
+
+                // Selector de Destino de Modulación (Cutoff, Pitch, Pan)
+                Text(text = "LFO Destination", color = Color.White, fontSize = 10.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ModulationDestination.entries.forEach { dest ->
+                        val isSelected = lfo.destination == dest
+                        Button(
+                            onClick = { viewModel.updateLfoDestination(dest) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSelected) Color(0xFFFFD700) else Color(0xFF28283D)
+                            ),
+                            modifier = Modifier.weight(1f).height(28.dp),
+                            contentPadding = PaddingValues(2.dp)
+                        ) {
+                            Text(
+                                text = dest.name,
+                                color = if (isSelected) Color.Black else Color.White,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // LFO Rate
                 Text(text = "LFO Rate: ${String.format("%.1f", lfo.rateHz)} Hz", color = Color.White, fontSize = 10.sp)
