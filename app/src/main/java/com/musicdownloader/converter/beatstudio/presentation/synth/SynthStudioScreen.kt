@@ -300,7 +300,7 @@ fun SynthStudioScreen(
                 Text(text = "PRESETS Y BIBLIOTECA DE MELODÍAS", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(6.dp))
 
-                val presetsMap by viewModel.savedPresets.collectAsState()
+                val presetsList by viewModel.savedPresets.collectAsState()
                 val currentPreset by viewModel.currentPresetName.collectAsState()
                 var presetInputName by remember { mutableStateOf("") }
                 var projectTitleInput by remember { mutableStateOf("") }
@@ -336,26 +336,27 @@ fun SynthStudioScreen(
                     }
                 }
 
-                if (presetsMap.isNotEmpty()) {
+                if (presetsList.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        items(presetsMap.keys.toList()) { name ->
+                        items(presetsList) { preset ->
+                            val isSelected = currentPreset == preset.name
                             Button(
-                                onClick = { viewModel.loadPreset(name) },
+                                onClick = { viewModel.loadPreset(preset.name) },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (currentPreset == name) Color(0xFF00E676) else Color(0xFF28283D)
+                                    containerColor = if (isSelected) Color(0xFF00E676) else Color(0xFF28283D)
                                 ),
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                                 modifier = Modifier.height(26.dp)
                             ) {
-                                Text(text = name, color = if (currentPreset == name) Color.Black else Color.White, fontSize = 8.sp)
+                                Text(text = preset.name, color = if (isSelected) Color.Black else Color.White, fontSize = 8.sp)
                             }
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-                HorizontalDivider(color = Color.DarkGray, thickness = 1.dp)
+                Divider(color = Color.DarkGray, thickness = 1.dp)
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Sección Grabación y Biblioteca
