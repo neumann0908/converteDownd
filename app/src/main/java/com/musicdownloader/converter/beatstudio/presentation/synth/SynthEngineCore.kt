@@ -17,7 +17,7 @@ import kotlin.math.sin
 import kotlin.math.tanh
 
 /**
- * SynthEngineCore v2.9 (Con LFO Dinámico, Portamento/Glide, Sobrecarga de Compatibilidad y AudioTrack MODE_STREAM)
+ * SynthEngineCore v2.11 (Con LFO Dinámico, Portamento/Glide, Sobrecarga y AudioTrack MODE_STREAM)
  *
  * Motor de síntesis DSP profesional con modulación LFO, deslizamiento de tono y compatibilidad universal.
  */
@@ -407,7 +407,7 @@ object SynthEngineCore {
         )
     }
 
-    private softClip(input: Float): Float {
+    private fun softClip(input: Float): Float {
         val safeInput = input.coerceIn(-4.0f, 4.0f)
         return tanh(safeInput).toFloat()
     }
