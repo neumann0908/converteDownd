@@ -97,14 +97,25 @@ data class ADSRState(
 )
 
 /**
+ * Destinos posibles de modulación para el LFO en la Matriz Expandida.
+ */
+enum class ModulationDestination {
+    CUTOFF,
+    PITCH,
+    PAN
+}
+
+/**
  * Estado del LFO (Oscilador de Baja Frecuencia).
  *
  * rateHz: Velocidad de oscilación en Hertz (ej. modulación rítmica).
- * depth: Profundidad o intensidad con la que afecta al filtro de corte.
+ * depth: Profundidad o intensidad con la que afecta al parámetro destino.
+ * destination: Destino de modulación activo (Cutoff, Pitch o Pan).
  */
 data class LFOState(
     val rateHz: Float = 2.0f,
-    val depth: Float = 0.3f
+    val depth: Float = 0.3f,
+    val destination: ModulationDestination = ModulationDestination.CUTOFF
 )
 
 /**
@@ -127,7 +138,7 @@ data class FXState(
  * - Tipo de instrumento
  * - Forma de onda
  * - Envolvente ADSR
- * - Parámetros de LFO
+ * - Parámetros de LFO (con matriz de modulación expandida)
  * - Frecuencia de corte y resonancia del filtro
  * - Tiempo de Portamento (Glide) en milisegundos
  * - Cantidad de voces Unison (apilamiento SuperSaw)
