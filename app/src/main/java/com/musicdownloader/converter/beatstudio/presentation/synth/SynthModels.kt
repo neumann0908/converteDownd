@@ -116,6 +116,7 @@ data class LFOState(
  * - Envolvente ADSR
  * - Parámetros de LFO
  * - Frecuencia de corte y resonancia del filtro
+ * - Tiempo de Portamento (Glide) en milisegundos
  */
 data class SynthPatch(
 
@@ -139,5 +140,11 @@ data class SynthPatch(
     /**
      * Factor Q del filtro (Resonancia).
      */
-    val resonance: Float = 0.707f
+    val resonance: Float = 0.707f,
+
+    /**
+     * Tiempo de Portamento (Glide) en milisegundos.
+     * Define la velocidad de deslizamiento de tono entre notas consecutivas.
+     */
+    val portamentoMs: Float = 0f
 )
