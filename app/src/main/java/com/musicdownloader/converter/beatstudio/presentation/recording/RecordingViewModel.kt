@@ -95,11 +95,11 @@ class RecordingViewModel @Inject constructor(
             rawAudioFile?.let { raw ->
                 if (raw.exists()) {
                     // Directorio oficial de la biblioteca / archivos de la app
-                    val libraryDir = File(context.filesDir, "recordings")
-                    if (!libraryDir.exists()) libraryDir.mkdirs()
+                    val recordingsDir = File(context.recordingsDir, "recordings")
+                    if (!recordingsDir.exists()) recordingsDir.mkdirs()
 
                     val fileName = "${customTitle}_${System.currentTimeMillis()}.wav"
-                    wavOutputFile = File(libraryDir, fileName)
+                    wavOutputFile = File(recordingsDir, fileName)
 
                     // Convertimos el PCM crudo a un archivo .wav válido para la biblioteca
                     wavOutputFile?.let { wav ->
