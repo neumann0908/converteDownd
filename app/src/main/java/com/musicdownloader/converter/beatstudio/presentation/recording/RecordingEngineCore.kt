@@ -1,14 +1,17 @@
 package com.musicdownloader.converter.beatstudio.presentation.recording
 
 import android.annotation.SuppressLint
+import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioRecord
+import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.sin
 
 object RecordingEngineCore {
     private const val TAG = "RecordingEngineCore"
@@ -19,6 +22,15 @@ object RecordingEngineCore {
     private var audioRecord: AudioRecord? = null
     private var isRecording = false
     private var recordingThread: Thread? = null
+
+    // --- Control de Metrónomo y Tempo ---
+    var currentBpm: Int = 120
+        set(value) {
+            field = value.coerceIn(40, 240)
+        }
+    
+    private var metronomeThread: Thread? = null
+    private var isMetronomeActive = false
 
     @SuppressLint("MissingPermission")
     fun startRecording(outputFile: File, onAmplitudeUpdate: (Float) -> Unit) {
@@ -65,6 +77,7 @@ object RecordingEngineCore {
     fun stopRecording() {
         if (!isRecording) return
         isRecording = false
+        stopMetronome()
         try {
             audioRecord?.stop()
             audioRecord?.release()
@@ -72,6 +85,82 @@ object RecordingEngineCore {
             recordingThread?.join()
         } catch (e: Exception) {
             Log.e(TAG, "Error al detener la grabación", e)
+        }
+    }
+
+    // --- Sistema de Metrónomo Sincronizado ---
+    fun startMetronome(onBeat: (Int) -> Unit) {
+        if (isMetronomeActive) return
+        isMetronomeActive = true
+
+        metronomeThread = Thread({
+            var beatCount = 0
+            while (isMetronomeActive) {
+                val intervalMs = (60000 / currentBpm).toLong()
+                
+                // El primer tiempo del compás (4/4) tiene un tono más agudo (accent)
+                val isAccent = (beatCount % 4 == 0)
+                playClickSound(if (isAccent) 1200.0 else 800.0, 50)
+                
+                onBeat((beatCount % 4) + 1)
+                beatCount++
+
+                try {
+                    Thread.sleep(intervalMs)
+                } catch (e: InterruptedException) {
+                    break
+                }
+            }
+        }, "MetronomeThread")
+
+        metronomeThread?.start()
+    }
+
+    fun stopMetronome() {
+        isMetronomeActive = false
+        metronomeThread?.interrupt()
+        metronomeThread = null
+    }
+
+    // Generador de tono sintético en tiempo real para el clic de metrónomo
+    private fun playClickSound(frequency: Double, durationMs: Int) {
+        try {
+            val numSamples = (SAMPLE_RATE * durationMs) / 1000
+            val sample = ByteArray(numSamples * 2)
+            var idx = 0
+            for (i in 0 until numSamples) {
+                val angle = i * (2.0 * Math.PI * frequency / SAMPLE_RATE)
+                val value = (sin(angle) * 32767.0).toInt().toShort()
+                sample[idx++] = (value.toInt() and 0x00ff).toByte()
+                sample[idx++] = ((value.toInt() and 0xff00) ushr 8).toByte()
+            }
+
+            val audioTrack = AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(SAMPLE_RATE)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build()
+                )
+                .setBufferSizeInBytes(sample.size)
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .build()
+
+            audioTrack.write(sample, 0, sample.size)
+            audioTrack.play()
+            
+            Thread.sleep(durationMs.toLong() + 10)
+            audioTrack.stop()
+            audioTrack.release()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reproduciendo clic de metrónomo", e)
         }
     }
 
