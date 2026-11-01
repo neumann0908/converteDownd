@@ -148,7 +148,7 @@ fun SynthStudioScreen(
                 val patch = state.currentPatch
                 val lfo = patch.lfo
 
-                // LFO Rate (Corregido sin texto extra)
+                // LFO Rate
                 Text(text = "LFO Rate: ${String.format("%.1f", lfo.rateHz)} Hz", color = Color.White, fontSize = 10.sp)
                 Slider(
                     value = lfo.rateHz,
@@ -163,6 +163,28 @@ fun SynthStudioScreen(
                     value = lfo.depth,
                     onValueChange = { viewModel.updateLfo(lfo.rateHz, it) },
                     valueRange = 0.0f..1.0f,
+                    modifier = Modifier.height(20.dp)
+                )
+            }
+        }
+
+        // --- LABORATORIO DE GLIDE / PORTAMENTO ---
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(text = "GLIDE / PORTAMENTO", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+
+                val patch = state.currentPatch
+
+                Text(text = "Portamento Time: ${patch.portamentoMs.toInt()} ms", color = Color.White, fontSize = 10.sp)
+                Slider(
+                    value = patch.portamentoMs,
+                    onValueChange = { viewModel.updatePortamento(it) },
+                    valueRange = 0f..500f,
                     modifier = Modifier.height(20.dp)
                 )
             }
