@@ -8,6 +8,7 @@ import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.floor
@@ -17,9 +18,9 @@ import kotlin.math.sin
 import kotlin.math.tanh
 
 /**
- * SynthEngineCore v2.11 (Con LFO Dinámico, Portamento/Glide, Sobrecarga y AudioTrack MODE_STREAM)
+ * SynthEngineCore v3.0 (Con Polifonía Real, Voice Allocation, Voice Stealing y LFO/Portamento)
  *
- * Motor de síntesis DSP profesional con modulación LFO, deslizamiento de tono y compatibilidad universal.
+ * Motor de síntesis DSP profesional con gestión estática de voces y asignación dinámica.
  */
 object SynthEngineCore {
 
@@ -45,8 +46,20 @@ object SynthEngineCore {
     private const val MAX_DURATION_SAMPLES =
         SAMPLE_RATE * MAX_DURATION_MS / 1000L
 
+    // Control de ID de voces para Voice Stealing
+    private val voiceIdCounter = AtomicInteger(0)
+
+    // Estructura para rastrear voces activas en el Pool
+    private data class ActiveVoice(
+        val voiceId: Int,
+        val audioTrack: AudioTrack,
+        val timestamp: Long
+    )
+
+    private val activeVoices = mutableListOf<ActiveVoice>()
+
     /**
-     * ThreadPool optimizado con DiscardOldestPolicy para evitar saturación de hilos.
+     * ThreadPool optimizado con DiscardOldestPolicy para gestión de voces.
      */
     private val audioExecutor = ThreadPoolExecutor(
         MAX_VOICES,
@@ -55,7 +68,7 @@ object SynthEngineCore {
         TimeUnit.MILLISECONDS,
         ArrayBlockingQueue(MAX_QUEUED_NOTES),
         ThreadFactory { runnable ->
-            Thread(runnable, "SynthVoice").apply {
+            Thread(runnable, "SynthVoice-${voiceIdCounter.incrementAndGet()}").apply {
                 isDaemon = true
             }
         },
@@ -64,7 +77,6 @@ object SynthEngineCore {
 
     /**
      * Sobrecarga de compatibilidad para llamadas clásicas (ej. Secuenciador).
-     * Redirige al método principal usando la misma frecuencia como inicio y el portamento del parche.
      */
     fun playTone(
         frequency: Float,
@@ -85,7 +97,7 @@ object SynthEngineCore {
     }
 
     /**
-     * Método principal de reproducción con soporte completo de Portamento y LFO.
+     * Método principal de reproducción con gestión de voces y Voice Stealing.
      */
     fun playTone(
         frequency: Float,
@@ -132,6 +144,9 @@ object SynthEngineCore {
 
         try {
             audioExecutor.execute {
+                var audioTrack: AudioTrack? = null
+                val currentVoiceId = voiceIdCounter.incrementAndGet()
+
                 try {
                     val audioData = generateAudio(
                         frequency = safeFrequency,
@@ -143,14 +158,89 @@ object SynthEngineCore {
                         pan = safePan
                     )
 
-                    playAudioData(audioData, safeDuration)
+                    audioTrack = createAudioTrack(audioData.size * BYTES_PER_SAMPLE)
+                    if (audioTrack == null || audioTrack.state != AudioTrack.STATE_INITIALIZED) {
+                        Log.e(TAG, "AudioTrack no pudo inicializarse para la voz $currentVoiceId")
+                        return@execute
+                    }
+
+                    // --- GESTIÓN DE POOL Y VOICE STEALING ---
+                    synchronized(activeVoices) {
+                        // Si alcanzamos el límite de voces simultáneas, aplicamos Voice Stealing (reciclamos la más antigua)
+                        if (activeVoices.size >= MAX_VOICES) {
+                            val oldestVoice = activeVoices.removeAt(0)
+                            try {
+                                if (oldestVoice.audioTrack.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                                    oldestVoice.audioTrack.stop()
+                                }
+                                oldestVoice.audioTrack.release()
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Error al liberar voz en Voice Stealing", e)
+                            }
+                        }
+
+                        activeVoices.add(ActiveVoice(currentVoiceId, audioTrack, System.currentTimeMillis()))
+                    }
+
+                    audioTrack.play()
+                    audioTrack.write(audioData, 0, audioData.size)
+
+                    Thread.sleep(safeDuration + 60L)
 
                 } catch (exception: Exception) {
-                    Log.e(TAG, "Error generando o reproduciendo nota con Portamento", exception)
+                    Log.e(TAG, "Error en ejecución de voz $currentVoiceId", exception)
+                } finally {
+                    // Limpieza de la voz activa al terminar su ciclo
+                    audioTrack?.let { track ->
+                        synchronized(activeVoices) {
+                            activeVoices.removeAll { it.voiceId == currentVoiceId }
+                        }
+                        try {
+                            if (track.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                                track.stop()
+                            }
+                        } catch (_: Exception) {}
+                        try {
+                            track.release()
+                        } catch (_: Exception) {}
+                    }
                 }
             }
         } catch (exception: Exception) {
             Log.w(TAG, "Nota descartada por sobrecarga del ejecutor", exception)
+        }
+    }
+
+    private fun createAudioTrack(bufferSizeBytes: Int): AudioTrack? {
+        return try {
+            val minBufferSize = AudioTrack.getMinBufferSize(
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_OUT_STEREO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+
+            val finalBufferSize = max(bufferSizeBytes, minBufferSize * 2)
+
+            AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(SAMPLE_RATE)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
+                        .build()
+                )
+                .setBufferSizeInBytes(finalBufferSize)
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .build()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creando AudioTrack", e)
+            null
         }
     }
 
@@ -214,7 +304,6 @@ object SynthEngineCore {
         val rightPan = sin(panAngle)
 
         for (i in 0 until totalSamples) {
-            // Cálculo de frecuencia con interpolación de Portamento (Glide)
             val currentFrequency = if (portamentoSamples > 0 && i < portamentoSamples) {
                 val progress = i.toFloat() / portamentoSamples
                 startFrequency + (frequency - startFrequency) * progress
@@ -222,7 +311,6 @@ object SynthEngineCore {
                 frequency
             }.coerceIn(MIN_FREQUENCY, MAX_FREQUENCY)
 
-            // Modulación dinámica de filtro mediante LFO
             lfoPhase += lfoPhaseIncrement
             if (lfoPhase >= 1.0) lfoPhase -= floor(lfoPhase)
             val lfoModulation = sin(2.0 * PI * lfoPhase).toFloat() * lfoDepth
@@ -257,7 +345,6 @@ object SynthEngineCore {
             subPhase += subPhaseIncrement
             if (subPhase >= 1.0) subPhase -= floor(subPhase)
 
-            // Procesamiento del filtro con cutoff modulado por LFO
             filteredSample += alpha * (rawSample - filteredSample)
 
             val envelope = calculateEnvelope(
@@ -422,63 +509,5 @@ object SynthEngineCore {
         if (!value.isFinite() || value <= 0.0) return 0
         val samples = value * SAMPLE_RATE / 1000.0
         return samples.coerceIn(0.0, MAX_DURATION_SAMPLES.toDouble()).toInt()
-    }
-
-    private fun playAudioData(stereoBuffer: ShortArray, durationMs: Long) {
-        if (stereoBuffer.isEmpty()) return
-
-        var audioTrack: AudioTrack? = null
-        try {
-            val bufferSizeBytes = stereoBuffer.size * BYTES_PER_SAMPLE
-            val minBufferSize = AudioTrack.getMinBufferSize(
-                SAMPLE_RATE,
-                AudioFormat.CHANNEL_OUT_STEREO,
-                AudioFormat.ENCODING_PCM_16BIT
-            )
-
-            val finalBufferSize = max(bufferSizeBytes, minBufferSize * 2)
-
-            audioTrack = AudioTrack.Builder()
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .build()
-                )
-                .setAudioFormat(
-                    AudioFormat.Builder()
-                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                        .setSampleRate(SAMPLE_RATE)
-                        .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
-                        .build()
-                )
-                .setBufferSizeInBytes(finalBufferSize)
-                .setTransferMode(AudioTrack.MODE_STREAM)
-                .build()
-
-            if (audioTrack.state != AudioTrack.STATE_INITIALIZED) {
-                Log.e(TAG, "AudioTrack no pudo inicializarse.")
-                return
-            }
-
-            audioTrack.play()
-            audioTrack.write(stereoBuffer, 0, stereoBuffer.size)
-
-            Thread.sleep(durationMs + 60L)
-
-        } catch (exception: Exception) {
-            Log.e(TAG, "Error reproduciendo audio DSP", exception)
-        } finally {
-            audioTrack?.let { track ->
-                try {
-                    if (track.playState == AudioTrack.PLAYSTATE_PLAYING) {
-                        track.stop()
-                    }
-                } catch (_: Exception) {}
-                try {
-                    track.release()
-                } catch (_: Exception) {}
-            }
-        }
     }
 }
