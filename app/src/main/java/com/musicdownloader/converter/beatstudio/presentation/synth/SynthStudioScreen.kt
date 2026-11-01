@@ -148,8 +148,8 @@ fun SynthStudioScreen(
                 val patch = state.currentPatch
                 val lfo = patch.lfo
 
-                // LFO Rate
-                Text(text = "LFO Rate: String = ${String.format("%.1f", lfo.rateHz)} Hz", color = Color.White, fontSize = 10.sp)
+                // LFO Rate (Corregido sin texto extra)
+                Text(text = "LFO Rate: ${String.format("%.1f", lfo.rateHz)} Hz", color = Color.White, fontSize = 10.sp)
                 Slider(
                     value = lfo.rateHz,
                     onValueChange = { viewModel.updateLfo(it, lfo.depth) },
