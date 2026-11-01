@@ -2,7 +2,7 @@ package com.musicdownloader.converter.beatstudio.presentation.synth
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -134,7 +135,7 @@ fun SynthStudioScreen(
             }
         }
 
-        // --- TECLADO VIRTUAL TÁCTIL ---
+        // --- TECLADO VIRTUAL TÁCTIL (CON DETECCIÓN DE PRESIÓN Y RELEASE) ---
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
             shape = RoundedCornerShape(10.dp),
@@ -164,7 +165,14 @@ fun SynthStudioScreen(
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(Color(0xFFE0E0E0))
                                 .border(1.dp, Color.DarkGray, RoundedCornerShape(6.dp))
-                                .clickable { viewModel.playTestNote(freq) },
+                                .pointerInput(freq) {
+                                    detectTapGestures(
+                                        onPress = {
+                                            // Se ejecuta al presionar la tecla (Note-On)
+                                            viewModel.playTestNote(freq)
+                                        }
+                                    )
+                                },
                             contentAlignment = Alignment.BottomCenter
                         ) {
                             Text(text = noteName, color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 6.dp))
