@@ -1,8 +1,11 @@
 package com.musicdownloader.converter.presentation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.GridOn // Cuadrícula para Beat Studio (Motor 1)
@@ -11,14 +14,20 @@ import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.Transform
 import androidx.compose.material.icons.filled.GraphicEq // 🎙️ Ícono de onda para el Sampler Studio (Motor 2)
 import androidx.compose.material.icons.filled.Tune // 🎹 Ícono de controles/secuenciador para el Sequencer Engine (Motor 3)
 import androidx.compose.material.icons.filled.Piano // 🎹 Ícono de piano para el Synth Studio (Motor 5)
 import androidx.compose.material.icons.filled.Mic // 🎙️ Ícono de micrófono para el Recording Engine (Motor 8)
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -55,26 +64,26 @@ import com.musicdownloader.converter.beatstudio.presentation.recording.Recording
 import com.musicdownloader.converter.beatstudio.presentation.recording.RecordingViewModel
 
 sealed class Screen(val route: String, val title: String, val icon: @Composable () -> Unit) {
-    object Download : Screen("download", "Descargar", { Icon(Icons.Default.Download, contentDescription = null) })
-    object Library : Screen("library", "Biblioteca", { Icon(Icons.Default.LibraryMusic, contentDescription = null) })
-    object Playlists : Screen("playlists", "Listas", { Icon(Icons.Default.QueueMusic, contentDescription = null) })
-    object Player : Screen("player", "Player", { Icon(Icons.Default.PlayCircle, contentDescription = null) })
-    object DjTurntables : Screen("dj_turntables", "DJ Pro", { Icon(Icons.Default.MusicNote, contentDescription = null) })
+    object Download : Screen("download", "Descargar", { Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(20.dp)) })
+    object Library : Screen("library", "Biblioteca", { Icon(Icons.Default.LibraryMusic, contentDescription = null, modifier = Modifier.size(20.dp)) })
+    object Playlists : Screen("playlists", "Listas", { Icon(Icons.Default.QueueMusic, contentDescription = null, modifier = Modifier.size(20.dp)) })
+    object Player : Screen("player", "Player", { Icon(Icons.Default.PlayCircle, contentDescription = null, modifier = Modifier.size(20.dp)) })
+    object DjTurntables : Screen("dj_turntables", "DJ Pro", { Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(20.dp)) })
     
     // 🥁 Motor 1: Drum Studio
-    object BeatStudio : Screen("beat_studio", "Beat Studio", { Icon(Icons.Default.GridOn, contentDescription = null) })
+    object BeatStudio : Screen("beat_studio", "Beat Studio", { Icon(Icons.Default.GridOn, contentDescription = null, modifier = Modifier.size(20.dp)) })
 
     // 🎙️ Motor 2: Sampler Studio
-    object SamplerStudio : Screen("sampler_studio", "Sampler", { Icon(Icons.Default.GraphicEq, contentDescription = null) })
+    object SamplerStudio : Screen("sampler_studio", "Sampler", { Icon(Icons.Default.GraphicEq, contentDescription = null, modifier = Modifier.size(20.dp)) })
 
     // 🎹 Motor 3: Sequencer Studio (Secuenciador profesional)
-    object SequencerStudio : Screen("sequencer_studio", "Sequencer", { Icon(Icons.Default.Tune, contentDescription = null) })
+    object SequencerStudio : Screen("sequencer_studio", "Sequencer", { Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(20.dp)) })
 
     // 🎹 Motor 5: Synth Studio (Sintetizador profesional)
-    object SynthStudio : Screen("synth_studio", "Synth", { Icon(Icons.Default.Piano, contentDescription = null) })
+    object SynthStudio : Screen("synth_studio", "Synth", { Icon(Icons.Default.Piano, contentDescription = null, modifier = Modifier.size(20.dp)) })
 
     // 🎙️ Motor 8: Recording Engine (Estudio de grabación y tomas)
-    object RecordingStudio : Screen("recording_studio", "Record", { Icon(Icons.Default.Mic, contentDescription = null) })
+    object RecordingStudio : Screen("recording_studio", "Record", { Icon(Icons.Default.Mic, contentDescription = null, modifier = Modifier.size(20.dp)) })
 }
 
 @Composable
@@ -96,7 +105,7 @@ fun MainScreen(
         Screen.SamplerStudio,
         Screen.SequencerStudio,
         Screen.SynthStudio,
-        Screen.RecordingStudio // <--- ¡Motor 8 integrado formalmente en la barra inferior!
+        Screen.RecordingStudio
     )
 
     Scaffold(
@@ -121,35 +130,60 @@ fun MainScreen(
                     }
                 )
 
-                NavigationBar(
-                    containerColor = Color(0xFF1E1E2C),
-                    contentColor = Color.White
+                // --- BARRA DE NAVEGACIÓN DESLIZANTE PROFESIONAL (ESTILO DAW) ---
+                Surface(
+                    color = Color(0xFF1E1E2C),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentRoute = navBackStackEntry?.destination?.route
 
-                    items.forEach { screen ->
-                        NavigationBarItem(
-                            icon = screen.icon,
-                            label = { Text(screen.title) },
-                            selected = currentRoute == screen.route,
-                            onClick = {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        items(items) { screen ->
+                            val isSelected = currentRoute == screen.route
+                            val backgroundColor = if (isSelected) Color(0xFFFFD700) else Color(0xFF28283D)
+                            val contentColor = if (isSelected) Color.Black else Color.LightGray
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(backgroundColor)
+                                    .clickable {
+                                        navController.navigate(screen.route) {
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    CompositionLocalProvider(LocalContentColor provides contentColor) {
+                                        screen.icon()
+                                    }
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = screen.title,
+                                        color = contentColor,
+                                        fontSize = 9.sp,
+                                        maxLines = 1,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
                                 }
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color.Black,
-                                unselectedIconColor = Color.LightGray,
-                                selectedTextColor = Color(0xFFFFD700),
-                                unselectedTextColor = Color.LightGray,
-                                indicatorColor = Color(0xFFFFD700)
-                            )
-                        )
+                            }
+                        }
                     }
                 }
             }
