@@ -217,7 +217,7 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
 
     // -------------------------------------------------
-    // 7. CONTROL DE LFO
+    // 7. CONTROL DE LFO & MATRIZ DE MODULACIÓN EXPANDIDA
     // -------------------------------------------------
 
     /**
@@ -236,15 +236,28 @@ class SynthViewModel @Inject constructor() : ViewModel() {
             0.3f
         }
 
-        val newLfo = LFOState(
-            rateHz = safeRate,
-            depth = safeDepth
-        )
-
         _uiState.update { state ->
             state.copy(
                 currentPatch = state.currentPatch.copy(
-                    lfo = newLfo
+                    lfo = state.currentPatch.lfo.copy(
+                        rateHz = safeRate,
+                        depth = safeDepth
+                    )
+                )
+            )
+        }
+    }
+
+    /**
+     * Actualiza el parámetro destino al que afectará el LFO (Cutoff, Pitch o Pan).
+     */
+    fun updateLfoDestination(destination: ModulationDestination) {
+        _uiState.update { state ->
+            state.copy(
+                currentPatch = state.currentPatch.copy(
+                    lfo = state.currentPatch.lfo.copy(
+                        destination = destination
+                    )
                 )
             )
         }
