@@ -277,7 +277,44 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
 
     // -------------------------------------------------
-    // 9. VOLUMEN MAESTRO
+    // 9. CONTROL DE UNISON & DETUNE (SUPERSAW)
+    // -------------------------------------------------
+
+    /**
+     * Actualiza la cantidad de voces Unison (1 a 5).
+     */
+    fun updateUnison(voices: Int) {
+        val safeVoices = voices.coerceIn(1, 5)
+        _uiState.update { state ->
+            state.copy(
+                currentPatch = state.currentPatch.copy(
+                    unisonVoices = safeVoices
+                )
+            )
+        }
+    }
+
+    /**
+     * Actualiza la intensidad del microdesfase de afinación Detune (0.0 a 1.0).
+     */
+    fun updateDetune(detune: Float) {
+        val safeDetune = if (detune.isFinite()) {
+            detune.coerceIn(0.0f, 1.0f)
+        } else {
+            0.0f
+        }
+        _uiState.update { state ->
+            state.copy(
+                currentPatch = state.currentPatch.copy(
+                    detuneAmount = safeDetune
+                )
+            )
+        }
+    }
+
+
+    // -------------------------------------------------
+    // 10. VOLUMEN MAESTRO
     // -------------------------------------------------
 
     /**
@@ -303,7 +340,7 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
 
     // -------------------------------------------------
-    // 10. PANEO ESTÉREO
+    // 11. PANEO ESTÉREO
     // -------------------------------------------------
 
     /**
@@ -331,7 +368,7 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
 
     // -------------------------------------------------
-    // 11. REPRODUCCIÓN DE NOTA DE PRUEBA (CON SOPORTE PORTAMENTO)
+    // 12. REPRODUCCIÓN DE NOTA DE PRUEBA (CON SOPORTE PORTAMENTO)
     // -------------------------------------------------
 
     /**
