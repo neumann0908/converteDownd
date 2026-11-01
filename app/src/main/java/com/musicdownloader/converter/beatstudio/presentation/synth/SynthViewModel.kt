@@ -1,4 +1,3 @@
-
 package com.musicdownloader.converter.beatstudio.presentation.synth
 
 import androidx.lifecycle.ViewModel
@@ -215,7 +214,42 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
 
     // -------------------------------------------------
-    // 7. VOLUMEN MAESTRO
+    // 7. CONTROL DE LFO
+    // -------------------------------------------------
+
+    /**
+     * Actualiza la velocidad (Rate) y la profundidad (Depth) del LFO.
+     */
+    fun updateLfo(rateHz: Float, depth: Float) {
+        val safeRate = if (rateHz.isFinite()) {
+            rateHz.coerceIn(0.1f, 20.0f)
+        } else {
+            2.0f
+        }
+
+        val safeDepth = if (depth.isFinite()) {
+            depth.coerceIn(0.0f, 1.0f)
+        } else {
+            0.3f
+        }
+
+        val newLfo = LFOState(
+            rateHz = safeRate,
+            depth = safeDepth
+        )
+
+        _uiState.update { state ->
+            state.copy(
+                currentPatch = state.currentPatch.copy(
+                    lfo = newLfo
+                )
+            )
+        }
+    }
+
+
+    // -------------------------------------------------
+    // 8. VOLUMEN MAESTRO
     // -------------------------------------------------
 
     /**
@@ -241,7 +275,7 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
 
     // -------------------------------------------------
-    // 8. PANEOR ESTÉREO
+    // 9. PANEO ESTÉREO
     // -------------------------------------------------
 
     /**
@@ -269,7 +303,7 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
 
     // -------------------------------------------------
-    // 9. REPRODUCCIÓN DE NOTA DE PRUEBA
+    // 10. REPRODUCCIÓN DE NOTA DE PRUEBA
     // -------------------------------------------------
 
     /**
