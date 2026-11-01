@@ -41,7 +41,7 @@ data class SynthUiState(
 class SynthViewModel @Inject constructor() : ViewModel() {
 
     // -------------------------------------------------
-    // 1. ESTADO INTERNO
+    // 1. ESTADO INTERNO Y MEMORIA DE PORTAMENTO
     // -------------------------------------------------
 
     private val _uiState = MutableStateFlow(SynthUiState())
@@ -52,6 +52,9 @@ class SynthViewModel @Inject constructor() : ViewModel() {
      * La interfaz puede leerlo, pero no modificarlo directamente.
      */
     val uiState: StateFlow<SynthUiState> = _uiState.asStateFlow()
+
+    // Memoria de la última nota tocada para calcular el efecto Glide / Portamento
+    private var lastFrequency: Float = 440.0f
 
 
     // -------------------------------------------------
@@ -249,7 +252,32 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
 
     // -------------------------------------------------
-    // 8. VOLUMEN MAESTRO
+    // 8. CONTROL DE PORTAMENTO (GLIDE)
+    // -------------------------------------------------
+
+    /**
+     * Actualiza el tiempo de Portamento en milisegundos.
+     * Rango permitido: 0 ms - 1000 ms.
+     */
+    fun updatePortamento(portamentoMs: Float) {
+        val safePortamento = if (portamentoMs.isFinite()) {
+            portamentoMs.coerceIn(0f, 1000f)
+        } else {
+            0f
+        }
+
+        _uiState.update { state ->
+            state.copy(
+                currentPatch = state.currentPatch.copy(
+                    portamentoMs = safePortamento
+                )
+            )
+        }
+    }
+
+
+    // -------------------------------------------------
+    // 9. VOLUMEN MAESTRO
     // -------------------------------------------------
 
     /**
@@ -275,7 +303,7 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
 
     // -------------------------------------------------
-    // 9. PANEO ESTÉREO
+    // 10. PANEO ESTÉREO
     // -------------------------------------------------
 
     /**
@@ -303,15 +331,14 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
 
     // -------------------------------------------------
-    // 10. REPRODUCCIÓN DE NOTA DE PRUEBA
+    // 11. REPRODUCCIÓN DE NOTA DE PRUEBA (CON SOPORTE PORTAMENTO)
     // -------------------------------------------------
 
     /**
      * Envía una nota de prueba al motor de síntesis.
      *
-     * Se toma una única instantánea del estado para
-     * garantizar que patch, volumen y paneo pertenecen
-     * a la misma lectura.
+     * Calcula la frecuencia inicial de deslizamiento basándose en la nota anterior
+     * si el portamento está activado.
      */
     fun playTestNote(frequency: Float) {
 
@@ -333,9 +360,15 @@ class SynthViewModel @Inject constructor() : ViewModel() {
         val volume = state.masterVolume
         val currentPan = state.pan
 
-        // Enviamos la nota al motor.
+        // Calculamos frecuencia inicial y de destino para el Glide
+        val startFreq = if (patch.portamentoMs > 0f) lastFrequency else safeFrequency
+        lastFrequency = safeFrequency
+
+        // Enviamos la nota al motor con los parámetros de portamento.
         SynthEngineCore.playTone(
             frequency = safeFrequency,
+            startFrequency = startFreq,
+            portamentoMs = patch.portamentoMs,
             durationMs = 600L,
             patch = patch,
             volume = volume,
