@@ -223,6 +223,47 @@ fun SynthStudioScreen(
             }
         }
 
+        // --- RACK DE EFECTOS NATIVOS (FX RACK) ---
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(text = "RACK DE EFECTOS NATIVOS (FX RACK)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+
+                val fx = state.currentPatch.fx
+
+                // Reverb Mix
+                Text(text = "Reverb (Espacio): ${(fx.reverbMix * 100).toInt()}%", color = Color.White, fontSize = 10.sp)
+                Slider(
+                    value = fx.reverbMix,
+                    onValueChange = { viewModel.updateFX(it, fx.delayMix, fx.distortionDrive) },
+                    valueRange = 0.0f..1.0f,
+                    modifier = Modifier.height(20.dp)
+                )
+
+                // Delay Mix
+                Text(text = "Delay (Eco): ${(fx.delayMix * 100).toInt()}%", color = Color.White, fontSize = 10.sp)
+                Slider(
+                    value = fx.delayMix,
+                    onValueChange = { viewModel.updateFX(fx.reverbMix, it, fx.distortionDrive) },
+                    valueRange = 0.0f..1.0f,
+                    modifier = Modifier.height(20.dp)
+                )
+
+                // Distortion Drive
+                Text(text = "Distortion (Saturación): ${(fx.distortionDrive * 100).toInt()}%", color = Color.White, fontSize = 10.sp)
+                Slider(
+                    value = fx.distortionDrive,
+                    onValueChange = { viewModel.updateFX(fx.reverbMix, fx.delayMix, it) },
+                    valueRange = 0.0f..1.0f,
+                    modifier = Modifier.height(20.dp)
+                )
+            }
+        }
+
         // --- TECLADO VIRTUAL TÁCTIL (CON DETECCIÓN DE PRESIÓN Y RELEASE) ---
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
