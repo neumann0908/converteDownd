@@ -96,6 +96,22 @@ class LibraryViewModel @Inject constructor(
                     )
                 }
             }
+            // --- 3. NUEVO: Escanear carpeta de Grabaciones del Motor 8 (Recording Engine) ---
+            val recordingsDir = File(context.filesDir, "recordings")
+            if (recordingsDir.exists() && recordingsDir.isDirectory) {
+                recordingsDir.listFiles { file ->
+                    file.isFile && file.extension.equals("wav", ignoreCase = true)
+                }?.forEach { file ->
+                    val sizeMb = String.format("%.2f MB", file.length().toDouble() / (1024 * 1024))
+                    audioItemList.add(
+                        AudioFileItem(
+                            name = "🎙️ ${file.name}", // Identificador visual en la biblioteca
+                            path = file.absolutePath,
+                            sizeMb = sizeMb
+                        )
+                    )
+                }
+            }
 
             // Ordenar todos los archivos alfabéticamente o por fecha más reciente
             val sortedList = audioItemList.sortedBy { it.name }
