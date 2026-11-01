@@ -18,9 +18,9 @@ import kotlin.math.sin
 import kotlin.math.tanh
 
 /**
- * SynthEngineCore v4.1 (Con Polifonía Real, Voice Stealing, Unison/Detune SuperSaw, LFO, Portamento y FX Rack)
+ * SynthEngineCore v4.2 (Con Polifonía Real, Voice Stealing, Unison/Detune, LFO Matrix, Portamento y FX Rack)
  *
- * Motor de síntesis DSP profesional con arquitectura de estudio avanzada y efectos nativos.
+ * Motor de síntesis DSP profesional con matriz de modulación expandida y efectos nativos.
  */
 object SynthEngineCore {
 
@@ -97,7 +97,7 @@ object SynthEngineCore {
     }
 
     /**
-     * Método principal de reproducción con gestión de voces, Voice Stealing, Unison/Detune y FX Rack.
+     * Método principal de reproducción con gestión de voces, Voice Stealing, Unison/Detune, Matriz LFO y FX Rack.
      */
     fun playTone(
         frequency: Float,
@@ -317,9 +317,10 @@ object SynthEngineCore {
         var rIdx1 = 0
         var rIdx2 = 0
 
-        // Configuración del LFO
+        // --- CONFIGURACIÓN DE LA MATRIZ LFO EXPANDIDA ---
         val lfoRate = patch.lfo.rateHz.coerceIn(0.1f, 20.0f)
         val lfoDepth = patch.lfo.depth.coerceIn(0.0f, 1.0f)
+        val lfoDestination = patch.lfo.destination
         var lfoPhase = 0.0
         val lfoPhaseIncrement = lfoRate / SAMPLE_RATE
 
@@ -327,10 +328,6 @@ object SynthEngineCore {
         val subPhases = DoubleArray(unisonCount) { 0.0 }
         val filteredSamples = FloatArray(unisonCount) { 0.0f }
         val dt = 1.0f / SAMPLE_RATE
-
-        val masterPanAngle = ((pan.coerceIn(-1.0f, 1.0f) + 1.0f) * 0.25f) * PI.toFloat()
-        val masterLeftPan = cos(masterPanAngle)
-        val masterRightPan = sin(masterPanAngle)
 
         for (i in 0 until totalSamples) {
             val currentFreqBase = if (portamentoSamples > 0 && i < portamentoSamples) {
@@ -340,11 +337,24 @@ object SynthEngineCore {
                 frequency
             }.coerceIn(MIN_FREQUENCY, MAX_FREQUENCY)
 
+            // Cálculo del ciclo de modulación LFO
             lfoPhase += lfoPhaseIncrement
             if (lfoPhase >= 1.0) lfoPhase -= floor(lfoPhase)
-            val lfoModulation = sin(2.0 * PI * lfoPhase).toFloat() * lfoDepth
-            val dynamicCutoff = (safeCutoff * (1.0f + lfoModulation * 0.5f))
-                .coerceIn(20.0f, SAMPLE_RATE * 0.45f)
+            val lfoRaw = sin(2.0 * PI * lfoPhase).toFloat()
+            val lfoModulation = lfoRaw * lfoDepth
+
+            // Enrutamiento de la Matriz de Modulación Expandida
+            val dynamicCutoff = if (lfoDestination == ModulationDestination.CUTOFF) {
+                (safeCutoff * (1.0f + lfoModulation * 0.5f)).coerceIn(20.0f, SAMPLE_RATE * 0.45f)
+            } else {
+                safeCutoff
+            }
+
+            val dynamicPan = if (lfoDestination == ModulationDestination.PAN) {
+                (pan + lfoModulation * 0.5f).coerceIn(-1.0f, 1.0f)
+            } else {
+                pan
+            }
 
             val rc = 1.0f / (2.0f * PI.toFloat() * dynamicCutoff)
             val alpha = dt / (rc + dt)
@@ -353,7 +363,14 @@ object SynthEngineCore {
             var mixedRight = 0.0f
 
             for (v in 0 until unisonCount) {
-                val voiceTargetFreq = voiceFrequencies[v] + (currentFreqBase - frequency)
+                // Modulación de tono (Vibrato) si el destino es PITCH
+                val pitchModulationFactor = if (lfoDestination == ModulationDestination.PITCH) {
+                    1.0f + (lfoModulation * 0.03f)
+                } else {
+                    1.0f
+                }
+
+                val voiceTargetFreq = (voiceFrequencies[v] + (currentFreqBase - frequency)) * pitchModulationFactor
                 val pitchCorrectedFreq = calculatePitch(
                     baseFrequency = voiceTargetFreq,
                     instrumentType = patch.instrumentType,
@@ -443,6 +460,11 @@ object SynthEngineCore {
                 processedLeft += (c1 - processedLeft) * reverbMix * 0.5f
                 processedRight += (c2 - processedRight) * reverbMix * 0.5f
             }
+
+            // Paneo maestro (afectado por LFO si el destino es PAN)
+            val masterPanAngle = ((dynamicPan + 1.0f) * 0.25f) * PI.toFloat()
+            val masterLeftPan = cos(masterPanAngle)
+            val masterRightPan = sin(masterPanAngle)
 
             val bufferIndex = i * CHANNELS
             stereoBuffer[bufferIndex] = floatToPcm(processedLeft * masterLeftPan)
