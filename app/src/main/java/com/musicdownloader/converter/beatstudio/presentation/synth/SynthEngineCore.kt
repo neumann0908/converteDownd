@@ -20,9 +20,9 @@ import kotlin.math.sin
 import kotlin.math.tanh
 
 /**
- * SynthEngineCore v4.3 (Con Polifonía Real, Voice Stealing, Unison/Detune, LFO Matrix, Portamento, FX Rack y Exportador WAV)
+ * SynthEngineCore v4.4 (Con Polifonía Real, Voice Stealing, Unison/Detune, LFO Matrix, Portamento, FX Rack y Secuenciador WAV)
  *
- * Motor de síntesis DSP profesional con matriz de modulación expandida, efectos nativos y exportación de audio para Biblioteca.
+ * Motor de síntesis DSP profesional con matriz de modulación expandida, efectos nativos y exportación de secuencias melódicas.
  */
 object SynthEngineCore {
 
@@ -212,7 +212,7 @@ object SynthEngineCore {
     }
 
     /**
-     * Renderiza y exporta un archivo físico .wav con cabecera RIFF dentro de la carpeta exports de la app.
+     * Renderiza y exporta un archivo físico .wav monofónico/tono fijo (respaldo).
      */
     fun exportSynthToWav(
         outputFile: File,
@@ -240,17 +240,89 @@ object SynthEngineCore {
             fos.write(intToByteArray(totalDataLen), 0, 4)
             fos.write("WAVE".toByteArray())
             fos.write("fmt ".toByteArray())
-            fos.write(intToByteArray(16), 0, 4) // SubChunk1Size (16 para PCM)
-            fos.write(shortToByteArray(1.toShort()), 0, 2) // AudioFormat (1 = PCM)
-            fos.write(shortToByteArray(CHANNELS.toShort()), 0, 2) // NumChannels
-            fos.write(intToByteArray(SAMPLE_RATE), 0, 4) // SampleRate
-            fos.write(intToByteArray(SAMPLE_RATE * CHANNELS * BYTES_PER_SAMPLE), 0, 4) // ByteRate
-            fos.write(shortToByteArray((CHANNELS * BYTES_PER_SAMPLE).toShort()), 0, 2) // BlockAlign
-            fos.write(shortToByteArray((BYTES_PER_SAMPLE * 8).toShort()), 0, 2) // BitsPerSample
+            fos.write(intToByteArray(16), 0, 4)
+            fos.write(shortToByteArray(1.toShort()), 0, 2)
+            fos.write(shortToByteArray(CHANNELS.toShort()), 0, 2)
+            fos.write(intToByteArray(SAMPLE_RATE), 0, 4)
+            fos.write(intToByteArray(SAMPLE_RATE * CHANNELS * BYTES_PER_SAMPLE), 0, 4)
+            fos.write(shortToByteArray((CHANNELS * BYTES_PER_SAMPLE).toShort()), 0, 2)
+            fos.write(shortToByteArray((BYTES_PER_SAMPLE * 8).toShort()), 0, 2)
             fos.write("data".toByteArray())
             fos.write(intToByteArray(dataSize), 0, 4)
 
             for (shortVal in audioData) {
+                fos.write(shortToByteArray(shortVal))
+            }
+            fos.flush()
+        }
+    }
+
+    /**
+     * Renderiza y exporta la lista completa de notas grabadas nota por nota hacia un archivo WAV físico.
+     */
+    fun exportSynthMelodyToWav(
+        outputFile: File,
+        notes: List<NoteEvent>,
+        patch: SynthPatch,
+        volume: Float,
+        pan: Float
+    ) {
+        if (notes.isEmpty()) {
+            exportSynthToWav(outputFile, 440.0f, 4000L, patch, volume, pan)
+            return
+        }
+
+        val maxDurationMs = notes.maxOf { it.startTimestampMs + it.durationMs } + 1000L
+        val safeDuration = maxDurationMs.coerceIn(1000L, 30_000L)
+        val totalSamples = (safeDuration * SAMPLE_RATE / 1000L).toInt()
+
+        val stereoBuffer = FloatArray(totalSamples * CHANNELS)
+
+        for (note in notes) {
+            val noteAudio = generateAudio(
+                frequency = note.frequency,
+                startFrequency = note.frequency,
+                portamentoMs = patch.portamentoMs,
+                durationMs = note.durationMs,
+                patch = patch,
+                volume = note.volume,
+                pan = pan
+            )
+
+            val startSample = ((note.startTimestampMs * SAMPLE_RATE) / 1000L).toInt()
+
+            for (i in noteAudio.indices) {
+                val targetIndex = startSample + i
+                if (targetIndex < stereoBuffer.size) {
+                    stereoBuffer[targetIndex] += noteAudio[i].toFloat() / 32768.0f
+                }
+            }
+        }
+
+        val pcmShorts = ShortArray(stereoBuffer.size)
+        for (i in stereoBuffer.indices) {
+            pcmShorts[i] = floatToPcm(stereoBuffer[i])
+        }
+
+        val dataSize = pcmShorts.size * BYTES_PER_SAMPLE
+        val totalDataLen = dataSize + 36
+
+        FileOutputStream(outputFile).use { fos ->
+            fos.write("RIFF".toByteArray())
+            fos.write(intToByteArray(totalDataLen), 0, 4)
+            fos.write("WAVE".toByteArray())
+            fos.write("fmt ".toByteArray())
+            fos.write(intToByteArray(16), 0, 4)
+            fos.write(shortToByteArray(1.toShort()), 0, 2)
+            fos.write(shortToByteArray(CHANNELS.toShort()), 0, 2)
+            fos.write(intToByteArray(SAMPLE_RATE), 0, 4)
+            fos.write(intToByteArray(SAMPLE_RATE * CHANNELS * BYTES_PER_SAMPLE), 0, 4)
+            fos.write(shortToByteArray((CHANNELS * BYTES_PER_SAMPLE).toShort()), 0, 2)
+            fos.write(shortToByteArray((BYTES_PER_SAMPLE * 8).toShort()), 0, 2)
+            fos.write("data".toByteArray())
+            fos.write(intToByteArray(dataSize), 0, 4)
+
+            for (shortVal in pcmShorts) {
                 fos.write(shortToByteArray(shortVal))
             }
             fos.flush()
@@ -369,19 +441,16 @@ object SynthEngineCore {
         val delayMix = patch.fx.delayMix.coerceIn(0.0f, 1.0f)
         val distortionDrive = patch.fx.distortionDrive.coerceIn(0.0f, 1.0f)
 
-        // Línea de retardo para Delay (~220 ms)
         val delayTimeSamples = (SAMPLE_RATE * 0.22f).toInt()
         val delayBufferLeft = FloatArray(delayTimeSamples)
         val delayBufferRight = FloatArray(delayTimeSamples)
         var delayIndex = 0
 
-        // Filtros de peine para Reverb espacial
         val revComb1 = FloatArray((SAMPLE_RATE * 0.037f).toInt())
         val revComb2 = FloatArray((SAMPLE_RATE * 0.043f).toInt())
         var rIdx1 = 0
         var rIdx2 = 0
 
-        // --- CONFIGURACIÓN DE LA MATRIZ LFO EXPANDIDA ---
         val lfoRate = patch.lfo.rateHz.coerceIn(0.1f, 20.0f)
         val lfoDepth = patch.lfo.depth.coerceIn(0.0f, 1.0f)
         val lfoDestination = patch.lfo.destination
@@ -401,13 +470,11 @@ object SynthEngineCore {
                 frequency
             }.coerceIn(MIN_FREQUENCY, MAX_FREQUENCY)
 
-            // Cálculo del ciclo de modulación LFO
             lfoPhase += lfoPhaseIncrement
             if (lfoPhase >= 1.0) lfoPhase -= floor(lfoPhase)
             val lfoRaw = sin(2.0 * PI * lfoPhase).toFloat()
             val lfoModulation = lfoRaw * lfoDepth
 
-            // Enrutamiento de la Matriz de Modulación Expandida
             val dynamicCutoff = if (lfoDestination == ModulationDestination.CUTOFF) {
                 (safeCutoff * (1.0f + lfoModulation * 0.5f)).coerceIn(20.0f, SAMPLE_RATE * 0.45f)
             } else {
@@ -427,7 +494,6 @@ object SynthEngineCore {
             var mixedRight = 0.0f
 
             for (v in 0 until unisonCount) {
-                // Modulación de tono (Vibrato) si el destino es PITCH
                 val pitchModulationFactor = if (lfoDestination == ModulationDestination.PITCH) {
                     1.0f + (lfoModulation * 0.03f)
                 } else {
@@ -466,7 +532,6 @@ object SynthEngineCore {
                 mixedRight += filteredSamples[v] * sin(voicePanAngle)
             }
 
-            // Normalización de ganancia de Unison
             val unisonGainCorrection = 1.0f / kotlin.math.sqrt(unisonCount.toFloat())
             mixedLeft *= unisonGainCorrection
             mixedRight *= unisonGainCorrection
@@ -487,16 +552,12 @@ object SynthEngineCore {
             var processedLeft = finalLeft
             var processedRight = finalRight
 
-            // --- PROCESAMIENTO FX RACK ---
-
-            // 1. Distorsión cálida (Saturation)
             if (distortionDrive > 0.0f) {
                 val driveFactor = 1.0f + (distortionDrive * 5.0f)
                 processedLeft = tanh(processedLeft * driveFactor) / tanh(driveFactor)
                 processedRight = tanh(processedRight * driveFactor) / tanh(driveFactor)
             }
 
-            // 2. Delay (Eco rítmico)
             if (delayMix > 0.0f) {
                 val delayedL = delayBufferLeft[delayIndex]
                 val delayedR = delayBufferRight[delayIndex]
@@ -510,7 +571,6 @@ object SynthEngineCore {
                 delayIndex = (delayIndex + 1) % delayTimeSamples
             }
 
-            // 3. Reverb (Profundidad y espacio)
             if (reverbMix > 0.0f) {
                 val c1 = revComb1[rIdx1]
                 val c2 = revComb2[rIdx2]
@@ -525,7 +585,6 @@ object SynthEngineCore {
                 processedRight += (c2 - processedRight) * reverbMix * 0.5f
             }
 
-            // Paneo maestro (afectado por LFO si el destino es PAN)
             val masterPanAngle = ((dynamicPan + 1.0f) * 0.25f) * PI.toFloat()
             val masterLeftPan = cos(masterPanAngle)
             val masterRightPan = sin(masterPanAngle)
