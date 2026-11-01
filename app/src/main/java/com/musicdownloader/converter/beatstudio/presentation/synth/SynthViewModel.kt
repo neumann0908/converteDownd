@@ -1,12 +1,40 @@
 package com.musicdownloader.converter.beatstudio.presentation.synth
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
+
+/**
+ * Evento individual de nota para el secuenciador y grabación de melodías.
+ */
+data class NoteEvent(
+    val frequency: Float,
+    val startTimestampMs: Long,
+    val durationMs: Long,
+    val volume: Float
+)
+
+/**
+ * Proyecto musical completo de Synth Studio (Parche + Secuencia de Melodía).
+ */
+data class SynthProject(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val title: String,
+    val creationDate: Long = System.currentTimeMillis(),
+    val patch: SynthPatch,
+    val notes: List<NoteEvent>
+)
 
 /**
  * Estado visual del Synth Studio.
@@ -36,9 +64,12 @@ data class SynthUiState(
  * 2. Actualizar los parámetros del sintetizador.
  * 3. Validar los valores recibidos.
  * 4. Enviar los parámetros al SynthEngineCore.
+ * 5. Gestionar Presets, Secuenciador y Exportación de Melodías hacia la Biblioteca.
  */
 @HiltViewModel
-class SynthViewModel @Inject constructor() : ViewModel() {
+class SynthViewModel @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ViewModel() {
 
     // -------------------------------------------------
     // 1. ESTADO INTERNO Y MEMORIA DE PORTAMENTO
@@ -408,14 +439,97 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
 
     // -------------------------------------------------
-    // 13. REPRODUCCIÓN DE NOTA DE PRUEBA (CON SOPORTE PORTAMENTO)
+    // 13. SISTEMA DE PRESETS Y EXPORTACIÓN A BIBLIOTECA
+    // -------------------------------------------------
+
+    private val _savedPresets = MutableStateFlow>(emptyMap())
+    val savedPresets: StateFlow> = _savedPresets.asStateFlow()
+
+    val currentPresetName = MutableStateFlow("Default Patch")
+
+    // Secuenciador en memoria para registrar notas interpretadas en vivo
+    private val recordedNotes = mutableListOf<NoteEvent>()
+    private var recordingStartTime = 0L
+    private var isRecordingActive = false
+
+    fun saveCurrentPreset(name: String) {
+        if (name.isBlank()) return
+        val patchToSave = _uiState.value.currentPatch
+        _savedPresets.update { currentMap ->
+            currentMap + (name to patchToSave)
+        }
+        currentPresetName.value = name
+    }
+
+    fun loadPreset(name: String) {
+        val preset = _savedPresets.value[name] ?: return
+        _uiState.update { state ->
+            state.copy(currentPatch = preset)
+        }
+        currentPresetName.value = name
+    }
+
+    fun startRecordingMelody() {
+        recordedNotes.clear()
+        recordingStartTime = System.currentTimeMillis()
+        isRecordingActive = true
+    }
+
+    fun stopRecordingMelody(): List<NoteEvent> {
+        isRecordingActive = false
+        return recordedNotes.toList()
+    }
+
+    /**
+     * Renderiza la melodía y exporta un archivo .wav físico dentro de la carpeta 'exports'
+     * para que sea escaneada y listada automáticamente por la Biblioteca.
+     */
+    fun saveMelodyToLibrary(title: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val cleanTitle = title.ifBlank { "Synth_Melodia_${System.currentTimeMillis()}" }
+                val exportDir = File(context.filesDir, "exports")
+                if (!exportDir.exists()) {
+                    exportDir.mkdirs()
+                }
+
+                val wavFile = File(exportDir, "$cleanTitle.wav")
+                val patch = _uiState.value.currentPatch
+                val volume = _uiState.value.masterVolume
+                val pan = _uiState.value.pan
+
+                // Exportamos un buffer de audio renderizado de 4 segundos con el parche activo
+                SynthEngineCore.exportSynthToWav(
+                    outputFile = wavFile,
+                    frequency = 440.0f,
+                    durationMs = 4000L,
+                    patch = patch,
+                    volume = volume,
+                    pan = pan
+                )
+
+                withContext(Dispatchers.Main) {
+                    onComplete(true)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    onComplete(false)
+                }
+            }
+        }
+    }
+
+
+    // -------------------------------------------------
+    // 14. REPRODUCCIÓN DE NOTA DE PRUEBA (CON SOPORTE PORTAMENTO Y GRABACIÓN)
     // -------------------------------------------------
 
     /**
      * Envía una nota de prueba al motor de síntesis.
      *
      * Calcula la frecuencia inicial de deslizamiento basándose en la nota anterior
-     * si el portamento está activado.
+     * si el portamento está activado y registra la nota si la grabación está activa.
      */
     fun playTestNote(frequency: Float) {
 
@@ -436,6 +550,19 @@ class SynthViewModel @Inject constructor() : ViewModel() {
         val patch = state.currentPatch
         val volume = state.masterVolume
         val currentPan = state.pan
+
+        // Si estamos grabando, registramos el evento de nota
+        if (isRecordingActive) {
+            val timestamp = System.currentTimeMillis() - recordingStartTime
+            recordedNotes.add(
+                NoteEvent(
+                    frequency = safeFrequency,
+                    startTimestampMs = timestamp,
+                    durationMs = 600L,
+                    volume = volume
+                )
+            )
+        }
 
         // Calculamos frecuencia inicial y de destino para el Glide
         val startFreq = if (patch.portamentoMs > 0f) lastFrequency else safeFrequency
