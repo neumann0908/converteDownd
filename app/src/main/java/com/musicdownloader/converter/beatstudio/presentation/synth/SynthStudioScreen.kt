@@ -190,6 +190,39 @@ fun SynthStudioScreen(
             }
         }
 
+        // --- LABORATORIO DE UNISON Y DETUNE (SUPERSAW) ---
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(text = "UNISON & DETUNE (SUPERSAW)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+
+                val patch = state.currentPatch
+
+                // Selector de cantidad de voces Unison
+                Text(text = "Unison Voices: ${patch.unisonVoices}", color = Color.White, fontSize = 10.sp)
+                Slider(
+                    value = patch.unisonVoices.toFloat(),
+                    onValueChange = { viewModel.updateUnison(it.toInt()) },
+                    valueRange = 1f..5f,
+                    steps = 3,
+                    modifier = Modifier.height(20.dp)
+                )
+
+                // Control de Detune
+                Text(text = "Detune Amount: ${(patch.detuneAmount * 100).toInt()}%", color = Color.White, fontSize = 10.sp)
+                Slider(
+                    value = patch.detuneAmount,
+                    onValueChange = { viewModel.updateDetune(it) },
+                    valueRange = 0.0f..1.0f,
+                    modifier = Modifier.height(20.dp)
+                )
+            }
+        }
+
         // --- TECLADO VIRTUAL TÁCTIL (CON DETECCIÓN DE PRESIÓN Y RELEASE) ---
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
