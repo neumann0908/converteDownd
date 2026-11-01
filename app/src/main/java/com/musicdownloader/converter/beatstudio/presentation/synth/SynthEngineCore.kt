@@ -17,9 +17,9 @@ import kotlin.math.sin
 import kotlin.math.tanh
 
 /**
- * SynthEngineCore v2.5 (Definitivo - Alta Fidelidad y Compatibilidad Universal)
+ * SynthEngineCore v2.7 (Con LFO Dinámico y AudioTrack MODE_STREAM robusto)
  *
- * Motor de síntesis DSP profesional con AudioTrack MODE_STREAM robusto.
+ * Motor de síntesis DSP profesional con modulación LFO integrada.
  */
 object SynthEngineCore {
 
@@ -151,20 +151,34 @@ object SynthEngineCore {
         val cutoffValue = patch.cutoffFreq
         val safeCutoff = if (cutoffValue.isFinite()) cutoffValue else DEFAULT_CUTOFF
 
-        val filter = LowPassFilter(
-            sampleRate = SAMPLE_RATE.toFloat(),
-            cutoffFrequency = safeCutoff
-        )
+        // Configuración del LFO
+        val lfoRate = patch.lfo.rateHz.coerceIn(0.1f, 20.0f)
+        val lfoDepth = patch.lfo.depth.coerceIn(0.0f, 1.0f)
+        var lfoPhase = 0.0
+        val lfoPhaseIncrement = lfoRate / SAMPLE_RATE
 
         var phase = 0.0
         var subPhase = 0.0
         val baseFrequency = frequency.coerceIn(MIN_FREQUENCY, MAX_FREQUENCY)
+
+        var filteredSample = 0.0f
+        val dt = 1.0f / SAMPLE_RATE
 
         val panAngle = ((pan.coerceIn(-1.0f, 1.0f) + 1.0f) * 0.25f) * PI.toFloat()
         val leftPan = cos(panAngle)
         val rightPan = sin(panAngle)
 
         for (i in 0 until totalSamples) {
+            // Modulación dinámica de filtro mediante LFO
+            lfoPhase += lfoPhaseIncrement
+            if (lfoPhase >= 1.0) lfoPhase -= floor(lfoPhase)
+            val lfoModulation = sin(2.0 * PI * lfoPhase).toFloat() * lfoDepth
+            val dynamicCutoff = (safeCutoff * (1.0f + lfoModulation * 0.5f))
+                .coerceIn(20.0f, SAMPLE_RATE * 0.45f)
+
+            val rc = 1.0f / (2.0f * PI.toFloat() * dynamicCutoff)
+            val alpha = dt / (rc + dt)
+
             val currentFrequency = calculatePitch(
                 baseFrequency = baseFrequency,
                 instrumentType = patch.instrumentType,
@@ -190,7 +204,8 @@ object SynthEngineCore {
             subPhase += subPhaseIncrement
             if (subPhase >= 1.0) subPhase -= floor(subPhase)
 
-            val filteredSample = filter.process(rawSample)
+            // Procesamiento del filtro con cutoff modulado por LFO
+            filteredSample += alpha * (rawSample - filteredSample)
 
             val envelope = calculateEnvelope(
                 sampleIndex = i,
@@ -339,48 +354,6 @@ object SynthEngineCore {
         )
     }
 
-    private class LowPassFilter(
-        sampleRate: Float,
-        cutoffFrequency: Float
-    ) {
-        private var x1 = 0.0
-        private var x2 = 0.0
-        private var y1 = 0.0
-        private var y2 = 0.0
-
-        private val b0: Double
-        private val b1: Double
-        private val b2: Double
-        private val a1: Double
-        private val a2: Double
-
-        init {
-            val safeCutoff = (if (cutoffFrequency.isFinite()) cutoffFrequency else DEFAULT_CUTOFF)
-                .coerceIn(20.0f, sampleRate * 0.45f)
-            val omega = 2.0 * PI * safeCutoff / sampleRate
-            val cosOmega = cos(omega)
-            val sinOmega = sin(omega)
-            val q = 0.70710678
-            val alpha = sinOmega / (2.0 * q)
-            val a0 = 1.0 + alpha
-
-            b0 = ((1.0 - cosOmega) * 0.5) / a0
-            b1 = (1.0 - cosOmega) / a0
-            b2 = ((1.0 - cosOmega) * 0.5) / a0
-            a1 = (-2.0 * cosOmega) / a0
-            a2 = (1.0 - alpha) / a0
-        }
-
-        fun process(input: Float): Float {
-            val output = b0 * input + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
-            x2 = x1
-            x1 = input.toDouble()
-            y2 = y1
-            y1 = output
-            return output.toFloat()
-        }
-    }
-
     private fun softClip(input: Float): Float {
         val safeInput = input.coerceIn(-4.0f, 4.0f)
         return tanh(safeInput).toFloat()
@@ -435,7 +408,6 @@ object SynthEngineCore {
                 return
             }
 
-            // Se invoca play() antes de escribir para asegurar el flujo continuo de hardware
             audioTrack.play()
             audioTrack.write(stereoBuffer, 0, stereoBuffer.size)
 
