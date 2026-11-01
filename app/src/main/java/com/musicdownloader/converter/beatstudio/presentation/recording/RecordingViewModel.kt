@@ -19,6 +19,9 @@ data class RecordingUiState(
     val isRecording: Boolean = false,
     val isMonitorLiveOn: Boolean = false,
     val isArmRecordOn: Boolean = true,
+    val isMetronomeOn: Boolean = false,
+    val currentBpm: Int = 120,
+    val currentBeat: Int = 1,
     val currentMeterLevel: Float = 0.0f,
     val recordedTakesCount: Int = 0
 )
@@ -42,6 +45,26 @@ class RecordingViewModel @Inject constructor(
         _uiState.update { it.copy(isArmRecordOn = enabled) }
     }
 
+    // --- Control de BPM y Metrónomo ---
+    fun updateBpm(newBpm: Int) {
+        val clampedBpm = newBpm.coerceIn(40, 240)
+        RecordingEngineCore.currentBpm = clampedBpm
+        _uiState.update { it.copy(currentBpm = clampedBpm) }
+    }
+
+    fun toggleMetronome(enabled: Boolean) {
+        _uiState.update { it.copy(isMetronomeOn = enabled) }
+        if (enabled) {
+            RecordingEngineCore.startMetronome { beat ->
+                viewModelScope.launch {
+                    _uiState.update { it.copy(currentBeat = beat) }
+                }
+            }
+        } else {
+            RecordingEngineCore.stopMetronome()
+        }
+    }
+
     fun startRecordingSession(title: String) {
         if (!_uiState.value.isArmRecordOn) return
 
@@ -50,6 +73,12 @@ class RecordingViewModel @Inject constructor(
 
         rawAudioFile?.let { file ->
             _uiState.update { it.copy(isRecording = true) }
+            
+            // Si el metrónomo no estaba activo al grabar, lo iniciamos opcionalmente o aseguramos el pulso
+            if (!_uiState.value.isMetronomeOn) {
+                toggleMetronome(true)
+            }
+
             RecordingEngineCore.startRecording(file) { rms ->
                 viewModelScope.launch {
                     _uiState.update { it.copy(currentMeterLevel = rms) }
@@ -60,6 +89,7 @@ class RecordingViewModel @Inject constructor(
 
     fun stopRecordingSession(customTitle: String = "Toma_Voz") {
         RecordingEngineCore.stopRecording()
+        RecordingEngineCore.stopMetronome()
 
         viewModelScope.launch(Dispatchers.IO) {
             rawAudioFile?.let { raw ->
@@ -85,6 +115,7 @@ class RecordingViewModel @Inject constructor(
                 _uiState.update { 
                     it.copy(
                         isRecording = false,
+                        isMetronomeOn = false,
                         currentMeterLevel = 0.0f,
                         recordedTakesCount = it.recordedTakesCount + 1
                     ) 
