@@ -17,9 +17,9 @@ import kotlin.math.sin
 import kotlin.math.tanh
 
 /**
- * SynthEngineCore v2.8 (Con LFO Dinámico, Portamento/Glide y AudioTrack MODE_STREAM robusto)
+ * SynthEngineCore v2.9 (Con LFO Dinámico, Portamento/Glide, Sobrecarga de Compatibilidad y AudioTrack MODE_STREAM)
  *
- * Motor de síntesis DSP profesional con modulación LFO y deslizamiento de tono.
+ * Motor de síntesis DSP profesional con modulación LFO, deslizamiento de tono y compatibilidad universal.
  */
 object SynthEngineCore {
 
@@ -62,6 +62,31 @@ object SynthEngineCore {
         ThreadPoolExecutor.DiscardOldestPolicy()
     )
 
+    /**
+     * Sobrecarga de compatibilidad para llamadas clásicas (ej. Secuenciador).
+     * Redirige al método principal usando la misma frecuencia como inicio y el portamento del parche.
+     */
+    fun playTone(
+        frequency: Float,
+        durationMs: Long,
+        patch: SynthPatch,
+        volume: Float,
+        pan: Float
+    ) {
+        playTone(
+            frequency = frequency,
+            startFrequency = frequency,
+            portamentoMs = patch.portamentoMs,
+            durationMs = durationMs,
+            patch = patch,
+            volume = volume,
+            pan = pan
+        )
+    }
+
+    /**
+     * Método principal de reproducción con soporte completo de Portamento y LFO.
+     */
     fun playTone(
         frequency: Float,
         startFrequency: Float,
@@ -382,7 +407,7 @@ object SynthEngineCore {
         )
     }
 
-    private fun softClip(input: Float): Float {
+    private softClip(input: Float): Float {
         val safeInput = input.coerceIn(-4.0f, 4.0f)
         return tanh(safeInput).toFloat()
     }
