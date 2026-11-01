@@ -314,7 +314,34 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
 
     // -------------------------------------------------
-    // 10. VOLUMEN MAESTRO
+    // 10. CONTROL DEL RACK DE EFECTOS (FX RACK)
+    // -------------------------------------------------
+
+    /**
+     * Actualiza los parámetros del Rack de Efectos Nativos (Reverb, Delay y Distorsión).
+     * Cada parámetro maneja un rango normalizado de 0.0 a 1.0.
+     */
+    fun updateFX(reverbMix: Float, delayMix: Float, distortionDrive: Float) {
+        val safeReverb = if (reverbMix.isFinite()) reverbMix.coerceIn(0.0f, 1.0f) else 0.0f
+        val safeDelay = if (delayMix.isFinite()) delayMix.coerceIn(0.0f, 1.0f) else 0.0f
+        val safeDistortion = if (distortionDrive.isFinite()) distortionDrive.coerceIn(0.0f, 1.0f) else 0.0f
+
+        _uiState.update { state ->
+            state.copy(
+                currentPatch = state.currentPatch.copy(
+                    fx = FXState(
+                        reverbMix = safeReverb,
+                        delayMix = safeDelay,
+                        distortionDrive = safeDistortion
+                    )
+                )
+            )
+        }
+    }
+
+
+    // -------------------------------------------------
+    // 11. VOLUMEN MAESTRO
     // -------------------------------------------------
 
     /**
@@ -340,7 +367,7 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
 
     // -------------------------------------------------
-    // 11. PANEO ESTÉREO
+    // 12. PANEO ESTÉREO
     // -------------------------------------------------
 
     /**
@@ -368,7 +395,7 @@ class SynthViewModel @Inject constructor() : ViewModel() {
 
 
     // -------------------------------------------------
-    // 12. REPRODUCCIÓN DE NOTA DE PRUEBA (CON SOPORTE PORTAMENTO)
+    // 13. REPRODUCCIÓN DE NOTA DE PRUEBA (CON SOPORTE PORTAMENTO)
     // -------------------------------------------------
 
     /**
