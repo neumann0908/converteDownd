@@ -31,6 +31,10 @@ import com.musicdownloader.converter.beatstudio.presentation.sequencer.Sequencer
 import com.musicdownloader.converter.beatstudio.presentation.synth.SynthStudioScreen
 import com.musicdownloader.converter.beatstudio.presentation.synth.SynthViewModel
 
+// 🎙️ 8. Importaciones de nuestro Recording Engine Pro (Motor 8)
+import com.musicdownloader.converter.beatstudio.presentation.recording.RecordingScreen
+import com.musicdownloader.converter.beatstudio.presentation.recording.RecordingViewModel
+
 @Composable
 fun AppNavGraph(navController: NavHostController, modifier: Modifier = Modifier) {
     NavHost(
@@ -72,6 +76,12 @@ fun AppNavGraph(navController: NavHostController, modifier: Modifier = Modifier)
         composable("synth_studio") {
             val synthViewModel: SynthViewModel = hiltViewModel()
             SynthStudioScreen(viewModel = synthViewModel)
+        }
+
+        // 🎙️ FASE 8: Integración Quirúrgica del Nuevo Recording Engine (Motor 8)
+        composable("recording_studio") {
+            val recordingViewModel: RecordingViewModel = hiltViewModel()
+            RecordingScreen(viewModel = recordingViewModel)
         }
     }
 }
