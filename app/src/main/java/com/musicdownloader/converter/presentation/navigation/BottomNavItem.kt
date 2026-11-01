@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Transform
 import androidx.compose.material.icons.filled.GraphicEq // 🎙️ Ícono de ondas/ecualizador para el Sampler Studio (Motor 2)
 import androidx.compose.material.icons.filled.Tune // 🎹 Ícono de controles/secuenciador para el Sequencer Studio (Motor 3)
 import androidx.compose.material.icons.filled.Piano // 🎹 Ícono de piano para el Synth Studio (Motor 5)
+import androidx.compose.material.icons.filled.Mic // 🎙️ Ícono de micrófono para el Recording Engine (Motor 8)
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class BottomNavItem(
@@ -38,4 +39,7 @@ sealed class BottomNavItem(
 
     // 🎹 FASE 5: Synth Studio Pro (Motor 5 - Synth Engine)
     object SynthStudio : BottomNavItem("synth_studio", "Synth", Icons.Default.Piano)
+
+    // 🎙️ FASE 8: Recording Engine (Motor 8 - Grabación y Estudio de Voz)
+    object RecordingStudio : BottomNavItem("recording_studio", "Record", Icons.Default.Mic)
 }
