@@ -17,9 +17,9 @@ import kotlin.math.sin
 import kotlin.math.tanh
 
 /**
- * SynthEngineCore v2.7 (Con LFO Dinámico y AudioTrack MODE_STREAM robusto)
+ * SynthEngineCore v2.8 (Con LFO Dinámico, Portamento/Glide y AudioTrack MODE_STREAM robusto)
  *
- * Motor de síntesis DSP profesional con modulación LFO integrada.
+ * Motor de síntesis DSP profesional con modulación LFO y deslizamiento de tono.
  */
 object SynthEngineCore {
 
@@ -64,6 +64,8 @@ object SynthEngineCore {
 
     fun playTone(
         frequency: Float,
+        startFrequency: Float,
+        portamentoMs: Float,
         durationMs: Long,
         patch: SynthPatch,
         volume: Float,
@@ -73,6 +75,18 @@ object SynthEngineCore {
             frequency.coerceIn(MIN_FREQUENCY, MAX_FREQUENCY)
         } else {
             DEFAULT_FREQUENCY
+        }
+
+        val safeStartFrequency = if (startFrequency.isFinite()) {
+            startFrequency.coerceIn(MIN_FREQUENCY, MAX_FREQUENCY)
+        } else {
+            safeFrequency
+        }
+
+        val safePortamentoMs = if (portamentoMs.isFinite()) {
+            portamentoMs.coerceIn(0f, 1000f)
+        } else {
+            0f
         }
 
         val safeDuration = durationMs.coerceAtLeast(1L)
@@ -96,6 +110,8 @@ object SynthEngineCore {
                 try {
                     val audioData = generateAudio(
                         frequency = safeFrequency,
+                        startFrequency = safeStartFrequency,
+                        portamentoMs = safePortamentoMs,
                         durationMs = safeDuration,
                         patch = patch,
                         volume = safeVolume,
@@ -105,7 +121,7 @@ object SynthEngineCore {
                     playAudioData(audioData, safeDuration)
 
                 } catch (exception: Exception) {
-                    Log.e(TAG, "Error generando o reproduciendo nota", exception)
+                    Log.e(TAG, "Error generando o reproduciendo nota con Portamento", exception)
                 }
             }
         } catch (exception: Exception) {
@@ -115,6 +131,8 @@ object SynthEngineCore {
 
     private fun generateAudio(
         frequency: Float,
+        startFrequency: Float,
+        portamentoMs: Float,
         durationMs: Long,
         patch: SynthPatch,
         volume: Float,
@@ -148,6 +166,8 @@ object SynthEngineCore {
             sustainLevel = sustainLevel
         )
 
+        val portamentoSamples = millisecondsToSamples(portamentoMs)
+
         val cutoffValue = patch.cutoffFreq
         val safeCutoff = if (cutoffValue.isFinite()) cutoffValue else DEFAULT_CUTOFF
 
@@ -169,6 +189,14 @@ object SynthEngineCore {
         val rightPan = sin(panAngle)
 
         for (i in 0 until totalSamples) {
+            // Cálculo de frecuencia con interpolación de Portamento (Glide)
+            val currentFrequency = if (portamentoSamples > 0 && i < portamentoSamples) {
+                val progress = i.toFloat() / portamentoSamples
+                startFrequency + (frequency - startFrequency) * progress
+            } else {
+                frequency
+            }.coerceIn(MIN_FREQUENCY, MAX_FREQUENCY)
+
             // Modulación dinámica de filtro mediante LFO
             lfoPhase += lfoPhaseIncrement
             if (lfoPhase >= 1.0) lfoPhase -= floor(lfoPhase)
@@ -179,13 +207,13 @@ object SynthEngineCore {
             val rc = 1.0f / (2.0f * PI.toFloat() * dynamicCutoff)
             val alpha = dt / (rc + dt)
 
-            val currentFrequency = calculatePitch(
-                baseFrequency = baseFrequency,
+            val pitchCorrectedFreq = calculatePitch(
+                baseFrequency = currentFrequency,
                 instrumentType = patch.instrumentType,
                 sampleIndex = i
             ).coerceIn(MIN_FREQUENCY, MAX_FREQUENCY)
 
-            val phaseIncrement = (currentFrequency / SAMPLE_RATE)
+            val phaseIncrement = (pitchCorrectedFreq / SAMPLE_RATE)
                 .coerceIn(0.000001f, 0.49f).toDouble()
             val subPhaseIncrement = phaseIncrement * 0.5
 
@@ -194,7 +222,7 @@ object SynthEngineCore {
                 phase = phase,
                 subPhase = subPhase,
                 phaseIncrement = phaseIncrement,
-                frequency = currentFrequency,
+                frequency = pitchCorrectedFreq,
                 instrumentType = patch.instrumentType
             )
 
