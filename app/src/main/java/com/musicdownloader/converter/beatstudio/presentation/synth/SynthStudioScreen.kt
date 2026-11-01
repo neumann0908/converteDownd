@@ -1,5 +1,6 @@
 package com.musicdownloader.converter.beatstudio.presentation.synth
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -16,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,6 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun SynthStudioScreen(
     viewModel: SynthViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
@@ -327,6 +330,7 @@ fun SynthStudioScreen(
                             if (presetInputName.isNotBlank()) {
                                 viewModel.saveCurrentPreset(presetInputName)
                                 presetInputName = ""
+                                Toast.makeText(context, "💾 Preset guardado con éxito", Toast.LENGTH_SHORT).show()
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700)),
@@ -342,7 +346,10 @@ fun SynthStudioScreen(
                         items(presetsList) { preset ->
                             val isSelected = currentPreset == preset.name
                             Button(
-                                onClick = { viewModel.loadPreset(preset.name) },
+                                onClick = { 
+                                    viewModel.loadPreset(preset.name)
+                                    Toast.makeText(context, "📂 Preset '${preset.name}' cargado", Toast.LENGTH_SHORT).show()
+                                },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (isSelected) Color(0xFF00E676) else Color(0xFF28283D)
                                 ),
@@ -369,9 +376,11 @@ fun SynthStudioScreen(
                             if (!isRecording) {
                                 viewModel.startRecordingMelody()
                                 isRecording = true
+                                Toast.makeText(context, "⏺ Grabación iniciada...", Toast.LENGTH_SHORT).show()
                             } else {
                                 viewModel.stopRecordingMelody()
                                 isRecording = false
+                                Toast.makeText(context, "⏹ Grabación detenida", Toast.LENGTH_SHORT).show()
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
@@ -409,6 +418,9 @@ fun SynthStudioScreen(
                             viewModel.saveMelodyToLibrary(title) { success ->
                                 if (success) {
                                     projectTitleInput = ""
+                                    Toast.makeText(context, "🎵 ¡Melodía guardada en la biblioteca!", Toast.LENGTH_LONG).show()
+                                } else {
+                                    Toast.makeText(context, "❌ Error al guardar la melodía", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },
