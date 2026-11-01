@@ -117,6 +117,8 @@ data class LFOState(
  * - Parámetros de LFO
  * - Frecuencia de corte y resonancia del filtro
  * - Tiempo de Portamento (Glide) en milisegundos
+ * - Cantidad de voces Unison (apilamiento SuperSaw)
+ * - Intensidad del microdesfase de afinación (Detune)
  */
 data class SynthPatch(
 
@@ -146,5 +148,15 @@ data class SynthPatch(
      * Tiempo de Portamento (Glide) en milisegundos.
      * Define la velocidad de deslizamiento de tono entre notas consecutivas.
      */
-    val portamentoMs: Float = 0f
+    val portamentoMs: Float = 0f,
+
+    /**
+     * Cantidad de voces simultáneas para el efecto Unison / SuperSaw (1 a 5).
+     */
+    val unisonVoices: Int = 1,
+
+    /**
+     * Intensidad del microdesfase de afinación (Detune) entre 0.0 y 1.0.
+     */
+    val detuneAmount: Float = 0.0f
 )
