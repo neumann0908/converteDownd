@@ -24,4 +24,7 @@ sealed class Screen(val route: String) {
 
     // 🎙️ FASE 8: Recording Engine (Motor 8 - Grabación y Estudio de Voz)
     object RecordingStudio : Screen("recording_studio")
+
+    // 📈 FASE 9: Automation Engine (Motor 9 - Curvas de automatización)
+    object AutomationStudio : Screen("automation_studio")
 }
