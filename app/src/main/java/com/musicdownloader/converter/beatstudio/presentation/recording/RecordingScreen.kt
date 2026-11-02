@@ -192,7 +192,7 @@ fun RecordingScreen(
                 }
             }
 
-            // --- BOTONES DUALES DE GRABACIÓN & ACCESO A COMPING ---
+            // --- BOTONES DE ACCIÓN (GRABACIÓN DUAL, COMPING E IMPORTAR A PISTAS) ---
             if (!state.isRecording) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(
@@ -205,7 +205,7 @@ fun RecordingScreen(
                                 permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
-                            modifier = Modifier.weight(1f).height(44.dp),
+                            modifier = Modifier.weight(1f).height(42.dp),
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Text(text = "⏺ CON TEMPO", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
@@ -217,21 +217,36 @@ fun RecordingScreen(
                                 permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700)),
-                            modifier = Modifier.weight(1f).height(44.dp),
+                            modifier = Modifier.weight(1f).height(42.dp),
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Text(text = "⏺ SIN TEMPO", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                         }
                     }
 
-                    // Botón para desplegar el estudio de comping de tomas
-                    Button(
-                        onClick = { viewModel.openCompingStudio() },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2B2B3D)),
-                        modifier = Modifier.fillMaxWidth().height(42.dp),
-                        shape = RoundedCornerShape(10.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(text = "🎚️ ABRIR ESTUDIO COMPING (FUSIONAR TOMAS)", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        // Botón de Comping
+                        Button(
+                            onClick = { viewModel.openCompingStudio() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2B2B3D)),
+                            modifier = Modifier.weight(1f).height(38.dp),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(text = "🎚️ ESTUDIO COMPING", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                        }
+
+                        // Botón Importar a Pistas (Punto 3)
+                        Button(
+                            onClick = { viewModel.openImportStudio() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1B3B3B)),
+                            modifier = Modifier.weight(1f).height(38.dp),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(text = "📂 IMPORTAR A PISTAS", color = Color(0xFF00E676), fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                        }
                     }
                 }
             } else {
@@ -249,7 +264,7 @@ fun RecordingScreen(
             }
         }
 
-        // --- DIÁLOGO 1: ESTUDIO DE COMPING (FUSIÓN DE TOMAS) ---
+        // --- DIÁLOGO 1: ESTUDIO DE COMPING ---
         if (state.isCompingOpen) {
             val selectedFiles = remember { mutableStateListOf<File>() }
 
@@ -325,7 +340,68 @@ fun RecordingScreen(
             )
         }
 
-        // --- DIÁLOGO 2: ESTUDIO DAW DE RECORTAR TOMA (TRIMMING CON PLAYHEAD) ---
+        // --- DIÁLOGO 2: IMPORTAR GRABACIONES A PISTAS (PUNTO 3) ---
+        if (state.isImportOpen) {
+            AlertDialog(
+                onDismissRequest = { viewModel.closeImportStudio() },
+                containerColor = Color(0xFF1E1E2C),
+                title = { Text(text = "📂 IMPORTAR TOMA A PISTAS (MULTI-TRACK)", color = Color(0xFF00E676), fontSize = 13.sp, fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().height(260.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(text = "Selecciona una toma para vincularla directamente al secuenciador o canales de mezcla:", color = Color.LightGray, fontSize = 11.sp)
+                        
+                        if (state.importableTakes.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(text = "No hay tomas disponibles para importar.", color = Color.Gray, fontSize = 12.sp)
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(state.importableTakes) { file ->
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFF13131A)),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                viewModel.importTakeToTracks(file) { success ->
+                                                    if (success) {
+                                                        Toast.makeText(context, "✅ ¡Toma importada a pistas del secuenciador!", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "❌ Error al importar la toma", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(10.dp).fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(text = file.name, color = Color.White, fontSize = 11.sp, maxLines = 1)
+                                            Text(text = "Vincular ➔", color = Color(0xFF00E676), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { viewModel.closeImportStudio() }) {
+                        Text("Cerrar", color = Color.LightGray)
+                    }
+                }
+            )
+        }
+
+        // --- DIÁLOGO 3: ESTUDIO DAW DE RECORTAR TOMA (TRIMMING CON PLAYHEAD) ---
         if (state.pendingTrimFile != null) {
             val file = state.pendingTrimFile!!
             val totalDurationSec = 30
@@ -333,7 +409,6 @@ fun RecordingScreen(
             var isPlayingPreview by remember { mutableStateOf(false) }
             var playbackProgress by remember { mutableStateOf(0f) }
 
-            // Bucle de animación del cabezal de reproducción (Playhead)
             LaunchedEffect(isPlayingPreview) {
                 if (isPlayingPreview) {
                     playbackProgress = 0f
@@ -349,7 +424,7 @@ fun RecordingScreen(
                             isPlayingPreview = false
                             break
                         }
-                        delay(16) // 60 FPS
+                        delay(16)
                     }
                 }
             }
@@ -375,15 +450,8 @@ fun RecordingScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = "Archivo: ${file.name}",
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1
-                        )
+                        Text(text = "Archivo: ${file.name}", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1)
 
-                        // --- VISUALIZADOR DE ONDA DINÁMICO CON PLAYHEAD ---
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -397,7 +465,6 @@ fun RecordingScreen(
                                 val bars = 48
                                 val barWidth = canvasWidth / bars
 
-                                // Rejilla de compases estilo DAW
                                 for (i in 0..6) {
                                     val x = (canvasWidth / 6) * i
                                     drawLine(
@@ -411,7 +478,6 @@ fun RecordingScreen(
                                 val startSecVal = startSecStr.toFloatOrNull() ?: 0f
                                 val endSecVal = endSecStr.toFloatOrNull() ?: totalDurationSec.toFloat()
 
-                                // Dibujar ondas con picos reales PCM
                                 for (i in 0 until bars) {
                                     val x = i * barWidth + barWidth / 2
                                     val waveFactor = state.waveformPeaks.getOrElse(i) { 0.3f }
@@ -431,7 +497,6 @@ fun RecordingScreen(
                                     )
                                 }
 
-                                // --- LÍNEA DE REPRODUCCIÓN (PLAYHEAD) ANIMADA ---
                                 if (isPlayingPreview) {
                                     val startRatio = startSecVal / totalDurationSec
                                     val endRatio = endSecStr.toFloatOrNull()?.div(totalDurationSec) ?: 1f
@@ -448,7 +513,6 @@ fun RecordingScreen(
                             }
                         }
 
-                        // --- CAMPOS DE INICIO Y FIN ---
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -459,12 +523,7 @@ fun RecordingScreen(
                                 label = { Text("Inicio (s)", fontSize = 10.sp) },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedBorderColor = Color(0xFFFFD700),
-                                    unfocusedBorderColor = Color(0xFF3B3B4F)
-                                )
+                                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = Color(0xFFFFD700), unfocusedBorderColor = Color(0xFF3B3B4F))
                             )
                             OutlinedTextField(
                                 value = endSecStr,
@@ -472,16 +531,10 @@ fun RecordingScreen(
                                 label = { Text("Fin (s)", fontSize = 10.sp) },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedBorderColor = Color(0xFFFFD700),
-                                    unfocusedBorderColor = Color(0xFF3B3B4F)
-                                )
+                                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = Color(0xFFFFD700), unfocusedBorderColor = Color(0xFF3B3B4F))
                             )
                         }
 
-                        // --- BOTÓN DE PREESCUCHA CON PLAYHEAD ACTIVADO ---
                         Button(
                             onClick = {
                                 isPlayingPreview = true
