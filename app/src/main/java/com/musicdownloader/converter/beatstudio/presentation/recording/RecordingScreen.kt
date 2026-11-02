@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlin.math.sin
+import kotlinx.coroutines.delay
 
 @Composable
 fun RecordingScreen(
@@ -247,13 +248,40 @@ fun RecordingScreen(
             }
         }
 
-        // --- DIÁLOGO DAW DE RECORTAR TOMA (ESTILO PRO TOOLS / MULTITRACK CON ONDAS REALES) ---
+        // --- DIÁLOGO DAW DE RECORTAR TOMA (ESTILO PRO TOOLS CON PLAYHEAD) ---
         if (state.pendingTrimFile != null) {
             val file = state.pendingTrimFile!!
             val totalDurationSec = 30
 
+            var isPlayingPreview by remember { mutableStateOf(false) }
+            var playbackProgress by remember { mutableStateOf(0f) }
+
+            // Bucle de animación del cabezal de reproducción (Playhead)
+            LaunchedEffect(isPlayingPreview) {
+                if (isPlayingPreview) {
+                    playbackProgress = 0f
+                    val startSec = startSecStr.toFloatOrNull() ?: 0f
+                    val endSec = endSecStr.toFloatOrNull() ?: totalDurationSec.toFloat()
+                    val durationMs = ((endSec - startSec) * 1000f).toLong().coerceAtLeast(1000L)
+                    
+                    val startTime = System.currentTimeMillis()
+                    while (isPlayingPreview) {
+                        val elapsed = System.currentTimeMillis() - startTime
+                        playbackProgress = (elapsed.toFloat() / durationMs).coerceIn(0f, 1f)
+                        if (playbackProgress >= 1f) {
+                            isPlayingPreview = false
+                            break
+                        }
+                        delay(16) // 60 FPS
+                    }
+                }
+            }
+
             AlertDialog(
-                onDismissRequest = { viewModel.dismissTrim() },
+                onDismissRequest = { 
+                    isPlayingPreview = false
+                    viewModel.dismissTrim() 
+                },
                 containerColor = Color(0xFF1E1E2C),
                 title = { 
                     Row(
@@ -278,7 +306,7 @@ fun RecordingScreen(
                             maxLines = 1
                         )
 
-                        // --- VISUALIZADOR DE ONDA DINÁMICO (PCM REAL) ---
+                        // --- VISUALIZADOR DE ONDA DINÁMICO CON PLAYHEAD ---
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -306,7 +334,7 @@ fun RecordingScreen(
                                 val startSecVal = startSecStr.toFloatOrNull() ?: 0f
                                 val endSecVal = endSecStr.toFloatOrNull() ?: totalDurationSec.toFloat()
 
-                                // Dibujar ondas usando los picos reales extraídos del WAV
+                                // Dibujar ondas con picos reales PCM
                                 for (i in 0 until bars) {
                                     val x = i * barWidth + barWidth / 2
                                     val waveFactor = state.waveformPeaks.getOrElse(i) { 0.3f }
@@ -323,6 +351,21 @@ fun RecordingScreen(
                                         start = Offset(x, (canvasHeight - barHeight) / 2),
                                         end = Offset(x, (canvasHeight + barHeight) / 2),
                                         strokeWidth = barWidth * 0.75f
+                                    )
+                                }
+
+                                // --- LÍNEA DE REPRODUCCIÓN (PLAYHEAD) ANIMADA ---
+                                if (isPlayingPreview) {
+                                    val startRatio = startSecVal / totalDurationSec
+                                    val endRatio = endSecVal / totalDurationSec
+                                    val currentPlayheadRatio = startRatio + (endRatio - startRatio) * playbackProgress
+                                    val playheadX = canvasWidth * currentPlayheadRatio
+
+                                    drawLine(
+                                        color = Color.Cyan,
+                                        start = Offset(playheadX, 0f),
+                                        end = Offset(playheadX, canvasHeight),
+                                        strokeWidth = 2.5f
                                     )
                                 }
                             }
@@ -361,11 +404,12 @@ fun RecordingScreen(
                             )
                         }
 
-                        // --- BOTÓN DE PREESCUCHA ---
+                        // --- BOTÓN DE PREESCUCHA CON PLAYHEAD ACTIVADO ---
                         Button(
                             onClick = {
+                                isPlayingPreview = true
                                 viewModel.playerManager.playFile(file.absolutePath, file.name)
-                                Toast.makeText(context, "▶ Reproduciendo audio grabado", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "▶ Preescuchando fragmento...", Toast.LENGTH_SHORT).show()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
                             modifier = Modifier.fillMaxWidth().height(38.dp),
@@ -377,6 +421,7 @@ fun RecordingScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = {
+                        isPlayingPreview = false
                         val start = startSecStr.toIntOrNull() ?: 0
                         val end = endSecStr.toIntOrNull() ?: 15
                         viewModel.applyTrimToPending(start, end) { success ->
@@ -392,6 +437,7 @@ fun RecordingScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = {
+                        isPlayingPreview = false
                         viewModel.dismissTrim()
                     }) {
                         Text("Descartar", color = Color.LightGray)
