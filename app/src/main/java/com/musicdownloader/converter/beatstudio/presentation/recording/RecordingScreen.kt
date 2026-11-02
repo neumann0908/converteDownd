@@ -1,257 +1,403 @@
 package com.musicdownloader.converter.beatstudio.presentation.recording
 
-import android.content.Context
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.musicdownloader.converter.player.AudioPlayerManager
-import com.musicdownloader.converter.util.AudioTrimmer
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import javax.inject.Inject
-import kotlin.math.abs
+import android.Manifest
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import kotlin.math.sin
 
-data class RecordingUiState(
-    val isRecording: Boolean = false,
-    val isMonitorLiveOn: Boolean = false,
-    val isArmRecordOn: Boolean = true,
-    val isMetronomeOn: Boolean = false,
-    val currentBpm: Int = 120,
-    val currentBeat: Int = 1,
-    val currentMeterLevel: Float = 0.0f,
-    val recordedTakesCount: Int = 0,
-    val pendingTrimFile: File? = null,
-    val waveformPeaks: List<Float> = emptyList() // <--- Picos reales de la onda
-)
+@Composable
+fun RecordingScreen(
+    viewModel: RecordingViewModel = hiltViewModel()
+) {
+    val context = LocalContext.current
+    val state by viewModel.uiState.collectAsState()
 
-@HiltViewModel
-class RecordingViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
-    val playerManager: AudioPlayerManager
-) : ViewModel() {
+    var startSecStr by remember { mutableStateOf("0") }
+    var endSecStr by remember { mutableStateOf("15") }
+    var pendingUseTempo by remember { mutableStateOf(true) }
 
-    private val _uiState = MutableStateFlow(RecordingUiState())
-    val uiState = _uiState.asStateFlow()
-
-    private var rawAudioFile: File? = null
-    private var wavOutputFile: File? = null
-
-    fun toggleMonitorLive(enabled: Boolean) {
-        _uiState.update { it.copy(isMonitorLiveOn = enabled) }
-    }
-
-    fun toggleArmRecord(enabled: Boolean) {
-        _uiState.update { it.copy(isArmRecordOn = enabled) }
-    }
-
-    // --- Control de BPM y Metrónomo ---
-    fun updateBpm(newBpm: Int) {
-        val clampedBpm = newBpm.coerceIn(40, 240)
-        RecordingEngineCore.currentBpm = clampedBpm
-        _uiState.update { it.copy(currentBpm = clampedBpm) }
-    }
-
-    fun toggleMetronome(enabled: Boolean) {
-        _uiState.update { it.copy(isMetronomeOn = enabled) }
-        if (enabled) {
-            RecordingEngineCore.startMetronome { beat ->
-                viewModelScope.launch {
-                    _uiState.update { it.copy(currentBeat = beat) }
-                }
-            }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.startRecordingSession("Toma_Voz", pendingUseTempo)
+            val modeText = if (pendingUseTempo) "con tempo y metrónomo" else "sin tempo (libre)"
+            Toast.makeText(context, "⏺ Grabación iniciada $modeText...", Toast.LENGTH_SHORT).show()
         } else {
-            RecordingEngineCore.stopMetronome()
+            Toast.makeText(context, "❌ Permiso de micrófono denegado", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // --- INICIAR SESIÓN CON O SIN TEMPO ---
-    fun startRecordingSession(title: String, useTempo: Boolean) {
-        _uiState.update { it.copy(isArmRecordOn = true, pendingTrimFile = null, waveformPeaks = emptyList()) }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF13131A))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // --- CABEZAL DEL MOTOR 8 ---
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(text = "MOTOR 8: RECORDING ENGINE", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Entrada: Micrófono Estéreo | Tomas: ${state.recordedTakesCount}", color = Color.White, fontSize = 12.sp)
+                }
+            }
 
-        val cacheDir = context.cacheDir
-        rawAudioFile = File(cacheDir, "raw_recording_${System.currentTimeMillis()}.pcm")
+            // --- CONTROL DE TEMPO Y METRONOMO ---
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(text = "TEMPO: ${state.currentBpm} BPM", color = Color(0xFFFFD700), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Pulso Compás: Beat ${state.currentBeat}/4", color = Color.LightGray, fontSize = 10.sp)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "Metrónomo", color = Color.White, fontSize = 11.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Switch(
+                                checked = state.isMetronomeOn,
+                                onCheckedChange = { viewModel.toggleMetronome(it) }
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Slider(
+                        value = state.currentBpm.toFloat(),
+                        onValueChange = { viewModel.updateBpm(it.toInt()) },
+                        valueRange = 40f..240f,
+                        steps = 199,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFFFFD700),
+                            activeTrackColor = Color(0xFFFFD700)
+                        )
+                    )
+                }
+            }
 
-        rawAudioFile?.let { file ->
-            _uiState.update { it.copy(isRecording = true) }
-            
-            if (useTempo) {
-                toggleMetronome(true)
+            // --- ESPECTRÓGRAFO / VÚMETRO NEÓN ESTILO DAW ---
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth().height(120.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(10.dp).fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = "ESPECTRO NEÓN & VU METER", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        val barCount = 12
+                        for (i in 0 until barCount) {
+                            val dynamicFactor = if (state.isRecording || state.isMetronomeOn) {
+                                ((sin((i + System.currentTimeMillis() * 0.01) * 0.5) + 1.0) * 0.5).toFloat()
+                            } else 0.05f
+                            
+                            val barHeightFraction = (state.currentMeterLevel * 1.5f + dynamicFactor * 0.6f).coerceIn(0.1f, 1.0f)
+                            
+                            val barColor = when {
+                                i > 9 -> Color(0xFFFF5252)
+                                i > 6 -> Color(0xFFFFEB3B)
+                                else -> Color(0xFF00E676)
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .width(14.dp)
+                                    .fillMaxHeight(barHeightFraction)
+                                    .background(barColor, shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(text = "Nivel RMS: ${(state.currentMeterLevel * 100).toInt()}%", color = Color.Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            // --- INTERRUPTORES DE MONITOREO Y ARMADO ---
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "MONITOR LIVE", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Switch(
+                            checked = state.isMonitorLiveOn,
+                            onCheckedChange = { viewModel.toggleMonitorLive(it) }
+                        )
+                    }
+                }
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "ARM RECORD", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Switch(
+                            checked = state.isArmRecordOn,
+                            onCheckedChange = { viewModel.toggleArmRecord(it) }
+                        )
+                    }
+                }
+            }
+
+            // --- BOTONES DUALES DE GRABACIÓN (CON Y SIN TEMPO) ---
+            if (!state.isRecording) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            pendingUseTempo = true
+                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(
+                            text = "⏺ GRABAR CON TEMPO",
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            pendingUseTempo = false
+                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700)),
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(
+                            text = "⏺ GRABAR SIN TEMPO",
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
             } else {
-                toggleMetronome(false)
-            }
-
-            RecordingEngineCore.startRecording(file) { rms ->
-                viewModelScope.launch {
-                    _uiState.update { it.copy(currentMeterLevel = rms) }
+                Button(
+                    onClick = {
+                        viewModel.stopRecordingSession()
+                        Toast.makeText(context, "⏹ Grabación finalizada. Abriendo editor DAW...", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252)),
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text(
+                        text = "⏹ DETENER Y ABRIR DAW",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
                 }
             }
         }
-    }
 
-    fun stopRecordingSession(customTitle: String = "Toma_Voz") {
-        RecordingEngineCore.stopRecording()
-        RecordingEngineCore.stopMetronome()
+        // --- DIÁLOGO DAW DE RECORTAR TOMA (ESTILO PRO TOOLS / MULTITRACK CON ONDAS REALES) ---
+        if (state.pendingTrimFile != null) {
+            val file = state.pendingTrimFile!!
+            val totalDurationSec = 30
 
-        viewModelScope.launch(Dispatchers.IO) {
-            rawAudioFile?.let { raw ->
-                if (raw.exists()) {
-                    val exportDir = File(context.filesDir, "exports")
-                    if (!exportDir.exists()) {
-                        exportDir.mkdirs()
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissTrim() },
+                containerColor = Color(0xFF1E1E2C),
+                title = { 
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "🎚️ ESTUDIO DAW: RECORTAR TOMA", color = Color(0xFFFFD700), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "${totalDurationSec}s", color = Color.Cyan, fontSize = 11.sp)
                     }
+                },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Archivo: ${file.name}",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
 
-                    val fileName = "${customTitle}_${System.currentTimeMillis()}.wav"
-                    wavOutputFile = File(exportDir, fileName)
+                        // --- VISUALIZADOR DE ONDA DINÁMICO (PCM REAL) ---
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(110.dp)
+                                .background(Color(0xFF13131A), shape = RoundedCornerShape(8.dp))
+                                .padding(8.dp)
+                        ) {
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val canvasWidth = size.width
+                                val canvasHeight = size.height
+                                val bars = 48
+                                val barWidth = canvasWidth / bars
 
-                    wavOutputFile?.let { wav ->
-                        rawToWav(raw, wav, 44100, 2, 16)
-                    }
+                                // Rejilla de compases estilo DAW
+                                for (i in 0..6) {
+                                    val x = (canvasWidth / 6) * i
+                                    drawLine(
+                                        color = Color(0xFF3B3B4F),
+                                        start = Offset(x, 0f),
+                                        end = Offset(x, canvasHeight),
+                                        strokeWidth = 1f
+                                    )
+                                }
 
-                    raw.delete()
+                                val startSecVal = startSecStr.toFloatOrNull() ?: 0f
+                                val endSecVal = endSecStr.toFloatOrNull() ?: totalDurationSec.toFloat()
 
-                    // Extraer picos reales de audio para el visor DAW
-                    val peaks = wavOutputFile?.let { extractWaveformPeaks(it, 48) } ?: emptyList()
+                                // Dibujar ondas usando los picos reales extraídos del WAV
+                                for (i in 0 until bars) {
+                                    val x = i * barWidth + barWidth / 2
+                                    val waveFactor = state.waveformPeaks.getOrElse(i) { 0.3f }
+                                    val barHeight = canvasHeight * waveFactor
 
-                    withContext(Dispatchers.Main) {
-                        _uiState.update { 
-                            it.copy(
-                                isRecording = false,
-                                isMetronomeOn = false,
-                                currentMeterLevel = 0.0f,
-                                recordedTakesCount = it.recordedTakesCount + 1,
-                                pendingTrimFile = wavOutputFile,
-                                waveformPeaks = peaks
-                            ) 
+                                    val progressRatio = i.toFloat() / bars
+                                    val currentBarSec = progressRatio * totalDurationSec
+                                    val isSelectedRange = currentBarSec in startSecVal..endSecVal
+
+                                    val barColor = if (isSelectedRange) Color(0xFFFFD700) else Color(0xFF00E676).copy(alpha = 0.3f)
+
+                                    drawLine(
+                                        color = barColor,
+                                        start = Offset(x, (canvasHeight - barHeight) / 2),
+                                        end = Offset(x, (canvasHeight + barHeight) / 2),
+                                        strokeWidth = barWidth * 0.75f
+                                    )
+                                }
+                            }
+                        }
+
+                        // --- CAMPOS DE INICIO Y FIN ---
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = startSecStr,
+                                onValueChange = { startSecStr = it },
+                                label = { Text("Inicio (s)", fontSize = 10.sp) },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    focusedBorderColor = Color(0xFFFFD700),
+                                    unfocusedBorderColor = Color(0xFF3B3B4F)
+                                )
+                            )
+                            OutlinedTextField(
+                                value = endSecStr,
+                                onValueChange = { endSecStr = it },
+                                label = { Text("Fin (s)", fontSize = 10.sp) },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    focusedBorderColor = Color(0xFFFFD700),
+                                    unfocusedBorderColor = Color(0xFF3B3B4F)
+                                )
+                            )
+                        }
+
+                        // --- BOTÓN DE PREESCUCHA ---
+                        Button(
+                            onClick = {
+                                viewModel.playerManager.playFile(file.absolutePath, file.name)
+                                Toast.makeText(context, "▶ Reproduciendo audio grabado", Toast.LENGTH_SHORT).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
+                            modifier = Modifier.fillMaxWidth().height(38.dp),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(text = "▶ Preescuchar Archivo", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
-                }
-            }
-        }
-    }
-
-    // --- EXTRACCIÓN DE PICOS PCM PARA ONDA DINÁMICA ---
-    private fun extractWaveformPeaks(wavFile: File, barCount: Int): List<Float> {
-        val peaks = mutableListOf<Float>()
-        try {
-            FileInputStream(wavFile).use { fis ->
-                val header = ByteArray(44)
-                fis.read(header)
-
-                val availableBytes = fis.available()
-                val buffer = ByteArray(availableBytes)
-                val bytesRead = fis.read(buffer)
-
-                if (bytesRead <= 0) return List(barCount) { 0.2f }
-
-                val totalSamples = bytesRead / 2
-                if (totalSamples <= 0) return List(barCount) { 0.2f }
-
-                val samplesPerBar = totalSamples / barCount
-                if (samplesPerBar <= 0) return List(barCount) { 0.2f }
-
-                for (i in 0 until barCount) {
-                    var maxVal = 0f
-                    val startSample = i * samplesPerBar
-                    val endSample = minOf(startSample + samplesPerBar, totalSamples)
-
-                    for (s in startSample until endSample) {
-                        val byteIndex = s * 2
-                        if (byteIndex + 1 < buffer.size) {
-                            val low = buffer[byteIndex].toInt() and 0xFF
-                            val high = buffer[byteIndex + 1].toInt()
-                            val sample = (high shl 8) or low
-                            val absVal = abs(sample.toFloat()) / 32768f
-                            if (absVal > maxVal) maxVal = absVal
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val start = startSecStr.toIntOrNull() ?: 0
+                        val end = endSecStr.toIntOrNull() ?: 15
+                        viewModel.applyTrimToPending(start, end) { success ->
+                            if (success) {
+                                Toast.makeText(context, "✅ ¡Toma recortada y guardada en Biblioteca!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "❌ Error al recortar el audio", Toast.LENGTH_SHORT).show()
+                            }
                         }
+                    }) {
+                        Text("Confirmar y Guardar", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold)
                     }
-                    peaks.add(maxVal.coerceIn(0.15f, 1.0f))
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        viewModel.dismissTrim()
+                    }) {
+                        Text("Descartar", color = Color.LightGray)
+                    }
                 }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return List(barCount) { 0.3f }
+            )
         }
-        return if (peaks.isEmpty()) List(barCount) { 0.3f } else peaks
-    }
-
-    // --- FUNCIÓN DE RECORTAR TOMA (TRIMMING) ---
-    fun applyTrimToPending(startSec: Int, endSec: Int, onFinished: (Boolean) -> Unit) {
-        val fileToTrim = _uiState.value.pendingTrimFile ?: return
-        if (startSec >= endSec) {
-            onFinished(false)
-            return
-        }
-
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val parentDir = fileToTrim.parentFile ?: File(context.filesDir, "exports")
-                val trimmedFile = File(parentDir, "Trimmed_${fileToTrim.name}")
-
-                AudioTrimmer.trim(
-                    srcPath = fileToTrim.absolutePath,
-                    dstPath = trimmedFile.absolutePath,
-                    startMs = startSec * 1000L,
-                    endMs = endSec * 1000L
-                )
-
-                fileToTrim.delete()
-                trimmedFile.renameTo(fileToTrim)
-
-                withContext(Dispatchers.Main) {
-                    _uiState.update { it.copy(pendingTrimFile = null, waveformPeaks = emptyList()) }
-                    onFinished(true)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    onFinished(false)
-                }
-            }
-        }
-    }
-
-    fun dismissTrim() {
-        _uiState.update { it.copy(pendingTrimFile = null, waveformPeaks = emptyList()) }
-    }
-
-    private fun rawToWav(rawFile: File, wavFile: File, sampleRate: Int, channels: Int, bitRate: Int) {
-        val rawData = ByteArray(rawFile.length().toInt())
-        FileInputStream(rawFile).use { it.read(rawData) }
-
-        FileOutputStream(wavFile).use { fos ->
-            val totalDataLen = rawData.size + 36
-            val byteRate = sampleRate * channels * (bitRate / 8)
-
-            fos.write("RIFF".toByteArray())
-            fos.write(intToByteArray(totalDataLen), 0, 4)
-            fos.write("WAVE".toByteArray())
-            fos.write("fmt ".toByteArray())
-            fos.write(intToByteArray(16), 0, 4)
-            fos.write(shortToByteArray(1), 0, 2)
-            fos.write(shortToByteArray(channels.toShort()), 0, 2)
-            fos.write(intToByteArray(sampleRate), 0, 4)
-            fos.write(intToByteArray(byteRate), 0, 4)
-            fos.write(shortToByteArray((channels * (bitRate / 8)).toShort()), 0, 2)
-            fos.write(shortToByteArray(bitRate.toShort()), 0, 2)
-            fos.write("data".toByteArray())
-            fos.write(intToByteArray(rawData.size), 0, 4)
-            fos.write(rawData)
-        }
-    }
-
-    private fun intToByteArray(value: Int): ByteArray {
-        return ByteArray(4) { (value shr (it * 8)).toByte() }
-    }
-
-    private fun shortToByteArray(value: Short): ByteArray {
-        return ByteArray(2) { (value.toInt() shr (it * 8)).toByte() }
     }
 }
