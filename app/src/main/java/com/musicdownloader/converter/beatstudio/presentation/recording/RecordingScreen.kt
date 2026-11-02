@@ -327,16 +327,14 @@ fun RecordingScreen(
                         // --- BOTÓN DE PREESCUCHA ---
                         Button(
                             onClick = {
-                                val start = startSecStr.toIntOrNull() ?: 0
                                 viewModel.playerManager.playFile(file.absolutePath, file.name)
-                                viewModel.playerManager.seekTo(start * 1000L)
-                                Toast.makeText(context, "▶ Preescuchando desde el segundo $start", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "▶ Reproduciendo audio grabado", Toast.LENGTH_SHORT).show()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3B4F)),
                             modifier = Modifier.fillMaxWidth().height(38.dp),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text(text = "▶ Preescuchar Fragmento Seleccionado", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "▶ Preescuchar Archivo", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 },
@@ -344,7 +342,6 @@ fun RecordingScreen(
                     TextButton(onClick = {
                         val start = startSecStr.toIntOrNull() ?: 0
                         val end = endSecStr.toIntOrNull() ?: 15
-                        viewModel.playerManager.stop()
                         viewModel.applyTrimToPending(start, end) { success ->
                             if (success) {
                                 Toast.makeText(context, "✅ ¡Toma recortada y guardada en Biblioteca!", Toast.LENGTH_SHORT).show()
