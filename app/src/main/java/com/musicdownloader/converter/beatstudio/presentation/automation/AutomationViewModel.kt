@@ -9,8 +9,8 @@ import javax.inject.Inject
 
 data class AutomationUiState(
     val selectedParameter: AutomationParameterType = AutomationParameterType.VOLUME,
-    // Mantenemos un mapa con los carriles de cada parámetro para no perder las curvas al cambiar de pestaña
-    val lanesMap: Map<AutomationParameterType, AutomationLane> = AutomationParameterType.values().associateWith { AutomationLane(it) }
+    // Mantenemos un mapa con los carriles de cada parámetro utilizando entries para máxima compatibilidad y rendimiento
+    val lanesMap: Map<AutomationParameterType, AutomationLane> = AutomationParameterType.entries.associateWith { AutomationLane(it) }
 ) {
     val currentLane: AutomationLane
         get() = lanesMap[selectedParameter] ?: AutomationLane(selectedParameter)
