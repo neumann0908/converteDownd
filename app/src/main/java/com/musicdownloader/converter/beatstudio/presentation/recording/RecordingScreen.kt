@@ -1,277 +1,201 @@
 package com.musicdownloader.converter.beatstudio.presentation.recording
 
-import android.Manifest
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-import kotlin.math.sin
+import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.musicdownloader.converter.util.AudioTrimmer
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import javax.inject.Inject
 
-@Composable
-fun RecordingScreen(
-    viewModel: RecordingViewModel = hiltViewModel()
-) {
-    val context = LocalContext.current
-    val state by viewModel.uiState.collectAsState()
+data class RecordingUiState(
+    val isRecording: Boolean = false,
+    val isMonitorLiveOn: Boolean = false,
+    val isArmRecordOn: Boolean = true,
+    val isMetronomeOn: Boolean = false,
+    val currentBpm: Int = 120,
+    val currentBeat: Int = 1,
+    val currentMeterLevel: Float = 0.0f,
+    val recordedTakesCount: Int = 0,
+    val pendingTrimFile: File? = null
+)
 
-    var startSecStr by remember { mutableStateOf("0") }
-    var endSecStr by remember { mutableStateOf("10") }
+@HiltViewModel
+class RecordingViewModel @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ViewModel() {
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            viewModel.startRecordingSession("Toma_Voz")
-            Toast.makeText(context, "⏺ Grabación iniciada con metrónomo...", Toast.LENGTH_SHORT).show()
+    private val _uiState = MutableStateFlow(RecordingUiState())
+    val uiState = _uiState.asStateFlow()
+
+    private var rawAudioFile: File? = null
+    private var wavOutputFile: File? = null
+
+    fun toggleMonitorLive(enabled: Boolean) {
+        _uiState.update { it.copy(isMonitorLiveOn = enabled) }
+    }
+
+    fun toggleArmRecord(enabled: Boolean) {
+        _uiState.update { it.copy(isArmRecordOn = enabled) }
+    }
+
+    // --- Control de BPM y Metrónomo ---
+    fun updateBpm(newBpm: Int) {
+        val clampedBpm = newBpm.coerceIn(40, 240)
+        RecordingEngineCore.currentBpm = clampedBpm
+        _uiState.update { it.copy(currentBpm = clampedBpm) }
+    }
+
+    fun toggleMetronome(enabled: Boolean) {
+        _uiState.update { it.copy(isMetronomeOn = enabled) }
+        if (enabled) {
+            RecordingEngineCore.startMetronome { beat ->
+                viewModelScope.launch {
+                    _uiState.update { it.copy(currentBeat = beat) }
+                }
+            }
         } else {
-            Toast.makeText(context, "❌ Permiso de micrófono denegado", Toast.LENGTH_SHORT).show()
+            RecordingEngineCore.stopMetronome()
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF13131A))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // --- CABEZAL DEL MOTOR 8 ---
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(text = "MOTOR 8: RECORDING ENGINE", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Entrada: Micrófono Estéreo | Tomas: ${state.recordedTakesCount}", color = Color.White, fontSize = 12.sp)
-                }
+    fun startRecordingSession(title: String) {
+        _uiState.update { it.copy(isArmRecordOn = true, pendingTrimFile = null) }
+
+        val cacheDir = context.cacheDir
+        rawAudioFile = File(cacheDir, "raw_recording_${System.currentTimeMillis()}.pcm")
+
+        rawAudioFile?.let { file ->
+            _uiState.update { it.copy(isRecording = true) }
+            
+            if (!_uiState.value.isMetronomeOn) {
+                toggleMetronome(true)
             }
 
-            // --- CONTROL DE TEMPO Y METRONOMO ---
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(text = "TEMPO: ${state.currentBpm} BPM", color = Color(0xFFFFD700), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            Text(text = "Pulso Compás: Beat ${state.currentBeat}/4", color = Color.LightGray, fontSize = 10.sp)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "Metrónomo", color = Color.White, fontSize = 11.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Switch(
-                                checked = state.isMetronomeOn,
-                                onCheckedChange = { viewModel.toggleMetronome(it) }
-                            )
-                        }
+            RecordingEngineCore.startRecording(file) { rms ->
+                viewModelScope.launch {
+                    _uiState.update { it.copy(currentMeterLevel = rms) }
+                }
+            }
+        }
+    }
+
+    fun stopRecordingSession(customTitle: String = "Toma_Voz") {
+        RecordingEngineCore.stopRecording()
+        RecordingEngineCore.stopMetronome()
+
+        viewModelScope.launch(Dispatchers.IO) {
+            rawAudioFile?.let { raw ->
+                if (raw.exists()) {
+                    val exportDir = File(context.filesDir, "exports")
+                    if (!exportDir.exists()) {
+                        exportDir.mkdirs()
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    // Control deslizante para ajustar los BPM en vivo
-                    Slider(
-                        value = state.currentBpm.toFloat(),
-                        onValueChange = { viewModel.updateBpm(it.toInt()) },
-                        valueRange = 40f..240f,
-                        steps = 199,
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFFFFD700),
-                            activeTrackColor = Color(0xFFFFD700)
-                        )
-                    )
-                }
-            }
 
-            // --- ESPECTRÓGRAFO / VÚMETRO NEÓN ESTILO DAW ---
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth().height(120.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(10.dp).fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(text = "ESPECTRO NEÓN & VU METER", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    val fileName = "${customTitle}_${System.currentTimeMillis()}.wav"
+                    wavOutputFile = File(exportDir, fileName)
 
-                    // Barras de frecuencias simuladas con efecto neón basadas en el RMS actual
-                    Row(
-                        modifier = Modifier.fillMaxWidth().weight(1f),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        val barCount = 12
-                        for (i in 0 until barCount) {
-                            val dynamicFactor = if (state.isRecording || state.isMetronomeOn) {
-                                ((sin((i + System.currentTimeMillis() * 0.01) * 0.5) + 1.0) * 0.5).toFloat()
-                            } else 0.05f
-                            
-                            val barHeightFraction = (state.currentMeterLevel * 1.5f + dynamicFactor * 0.6f).coerceIn(0.1f, 1.0f)
-                            
-                            val barColor = when {
-                                i > 9 -> Color(0xFFFF5252) // Rojo pico
-                                i > 6 -> Color(0xFFFFEB3B) // Amarillo medio
-                                else -> Color(0xFF00E676)  // Verde seguro / Cian neón
-                            }
+                    wavOutputFile?.let { wav ->
+                        rawToWav(raw, wav, 44100, 2, 16)
+                    }
 
-                            Box(
-                                modifier = Modifier
-                                    .width(14.dp)
-                                    .fillMaxHeight(barHeightFraction)
-                                    .background(barColor, shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                            )
+                    raw.delete()
+
+                    withContext(Dispatchers.Main) {
+                        _uiState.update { 
+                            it.copy(
+                                isRecording = false,
+                                isMetronomeOn = false,
+                                currentMeterLevel = 0.0f,
+                                recordedTakesCount = it.recordedTakesCount + 1,
+                                pendingTrimFile = wavOutputFile
+                            ) 
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(text = "Nivel RMS: ${(state.currentMeterLevel * 100).toInt()}%", color = Color.Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
+        }
+    }
 
-            // --- INTERRUPTORES DE MONITOREO Y ARMADO ---
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = "MONITOR LIVE", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Switch(
-                            checked = state.isMonitorLiveOn,
-                            onCheckedChange = { viewModel.toggleMonitorLive(it) }
-                        )
-                    }
-                }
+    // --- FUNCIÓN DE RECORTAR TOMA (TRIMMING) ---
+    fun applyTrimToPending(startSec: Int, endSec: Int, onFinished: (Boolean) -> Unit) {
+        val fileToTrim = _uiState.value.pendingTrimFile ?: return
+        if (startSec >= endSec) {
+            onFinished(false)
+            return
+        }
 
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = "ARM RECORD", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Switch(
-                            checked = state.isArmRecordOn,
-                            onCheckedChange = { viewModel.toggleArmRecord(it) }
-                        )
-                    }
-                }
-            }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val parentDir = fileToTrim.parentFile ?: File(context.filesDir, "exports")
+                val trimmedFile = File(parentDir, "Trimmed_${fileToTrim.name}")
 
-            // --- BOTÓN PRINCIPAL DE GRABACIÓN ---
-            Button(
-                onClick = {
-                    if (!state.isRecording) {
-                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                    } else {
-                        viewModel.stopRecordingSession()
-                        Toast.makeText(context, "⏹ Grabación finalizada. Ajusta el recorte si lo deseas.", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (state.isRecording) Color(0xFFFF5252) else Color(0xFF00E676)
-                ),
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Text(
-                    text = if (state.isRecording) "⏹ DETENER Y RECORTAR" else "⏺ GRABAR AUDIO / VOZ (CON TEMPO)",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
+                AudioTrimmer.trim(
+                    srcPath = fileToTrim.absolutePath,
+                    dstPath = trimmedFile.absolutePath,
+                    startMs = startSec * 1000L,
+                    endMs = endSec * 1000L
                 )
+
+                fileToTrim.delete()
+                trimmedFile.renameTo(fileToTrim)
+
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(pendingTrimFile = null) }
+                    onFinished(true)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    onFinished(false)
+                }
             }
         }
+    }
 
-        // --- DIÁLOGO DE RECORTAR TOMA (TRIMMING AUTOMÁTICO) ---
-        if (state.pendingTrimFile != null) {
-            AlertDialog(
-                onDismissRequest = { viewModel.dismissTrim() },
-                containerColor = Color(0xFF1E1E2C),
-                title = { Text("✂️ Recortar Silencios de la Toma", color = Color(0xFFFFD700), fontSize = 15.sp) },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(text = "Define el rango de segundos para conservar tu toma limpia:", color = Color.LightGray, fontSize = 12.sp)
-                        
-                        OutlinedTextField(
-                            value = startSecStr,
-                            onValueChange = { startSecStr = it },
-                            label = { Text("Segundo de Inicio", color = Color.LightGray) },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFF2B2B3D),
-                                unfocusedContainerColor = Color(0xFF2B2B3D),
-                                focusedBorderColor = Color(0xFFFFD700),
-                                unfocusedBorderColor = Color(0xFF3B3B4F),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
-                            )
-                        )
+    fun dismissTrim() {
+        _uiState.update { it.copy(pendingTrimFile = null) }
+    }
 
-                        OutlinedTextField(
-                            value = endSecStr,
-                            onValueChange = { endSecStr = it },
-                            label = { Text("Segundo de Fin", color = Color.LightGray) },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFF2B2B3D),
-                                unfocusedContainerColor = Color(0xFF2B2B3D),
-                                focusedBorderColor = Color(0xFFFFD700),
-                                unfocusedBorderColor = Color(0xFF3B3B4F),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
-                            )
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        val start = startSecStr.toIntOrNull() ?: 0
-                        val end = endSecStr.toIntOrNull() ?: 10
-                        viewModel.applyTrimToPending(start, end) { success ->
-                            if (success) {
-                                Toast.makeText(context, "✅ Toma recortada y guardada en Biblioteca", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, "❌ Error al recortar los tiempos", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }) {
-                        Text("Aplicar Recorte", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { viewModel.dismissTrim() }) {
-                        Text("Omitir", color = Color.LightGray)
-                    }
-                }
-            )
+    private fun rawToWav(rawFile: File, wavFile: File, sampleRate: Int, channels: Int, bitRate: Int) {
+        val rawData = ByteArray(rawFile.length().toInt())
+        FileInputStream(rawFile).use { it.read(rawData) }
+
+        FileOutputStream(wavFile).use { fos ->
+            val totalDataLen = rawData.size + 36
+            val byteRate = sampleRate * channels * (bitRate / 8)
+
+            fos.write("RIFF".toByteArray())
+            fos.write(intToByteArray(totalDataLen), 0, 4)
+            fos.write("WAVE".toByteArray())
+            fos.write("fmt ".toByteArray())
+            fos.write(intToByteArray(16), 0, 4)
+            fos.write(shortToByteArray(1), 0, 2)
+            fos.write(shortToByteArray(channels.toShort()), 0, 2)
+            fos.write(intToByteArray(sampleRate), 0, 4)
+            fos.write(intToByteArray(byteRate), 0, 4)
+            fos.write(shortToByteArray((channels * (bitRate / 8)).toShort()), 0, 2)
+            fos.write(shortToByteArray(bitRate.toShort()), 0, 2)
+            fos.write("data".toByteArray())
+            fos.write(intToByteArray(rawData.size), 0, 4)
+            fos.write(rawData)
         }
+    }
+
+    private fun intToByteArray(value: Int): ByteArray {
+        return ByteArray(4) { (value shr (it * 8)).toByte() }
+    }
+
+    private fun shortToByteArray(value: Short): ByteArray {
+        return ByteArray(2) { (value.toInt() shr (it * 8)).toByte() }
     }
 }
