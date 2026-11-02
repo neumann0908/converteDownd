@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.GraphicEq // 🎙️ Ícono de ond
 import androidx.compose.material.icons.filled.Tune // 🎹 Ícono de controles/secuenciador para el Sequencer Engine (Motor 3)
 import androidx.compose.material.icons.filled.Piano // 🎹 Ícono de piano para el Synth Studio (Motor 5)
 import androidx.compose.material.icons.filled.Mic // 🎙️ Ícono de micrófono para el Recording Engine (Motor 8)
+import androidx.compose.material.icons.filled.Timeline // 📈 Ícono de línea de tiempo para el Automation Engine (Motor 9)
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -63,6 +64,10 @@ import com.musicdownloader.converter.beatstudio.presentation.synth.SynthViewMode
 import com.musicdownloader.converter.beatstudio.presentation.recording.RecordingScreen
 import com.musicdownloader.converter.beatstudio.presentation.recording.RecordingViewModel
 
+// 📈 Importaciones del Motor 9: Automation Engine (Automatización)
+import com.musicdownloader.converter.beatstudio.presentation.automation.AutomationScreen
+import com.musicdownloader.converter.beatstudio.presentation.automation.AutomationViewModel
+
 sealed class Screen(val route: String, val title: String, val icon: @Composable () -> Unit) {
     object Download : Screen("download", "Descargar", { Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(20.dp)) })
     object Library : Screen("library", "Biblioteca", { Icon(Icons.Default.LibraryMusic, contentDescription = null, modifier = Modifier.size(20.dp)) })
@@ -84,6 +89,9 @@ sealed class Screen(val route: String, val title: String, val icon: @Composable 
 
     // 🎙️ Motor 8: Recording Engine (Estudio de grabación y tomas)
     object RecordingStudio : Screen("recording_studio", "Record", { Icon(Icons.Default.Mic, contentDescription = null, modifier = Modifier.size(20.dp)) })
+
+    // 📈 Motor 9: Automation Engine (Curvas de automatización)
+    object AutomationStudio : Screen("automation_studio", "Automation", { Icon(Icons.Default.Timeline, contentDescription = null, modifier = Modifier.size(20.dp)) })
 }
 
 @Composable
@@ -105,7 +113,8 @@ fun MainScreen(
         Screen.SamplerStudio,
         Screen.SequencerStudio,
         Screen.SynthStudio,
-        Screen.RecordingStudio
+        Screen.RecordingStudio,
+        Screen.AutomationStudio
     )
 
     Scaffold(
@@ -233,6 +242,12 @@ fun MainScreen(
             composable(Screen.RecordingStudio.route) {
                 val recordingViewModel: RecordingViewModel = hiltViewModel()
                 RecordingScreen(viewModel = recordingViewModel)
+            }
+
+            // 📈 Motor 9: Automation Engine (Estudio de automatización de parámetros)
+            composable(Screen.AutomationStudio.route) {
+                val automationViewModel: AutomationViewModel = hiltViewModel()
+                AutomationScreen(viewModel = automationViewModel)
             }
         }
     }
