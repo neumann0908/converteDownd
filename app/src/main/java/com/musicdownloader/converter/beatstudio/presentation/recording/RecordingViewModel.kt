@@ -66,7 +66,8 @@ class RecordingViewModel @Inject constructor(
     }
 
     fun startRecordingSession(title: String) {
-        if (!_uiState.value.isArmRecordOn) return
+        // Forzamos el armado automáticamente para que responda al primer toque sin bloqueos de UI
+        _uiState.update { it.copy(isArmRecordOn = true) }
 
         val cacheDir = context.cacheDir
         rawAudioFile = File(cacheDir, "raw_recording_${System.currentTimeMillis()}.pcm")
@@ -74,7 +75,6 @@ class RecordingViewModel @Inject constructor(
         rawAudioFile?.let { file ->
             _uiState.update { it.copy(isRecording = true) }
             
-            // Si el metrónomo no estaba activo al grabar, lo iniciamos opcionalmente o aseguramos el pulso
             if (!_uiState.value.isMetronomeOn) {
                 toggleMetronome(true)
             }
@@ -94,12 +94,14 @@ class RecordingViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             rawAudioFile?.let { raw ->
                 if (raw.exists()) {
-                    // Directorio oficial de la biblioteca / archivos de la app
-                    val recordingsDir = File(context.recordingsDir, "recordings")
-                    if (!recordingsDir.exists()) recordingsDir.mkdirs()
+                    // Directorio oficial de exports escaneado por LibraryViewModel
+                    val exportDir = File(context.filesDir, "exports")
+                    if (!exportDir.exists()) {
+                        exportDir.mkdirs()
+                    }
 
                     val fileName = "${customTitle}_${System.currentTimeMillis()}.wav"
-                    wavOutputFile = File(recordingsDir, fileName)
+                    wavOutputFile = File(exportDir, fileName)
 
                     // Convertimos el PCM crudo a un archivo .wav válido para la biblioteca
                     wavOutputFile?.let { wav ->
