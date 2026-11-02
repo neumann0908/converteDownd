@@ -1,0 +1,50 @@
+package com.musicdownloader.converter.beatstudio.presentation.automation
+
+// Los parámetros que podemos automatizar según tu referencia
+enum class AutomationParameterType {
+    VOLUME,      // Volumen
+    PAN,         // Panorama (izq/der)
+    CUTOFF,      // Filtro de corte
+    REVERB,      // Eco / Reverb
+    DELAY,       // Retardo
+    PITCH        // Tono
+}
+
+// Un punto clave en el tiempo donde tocamos la perilla virtual
+data class AutomationPoint(
+    val timeMs: Long,
+    val value: Float // Un valor limpio de 0.0 (mínimo) a 1.0 (máximo)
+)
+
+// La línea de tiempo completa para un parámetro (ej. la línea de volumen)
+data class AutomationLane(
+    val parameter: AutomationParameterType,
+    val points: MutableList<AutomationPoint> = mutableListOf()
+) {
+    // Función matemática que calcula mágicamente el valor exacto en cualquier milisegundo
+    fun getValueAtTime(timeMs: Long): Float {
+        if (points.isEmpty()) return getDefaultValue(parameter)
+        if (timeMs <= points.first().timeMs) return points.first().value
+        if (timeMs >= points.last().timeMs) return points.last().value
+
+        val nextIndex = points.indexOfFirst { it.timeMs >= timeMs }
+        if (nextIndex <= 0) return points.first().value
+        val prev = points[nextIndex - 1]
+        val next = points[nextIndex]
+
+        // Interpolación lineal (crear una rampa suave entre punto y punto)
+        val progress = (timeMs - prev.timeMs).toFloat() / (next.timeMs - prev.timeMs).toFloat()
+        return prev.value + (next.value - prev.value) * progress
+    }
+
+    private fun getDefaultValue(param: AutomationParameterType): Float {
+        return when (param) {
+            AutomationParameterType.VOLUME -> 0.8f
+            AutomationParameterType.PAN -> 0.5f
+            AutomationParameterType.CUTOFF -> 1.0f
+            AutomationParameterType.REVERB -> 0.0f
+            AutomationParameterType.DELAY -> 0.0f
+            AutomationParameterType.PITCH -> 0.5f
+        }
+    }
+}
