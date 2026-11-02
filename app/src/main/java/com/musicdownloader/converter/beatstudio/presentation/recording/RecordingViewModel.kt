@@ -3,6 +3,7 @@ package com.musicdownloader.converter.beatstudio.presentation.recording
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.musicdownloader.converter.util.AudioTrimmer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -23,7 +24,8 @@ data class RecordingUiState(
     val currentBpm: Int = 120,
     val currentBeat: Int = 1,
     val currentMeterLevel: Float = 0.0f,
-    val recordedTakesCount: Int = 0
+    val recordedTakesCount: Int = 0,
+    val pendingTrimFile: File? = null // Archivo listo para recortar opcionalmente
 )
 
 @HiltViewModel
@@ -67,7 +69,7 @@ class RecordingViewModel @Inject constructor(
 
     fun startRecordingSession(title: String) {
         // Forzamos el armado automáticamente para que responda al primer toque sin bloqueos de UI
-        _uiState.update { it.copy(isArmRecordOn = true) }
+        _uiState.update { it.copy(isArmRecordOn = true, pendingTrimFile = null) }
 
         val cacheDir = context.cacheDir
         rawAudioFile = File(cacheDir, "raw_recording_${System.currentTimeMillis()}.pcm")
@@ -110,20 +112,63 @@ class RecordingViewModel @Inject constructor(
 
                     // Limpiamos el archivo temporal en crudo
                     raw.delete()
-                }
-            }
 
-            viewModelScope.launch {
-                _uiState.update { 
-                    it.copy(
-                        isRecording = false,
-                        isMetronomeOn = false,
-                        currentMeterLevel = 0.0f,
-                        recordedTakesCount = it.recordedTakesCount + 1
-                    ) 
+                    // Exponemos el archivo recién creado para permitir un recorte opcional inmediato
+                    withContext(Dispatchers.Main) {
+                        _uiState.update { 
+                            it.copy(
+                                isRecording = false,
+                                isMetronomeOn = false,
+                                currentMeterLevel = 0.0f,
+                                recordedTakesCount = it.recordedTakesCount + 1,
+                                pendingTrimFile = wavOutputFile
+                            ) 
+                        }
+                    }
                 }
             }
         }
+    }
+
+    // --- FUNCIÓN DE RECORTAR TOMA (TRIMMING) ---
+    fun applyTrimToPending(startSec: Int, endSec: Int, onFinished: (Boolean) -> Unit) {
+        val fileToTrim = _uiState.value.pendingTrimFile ?: return
+        if (startSec >= endSec) {
+            onFinished(false)
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val parentDir = fileToTrim.parentFile ?: File(context.filesDir, "exports")
+                val trimmedFile = File(parentDir, "Trimmed_${fileToTrim.name}")
+
+                AudioTrimmer.trim(
+                    srcPath = fileToTrim.absolutePath,
+                    dstPath = trimmedFile.absolutePath,
+                    startMs = startSec * 1000L,
+                    endMs = endSec * 1000L
+                )
+
+                // Reemplazamos el archivo original por la versión recortada
+                fileToTrim.delete()
+                trimmedFile.renameTo(fileToTrim)
+
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(pendingTrimFile = null) }
+                    onFinished(true)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    onFinished(false)
+                }
+            }
+        }
+    }
+
+    fun dismissTrim() {
+        _uiState.update { it.copy(pendingTrimFile = null) }
     }
 
     // Método utilitario para empaquetar PCM crudo en cabeceras WAV estándar
