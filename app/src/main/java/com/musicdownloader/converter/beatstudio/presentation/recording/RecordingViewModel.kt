@@ -17,6 +17,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import javax.inject.Inject
+import kotlin.math.abs
 
 data class RecordingUiState(
     val isRecording: Boolean = false,
@@ -27,7 +28,8 @@ data class RecordingUiState(
     val currentBeat: Int = 1,
     val currentMeterLevel: Float = 0.0f,
     val recordedTakesCount: Int = 0,
-    val pendingTrimFile: File? = null
+    val pendingTrimFile: File? = null,
+    val waveformPeaks: List<Float> = emptyList() // <--- Picos reales de la onda
 )
 
 @HiltViewModel
@@ -70,8 +72,9 @@ class RecordingViewModel @Inject constructor(
         }
     }
 
-    fun startRecordingSession(title: String) {
-        _uiState.update { it.copy(isArmRecordOn = true, pendingTrimFile = null) }
+    // --- INICIAR SESIÓN CON O SIN TEMPO ---
+    fun startRecordingSession(title: String, useTempo: Boolean) {
+        _uiState.update { it.copy(isArmRecordOn = true, pendingTrimFile = null, waveformPeaks = emptyList()) }
 
         val cacheDir = context.cacheDir
         rawAudioFile = File(cacheDir, "raw_recording_${System.currentTimeMillis()}.pcm")
@@ -79,8 +82,10 @@ class RecordingViewModel @Inject constructor(
         rawAudioFile?.let { file ->
             _uiState.update { it.copy(isRecording = true) }
             
-            if (!_uiState.value.isMetronomeOn) {
+            if (useTempo) {
                 toggleMetronome(true)
+            } else {
+                toggleMetronome(false)
             }
 
             RecordingEngineCore.startRecording(file) { rms ->
@@ -112,6 +117,9 @@ class RecordingViewModel @Inject constructor(
 
                     raw.delete()
 
+                    // Extraer picos reales de audio para el visor DAW
+                    val peaks = wavOutputFile?.let { extractWaveformPeaks(it, 48) } ?: emptyList()
+
                     withContext(Dispatchers.Main) {
                         _uiState.update { 
                             it.copy(
@@ -119,13 +127,59 @@ class RecordingViewModel @Inject constructor(
                                 isMetronomeOn = false,
                                 currentMeterLevel = 0.0f,
                                 recordedTakesCount = it.recordedTakesCount + 1,
-                                pendingTrimFile = wavOutputFile
+                                pendingTrimFile = wavOutputFile,
+                                waveformPeaks = peaks
                             ) 
                         }
                     }
                 }
             }
         }
+    }
+
+    // --- EXTRACCIÓN DE PICOS PCM PARA ONDA DINÁMICA ---
+    private fun extractWaveformPeaks(wavFile: File, barCount: Int): List<Float> {
+        val peaks = mutableListOf<Float>()
+        try {
+            FileInputStream(wavFile).use { fis ->
+                val header = ByteArray(44)
+                fis.read(header)
+
+                val availableBytes = fis.available()
+                val buffer = ByteArray(availableBytes)
+                val bytesRead = fis.read(buffer)
+
+                if (bytesRead <= 0) return List(barCount) { 0.2f }
+
+                val totalSamples = bytesRead / 2
+                if (totalSamples <= 0) return List(barCount) { 0.2f }
+
+                val samplesPerBar = totalSamples / barCount
+                if (samplesPerBar <= 0) return List(barCount) { 0.2f }
+
+                for (i in 0 until barCount) {
+                    var maxVal = 0f
+                    val startSample = i * samplesPerBar
+                    val endSample = minOf(startSample + samplesPerBar, totalSamples)
+
+                    for (s in startSample until endSample) {
+                        val byteIndex = s * 2
+                        if (byteIndex + 1 < buffer.size) {
+                            val low = buffer[byteIndex].toInt() and 0xFF
+                            val high = buffer[byteIndex + 1].toInt()
+                            val sample = (high shl 8) or low
+                            val absVal = abs(sample.toFloat()) / 32768f
+                            if (absVal > maxVal) maxVal = absVal
+                        }
+                    }
+                    peaks.add(maxVal.coerceIn(0.15f, 1.0f))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return List(barCount) { 0.3f }
+        }
+        return if (peaks.isEmpty()) List(barCount) { 0.3f } else peaks
     }
 
     // --- FUNCIÓN DE RECORTAR TOMA (TRIMMING) ---
@@ -152,7 +206,7 @@ class RecordingViewModel @Inject constructor(
                 trimmedFile.renameTo(fileToTrim)
 
                 withContext(Dispatchers.Main) {
-                    _uiState.update { it.copy(pendingTrimFile = null) }
+                    _uiState.update { it.copy(pendingTrimFile = null, waveformPeaks = emptyList()) }
                     onFinished(true)
                 }
             } catch (e: Exception) {
@@ -165,7 +219,7 @@ class RecordingViewModel @Inject constructor(
     }
 
     fun dismissTrim() {
-        _uiState.update { it.copy(pendingTrimFile = null) }
+        _uiState.update { it.copy(pendingTrimFile = null, waveformPeaks = emptyList()) }
     }
 
     private fun rawToWav(rawFile: File, wavFile: File, sampleRate: Int, channels: Int, bitRate: Int) {
