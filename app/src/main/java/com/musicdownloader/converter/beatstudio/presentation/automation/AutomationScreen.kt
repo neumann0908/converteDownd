@@ -2,7 +2,6 @@ package com.musicdownloader.converter.beatstudio.presentation.automation
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -12,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -50,30 +48,34 @@ fun AutomationScreen(
                 }
             }
 
-            // --- SELECTOR DESLIZANTE DE PARÁMETROS PROFESIONALES ---
+            // --- SELECTOR DESLIZANTE DE PARÁMETROS PROFESIONALES (CON SURFACE CLICKABLE) ---
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                items(AutomationParameterType.values()) { param ->
+                items(AutomationParameterType.entries) { param ->
                     val isSelected = state.selectedParameter == param
                     val backgroundColor = if (isSelected) Color(0xFFFFD700) else Color(0xFF1E1E2C)
                     val textColor = if (isSelected) Color.Black else Color.White
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(backgroundColor)
-                            .clickable { viewModel.selectParameter(param) }
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
+                    // Usamos Surface con onClick para garantizar una respuesta táctil perfecta y nativa
+                    Surface(
+                        onClick = { viewModel.selectParameter(param) },
+                        shape = RoundedCornerShape(8.dp),
+                        color = backgroundColor,
+                        modifier = Modifier.wrapContentWidth()
                     ) {
-                        Text(
-                            text = param.displayName,
-                            color = textColor,
-                            fontSize = 11.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                        )
+                        Box(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = param.displayName,
+                                color = textColor,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
                     }
                 }
             }
