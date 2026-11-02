@@ -1,13 +1,16 @@
 package com.musicdownloader.converter.beatstudio.presentation.automation
 
-// Los parámetros que podemos automatizar según tu referencia
-enum class AutomationParameterType {
-    VOLUME,      // Volumen
-    PAN,         // Panorama (izq/der)
-    CUTOFF,      // Filtro de corte
-    REVERB,      // Eco / Reverb
-    DELAY,       // Retardo
-    PITCH        // Tono
+// Todos los parámetros profesionales con su respectivo displayName para la interfaz
+enum class AutomationParameterType(val displayName: String) {
+    VOLUME("Volumen"),
+    PAN("Panorama"),
+    CUTOFF("Filtro Corte"),
+    RESONANCE("Resonancia"),
+    REVERB("Reverb"),
+    DELAY("Delay"),
+    PITCH("Pitch"),
+    SYNTH("Sintetizador"),
+    EFFECTS("Efectos")
 }
 
 // Un punto clave en el tiempo donde tocamos la perilla virtual
@@ -42,9 +45,12 @@ data class AutomationLane(
             AutomationParameterType.VOLUME -> 0.8f
             AutomationParameterType.PAN -> 0.5f
             AutomationParameterType.CUTOFF -> 1.0f
+            AutomationParameterType.RESONANCE -> 0.5f
             AutomationParameterType.REVERB -> 0.0f
             AutomationParameterType.DELAY -> 0.0f
             AutomationParameterType.PITCH -> 0.5f
+            AutomationParameterType.SYNTH -> 0.5f
+            AutomationParameterType.EFFECTS -> 0.0f
         }
     }
 }
