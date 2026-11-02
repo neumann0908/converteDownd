@@ -3,6 +3,7 @@ package com.musicdownloader.converter.beatstudio.presentation.recording
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.musicdownloader.converter.player.AudioPlayerManager
 import com.musicdownloader.converter.util.AudioTrimmer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -31,7 +32,8 @@ data class RecordingUiState(
 
 @HiltViewModel
 class RecordingViewModel @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    val playerManager: AudioPlayerManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RecordingUiState())
@@ -136,6 +138,11 @@ class RecordingViewModel @Inject constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                // Aseguramos detener el reproductor antes de modificar el archivo en disco
+                try {
+                    playerManager.stop()
+                } catch (_: Exception) {}
+
                 val parentDir = fileToTrim.parentFile ?: File(context.filesDir, "exports")
                 val trimmedFile = File(parentDir, "Trimmed_${fileToTrim.name}")
 
@@ -163,6 +170,9 @@ class RecordingViewModel @Inject constructor(
     }
 
     fun dismissTrim() {
+        try {
+            playerManager.stop()
+        } catch (_: Exception) {}
         _uiState.update { it.copy(pendingTrimFile = null) }
     }
 
