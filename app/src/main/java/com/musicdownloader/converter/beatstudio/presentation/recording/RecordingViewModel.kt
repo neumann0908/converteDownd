@@ -32,7 +32,10 @@ data class RecordingUiState(
     val waveformPeaks: List<Float> = emptyList(), // Picos reales de la onda
     // --- ESTADOS PARA EL MÓDULO DE COMPING ---
     val isCompingOpen: Boolean = false,
-    val availableTakes: List<File> = emptyList()
+    val availableTakes: List<File> = emptyList(),
+    // --- ESTADOS PARA IMPORTACIÓN MULTI-TRACK (PUNTO 3) ---
+    val isImportOpen: Boolean = false,
+    val importableTakes: List<File> = emptyList()
 )
 
 @HiltViewModel
@@ -219,6 +222,50 @@ class RecordingViewModel @Inject constructor(
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) { onFinished(false, null) }
+            }
+        }
+    }
+
+    // --- MÉTODOS PARA EL MÓDULO DE IMPORTACIÓN A PISTAS (PUNTO 3) ---
+    fun openImportStudio() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val exportDir = File(context.filesDir, "exports")
+            val takes = if (exportDir.exists()) {
+                exportDir.listFiles { _, name -> name.endsWith(".wav") }?.sortedByDescending { it.lastModified() } ?: emptyList()
+            } else {
+                emptyList()
+            }
+
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(isImportOpen = true, importableTakes = takes) }
+            }
+        }
+    }
+
+    fun closeImportStudio() {
+        _uiState.update { it.copy(isImportOpen = false) }
+    }
+
+    fun importTakeToTracks(takeFile: File, onFinished: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val sequencerDir = File(context.filesDir, "sequencer_tracks")
+                if (!sequencerDir.exists()) {
+                    sequencerDir.mkdirs()
+                }
+
+                val destinationFile = File(sequencerDir, "Track_${takeFile.name}")
+                takeFile.copyTo(destinationFile, overwrite = true)
+
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(isImportOpen = false) }
+                    onFinished(true)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    onFinished(false)
+                }
             }
         }
     }
