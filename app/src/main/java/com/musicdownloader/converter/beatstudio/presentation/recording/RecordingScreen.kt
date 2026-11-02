@@ -26,6 +26,9 @@ fun RecordingScreen(
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
 
+    var startSecStr by remember { mutableStateOf("0") }
+    var endSecStr by remember { mutableStateOf("10") }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -37,169 +40,237 @@ fun RecordingScreen(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF13131A))
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // --- CABEZAL DEL MOTOR 8 ---
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(text = "MOTOR 8: RECORDING ENGINE", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                Text(text = "Entrada: Micrófono Estéreo | Tomas: ${state.recordedTakesCount}", color = Color.White, fontSize = 12.sp)
+            // --- CABEZAL DEL MOTOR 8 ---
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(text = "MOTOR 8: RECORDING ENGINE", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Entrada: Micrófono Estéreo | Tomas: ${state.recordedTakesCount}", color = Color.White, fontSize = 12.sp)
+                }
             }
-        }
 
-        // --- CONTROL DE TEMPO Y METRONOMO ---
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
-            shape = RoundedCornerShape(10.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(text = "TEMPO: ${state.currentBpm} BPM", color = Color(0xFFFFD700), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text(text = "Pulso Compás: Beat ${state.currentBeat}/4", color = Color.LightGray, fontSize = 10.sp)
+            // --- CONTROL DE TEMPO Y METRONOMO ---
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(text = "TEMPO: ${state.currentBpm} BPM", color = Color(0xFFFFD700), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Pulso Compás: Beat ${state.currentBeat}/4", color = Color.LightGray, fontSize = 10.sp)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "Metrónomo", color = Color.White, fontSize = 11.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Switch(
+                                checked = state.isMetronomeOn,
+                                onCheckedChange = { viewModel.toggleMetronome(it) }
+                            )
+                        }
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "Metrónomo", color = Color.White, fontSize = 11.sp)
-                        Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    // Control deslizante para ajustar los BPM en vivo
+                    Slider(
+                        value = state.currentBpm.toFloat(),
+                        onValueChange = { viewModel.updateBpm(it.toInt()) },
+                        valueRange = 40f..240f,
+                        steps = 199,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFFFFD700),
+                            activeTrackColor = Color(0xFFFFD700)
+                        )
+                    )
+                }
+            }
+
+            // --- ESPECTRÓGRAFO / VÚMETRO NEÓN ESTILO DAW ---
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth().height(120.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(10.dp).fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = "ESPECTRO NEÓN & VU METER", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Barras de frecuencias simuladas con efecto neón basadas en el RMS actual
+                    Row(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        val barCount = 12
+                        for (i in 0 until barCount) {
+                            val dynamicFactor = if (state.isRecording || state.isMetronomeOn) {
+                                ((sin((i + System.currentTimeMillis() * 0.01) * 0.5) + 1.0) * 0.5).toFloat()
+                            } else 0.05f
+                            
+                            val barHeightFraction = (state.currentMeterLevel * 1.5f + dynamicFactor * 0.6f).coerceIn(0.1f, 1.0f)
+                            
+                            val barColor = when {
+                                i > 9 -> Color(0xFFFF5252) // Rojo pico
+                                i > 6 -> Color(0xFFFFEB3B) // Amarillo medio
+                                else -> Color(0xFF00E676)  // Verde seguro / Cian neón
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .width(14.dp)
+                                    .fillMaxHeight(barHeightFraction)
+                                    .background(barColor, shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(text = "Nivel RMS: ${(state.currentMeterLevel * 100).toInt()}%", color = Color.Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            // --- INTERRUPTORES DE MONITOREO Y ARMADO ---
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "MONITOR LIVE", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
                         Switch(
-                            checked = state.isMetronomeOn,
-                            onCheckedChange = { viewModel.toggleMetronome(it) }
+                            checked = state.isMonitorLiveOn,
+                            onCheckedChange = { viewModel.toggleMonitorLive(it) }
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                // Control deslizante para ajustar los BPM en vivo
-                Slider(
-                    value = state.currentBpm.toFloat(),
-                    onValueChange = { viewModel.updateBpm(it.toInt()) },
-                    valueRange = 40f..240f,
-                    steps = 199,
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color(0xFFFFD700),
-                        activeTrackColor = Color(0xFFFFD700)
-                    )
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "ARM RECORD", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Switch(
+                            checked = state.isArmRecordOn,
+                            onCheckedChange = { viewModel.toggleArmRecord(it) }
+                        )
+                    }
+                }
+            }
+
+            // --- BOTÓN PRINCIPAL DE GRABACIÓN ---
+            Button(
+                onClick = {
+                    if (!state.isRecording) {
+                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    } else {
+                        viewModel.stopRecordingSession()
+                        Toast.makeText(context, "⏹ Grabación finalizada. Ajusta el recorte si lo deseas.", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (state.isRecording) Color(0xFFFF5252) else Color(0xFF00E676)
+                ),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text(
+                    text = if (state.isRecording) "⏹ DETENER Y RECORTAR" else "⏺ GRABAR AUDIO / VOZ (CON TEMPO)",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
                 )
             }
         }
 
-        // --- ESPECTRÓGRAFO / VÚMETRO NEÓN ESTILO DAW ---
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
-            shape = RoundedCornerShape(10.dp),
-            modifier = Modifier.fillMaxWidth().height(120.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(10.dp).fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(text = "ESPECTRO NEÓN & VU METER", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Barras de frecuencias simuladas con efecto neón basadas en el RMS actual
-                Row(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    val barCount = 12
-                    for (i in 0 until barCount) {
-                        // Generar alturas dinámicas basadas en el nivel de entrada y un seno armónico
-                        val dynamicFactor = if (state.isRecording || state.isMetronomeOn) {
-                            ((sin((i + System.currentTimeMillis() * 0.01) * 0.5) + 1.0) * 0.5).toFloat()
-                        } else 0.05f
+        // --- DIÁLOGO DE RECORTAR TOMA (TRIMMING AUTOMÁTICO) ---
+        if (state.pendingTrimFile != null) {
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissTrim() },
+                containerColor = Color(0xFF1E1E2C),
+                title = { Text("✂️ Recortar Silencios de la Toma", color = Color(0xFFFFD700), fontSize = 15.sp) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(text = "Define el rango de segundos para conservar tu toma limpia:", color = Color.LightGray, fontSize = 12.sp)
                         
-                        val barHeightFraction = (state.currentMeterLevel * 1.5f + dynamicFactor * 0.6f).coerceIn(0.1f, 1.0f)
-                        
-                        val barColor = when {
-                            i > 9 -> Color(0xFFFF5252) // Rojo pico
-                            i > 6 -> Color(0xFFFFEB3B) // Amarillo medio
-                            else -> Color(0xFF00E676)  // Verde seguro / Cian neón
-                        }
+                        OutlinedTextField(
+                            value = startSecStr,
+                            onValueChange = { startSecStr = it },
+                            label = { Text("Segundo de Inicio", color = Color.LightGray) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF2B2B3D),
+                                unfocusedContainerColor = Color(0xFF2B2B3D),
+                                focusedBorderColor = Color(0xFFFFD700),
+                                unfocusedBorderColor = Color(0xFF3B3B4F),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            )
+                        )
 
-                        Box(
-                            modifier = Modifier
-                                .width(14.dp)
-                                .fillMaxHeight(barHeightFraction)
-                                .background(barColor, shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                        OutlinedTextField(
+                            value = endSecStr,
+                            onValueChange = { endSecStr = it },
+                            label = { Text("Segundo de Fin", color = Color.LightGray) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF2B2B3D),
+                                unfocusedContainerColor = Color(0xFF2B2B3D),
+                                focusedBorderColor = Color(0xFFFFD700),
+                                unfocusedBorderColor = Color(0xFF3B3B4F),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            )
                         )
                     }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val start = startSecStr.toIntOrNull() ?: 0
+                        val end = endSecStr.toIntOrNull() ?: 10
+                        viewModel.applyTrimToPending(start, end) { success ->
+                            if (success) {
+                                Toast.makeText(context, "✅ Toma recortada y guardada en Biblioteca", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "❌ Error al recortar los tiempos", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }) {
+                        Text("Aplicar Recorte", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissTrim() }) {
+                        Text("Omitir", color = Color.LightGray)
+                    }
                 }
-
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(text = "Nivel RMS: ${(state.currentMeterLevel * 100).toInt()}%", color = Color.Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-
-        // --- INTERRUPTORES DE MONITOREO Y ARMADO ---
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
-                modifier = Modifier.weight(1f)
-            ) {
-                Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "MONITOR LIVE", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Switch(
-                        checked = state.isMonitorLiveOn,
-                        onCheckedChange = { viewModel.toggleMonitorLive(it) }
-                    )
-                }
-            }
-
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
-                modifier = Modifier.weight(1f)
-            ) {
-                Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "ARM RECORD", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Switch(
-                        checked = state.isArmRecordOn,
-                        onCheckedChange = { viewModel.toggleArmRecord(it) }
-                    )
-                }
-            }
-        }
-
-        // --- BOTÓN PRINCIPAL DE GRABACIÓN ---
-        Button(
-            onClick = {
-                if (!state.isRecording) {
-                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                } else {
-                    viewModel.stopRecordingSession()
-                    Toast.makeText(context, "⏹ Grabación finalizada y guardada en Biblioteca", Toast.LENGTH_SHORT).show()
-                }
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (state.isRecording) Color(0xFFFF5252) else Color(0xFF00E676)
-            ),
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            shape = RoundedCornerShape(10.dp)
-        ) {
-            Text(
-                text = if (state.isRecording) "⏹ DETENER GRABACIÓN" else "⏺ GRABAR AUDIO / VOZ (CON TEMPO)",
-                color = Color.Black,
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp
             )
         }
     }
