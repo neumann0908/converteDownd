@@ -138,11 +138,6 @@ class RecordingViewModel @Inject constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Aseguramos detener el reproductor antes de modificar el archivo en disco
-                try {
-                    playerManager.stop()
-                } catch (_: Exception) {}
-
                 val parentDir = fileToTrim.parentFile ?: File(context.filesDir, "exports")
                 val trimmedFile = File(parentDir, "Trimmed_${fileToTrim.name}")
 
@@ -170,9 +165,6 @@ class RecordingViewModel @Inject constructor(
     }
 
     fun dismissTrim() {
-        try {
-            playerManager.stop()
-        } catch (_: Exception) {}
         _uiState.update { it.copy(pendingTrimFile = null) }
     }
 
