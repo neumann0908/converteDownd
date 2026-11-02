@@ -9,8 +9,12 @@ import javax.inject.Inject
 
 data class AutomationUiState(
     val selectedParameter: AutomationParameterType = AutomationParameterType.VOLUME,
-    val currentLane: AutomationLane = AutomationLane(AutomationParameterType.VOLUME)
-)
+    // Mantenemos un mapa con los carriles de cada parámetro para no perder las curvas al cambiar de pestaña
+    val lanesMap: Map<AutomationParameterType, AutomationLane> = AutomationParameterType.values().associateWith { AutomationLane(it) }
+) {
+    val currentLane: AutomationLane
+        get() = lanesMap[selectedParameter] ?: AutomationLane(selectedParameter)
+}
 
 @HiltViewModel
 class AutomationViewModel @Inject constructor() : ViewModel() {
@@ -18,28 +22,38 @@ class AutomationViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow(AutomationUiState())
     val uiState = _uiState.asStateFlow()
 
-    // Cambiar entre Volumen, Reverb, Filtro, etc.
+    // Cambiar entre Volumen, Reverb, Filtro, etc., preservando sus puntos respectivos
     fun selectParameter(parameter: AutomationParameterType) {
-        _uiState.update { it.copy(selectedParameter = parameter, currentLane = AutomationLane(parameter)) }
+        _uiState.update { it.copy(selectedParameter = parameter) }
     }
 
-    // Agregar o mover un punto de automatización tocando la pantalla
+    // Agregar o mover un punto de automatización tocando la pantalla en el parámetro activo
     fun addOrUpdatePoint(timeMs: Long, value: Float) {
         _uiState.update { state ->
-            val lane = state.currentLane
+            val updatedMap = state.lanesMap.toMutableMap()
+            val currentLane = updatedMap[state.selectedParameter] ?: AutomationLane(state.selectedParameter)
+            
             // Si hay un punto muy cerca, lo quitamos para poner el nuevo
-            lane.points.removeAll { kotlin.math.abs(it.timeMs - timeMs) < 200L }
-            lane.points.add(AutomationPoint(timeMs, value.coerceIn(0f, 1f)))
-            lane.points.sortBy { it.timeMs }
-            state.copy(currentLane = lane)
+            currentLane.points.removeAll { kotlin.math.abs(it.timeMs - timeMs) < 200L }
+            currentLane.points.add(AutomationPoint(timeMs, value.coerceIn(0f, 1f)))
+            currentLane.points.sortBy { it.timeMs }
+            
+            updatedMap[state.selectedParameter] = currentLane
+            state.copy(lanesMap = updatedMap)
         }
     }
 
-    // Borrar toda la curva
+    // Borrar toda la curva del parámetro seleccionado actualmente
     fun clearPoints() {
         _uiState.update { state ->
-            state.currentLane.points.clear()
-            state.copy(currentLane = state.currentLane)
+            val updatedMap = state.lanesMap.toMutableMap()
+            val currentLane = updatedMap[state.selectedParameter]
+            currentLane?.points?.clear()
+            
+            if (currentLane != null) {
+                updatedMap[state.selectedParameter] = currentLane
+            }
+            state.copy(lanesMap = updatedMap)
         }
     }
 }
