@@ -6,7 +6,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlin.math.sin
 import kotlinx.coroutines.delay
+import java.io.File
 
 @Composable
 fun RecordingScreen(
@@ -188,44 +192,46 @@ fun RecordingScreen(
                 }
             }
 
-            // --- BOTONES DUALES DE GRABACIÓN (CON Y SIN TEMPO) ---
+            // --- BOTONES DUALES DE GRABACIÓN & ACCESO A COMPING ---
             if (!state.isRecording) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            pendingUseTempo = true
-                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        shape = RoundedCornerShape(10.dp)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = "⏺ GRABAR CON TEMPO",
-                            color = Color.Black,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp
-                        )
+                        Button(
+                            onClick = {
+                                pendingUseTempo = true
+                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
+                            modifier = Modifier.weight(1f).height(44.dp),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(text = "⏺ CON TEMPO", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                pendingUseTempo = false
+                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700)),
+                            modifier = Modifier.weight(1f).height(44.dp),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(text = "⏺ SIN TEMPO", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        }
                     }
 
+                    // Botón para desplegar el estudio de comping de tomas
                     Button(
-                        onClick = {
-                            pendingUseTempo = false
-                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700)),
-                        modifier = Modifier.weight(1f).height(48.dp),
+                        onClick = { viewModel.openCompingStudio() },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2B2B3D)),
+                        modifier = Modifier.fillMaxWidth().height(42.dp),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text(
-                            text = "⏺ GRABAR SIN TEMPO",
-                            color = Color.Black,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp
-                        )
+                        Text(text = "🎚️ ABRIR ESTUDIO COMPING (FUSIONAR TOMAS)", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold, fontSize = 11.sp)
                     }
                 }
             } else {
@@ -238,17 +244,88 @@ fun RecordingScreen(
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text(
-                        text = "⏹ DETENER Y ABRIR DAW",
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
+                    Text(text = "⏹ DETENER Y ABRIR DAW", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             }
         }
 
-        // --- DIÁLOGO DAW DE RECORTAR TOMA (ESTILO PRO TOOLS CON PLAYHEAD) ---
+        // --- DIÁLOGO 1: ESTUDIO DE COMPING (FUSIÓN DE TOMAS) ---
+        if (state.isCompingOpen) {
+            val selectedFiles = remember { mutableStateListOf<File>() }
+
+            AlertDialog(
+                onDismissRequest = { viewModel.closeCompingStudio() },
+                containerColor = Color(0xFF1E1E2C),
+                title = { Text(text = "🎚️ ESTUDIO DAW: COMPING DE TOMAS", color = Color(0xFFFFD700), fontSize = 13.sp, fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().height(260.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(text = "Selecciona las tomas que deseas apilar y fusionar en una pista maestra:", color = Color.LightGray, fontSize = 11.sp)
+                        
+                        if (state.availableTakes.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(text = "No hay tomas grabadas aún.", color = Color.Gray, fontSize = 12.sp)
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(state.availableTakes) { file ->
+                                    val isSelected = selectedFiles.contains(file)
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFF2B3B3D) else Color(0xFF13131A)),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                if (isSelected) selectedFiles.remove(file) else selectedFiles.add(file)
+                                            },
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(10.dp).fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(text = file.name, color = if (isSelected) Color(0xFFFFD700) else Color.White, fontSize = 11.sp, maxLines = 1)
+                                            Checkbox(
+                                                checked = isSelected,
+                                                onCheckedChange = { checked ->
+                                                    if (checked) selectedFiles.add(file) else selectedFiles.remove(file)
+                                                },
+                                                colors = CheckboxDefaults.colors(checkedColor = Color(0xFFFFD700))
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.executeCompingFusion(selectedFiles) { success, _ ->
+                            if (success) {
+                                Toast.makeText(context, "✅ ¡Comping completado! Pista maestra guardada.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "❌ Selecciona al menos una toma válida", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }) {
+                        Text("Fusionar en Pista Maestra", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.closeCompingStudio() }) {
+                        Text("Cancelar", color = Color.LightGray)
+                    }
+                }
+            )
+        }
+
+        // --- DIÁLOGO 2: ESTUDIO DAW DE RECORTAR TOMA (TRIMMING CON PLAYHEAD) ---
         if (state.pendingTrimFile != null) {
             val file = state.pendingTrimFile!!
             val totalDurationSec = 30
@@ -357,7 +434,7 @@ fun RecordingScreen(
                                 // --- LÍNEA DE REPRODUCCIÓN (PLAYHEAD) ANIMADA ---
                                 if (isPlayingPreview) {
                                     val startRatio = startSecVal / totalDurationSec
-                                    val endRatio = endSecVal / totalDurationSec
+                                    val endRatio = endSecStr.toFloatOrNull()?.div(totalDurationSec) ?: 1f
                                     val currentPlayheadRatio = startRatio + (endRatio - startRatio) * playbackProgress
                                     val playheadX = canvasWidth * currentPlayheadRatio
 
