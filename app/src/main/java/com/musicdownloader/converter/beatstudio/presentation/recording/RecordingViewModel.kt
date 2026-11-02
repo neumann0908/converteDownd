@@ -29,7 +29,10 @@ data class RecordingUiState(
     val currentMeterLevel: Float = 0.0f,
     val recordedTakesCount: Int = 0,
     val pendingTrimFile: File? = null,
-    val waveformPeaks: List<Float> = emptyList() // <--- Picos reales de la onda
+    val waveformPeaks: List<Float> = emptyList(), // Picos reales de la onda
+    // --- ESTADOS PARA EL MÓDULO DE COMPING ---
+    val isCompingOpen: Boolean = false,
+    val availableTakes: List<File> = emptyList()
 )
 
 @HiltViewModel
@@ -133,6 +136,89 @@ class RecordingViewModel @Inject constructor(
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // --- MÉTODOS PARA EL MÓDULO DE COMPING ---
+    fun openCompingStudio() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val exportDir = File(context.filesDir, "exports")
+            val takes = if (exportDir.exists()) {
+                exportDir.listFiles { _, name -> name.endsWith(".wav") }?.sortedByDescending { it.lastModified() } ?: emptyList()
+            } else {
+                emptyList()
+            }
+
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(isCompingOpen = true, availableTakes = takes) }
+            }
+        }
+    }
+
+    fun closeCompingStudio() {
+        _uiState.update { it.copy(isCompingOpen = false) }
+    }
+
+    fun executeCompingFusion(selectedTakes: List<File>, onFinished: (Boolean, File?) -> Unit) {
+        if (selectedTakes.isEmpty()) {
+            onFinished(false, null)
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val exportDir = File(context.filesDir, "exports")
+                if (!exportDir.exists()) exportDir.mkdirs()
+
+                val masterCompFile = File(exportDir, "Master_Comp_${System.currentTimeMillis()}.wav")
+                
+                // Fusionar datos PCM omitiendo cabeceras WAV estándar de 44 bytes
+                val combinedPcm = mutableListOf<Byte>()
+                for (file in selectedTakes) {
+                    if (file.exists()) {
+                        val bytes = file.readBytes()
+                        if (bytes.size > 44) {
+                            combinedPcm.addAll(bytes.drop(44))
+                        }
+                    }
+                }
+
+                if (combinedPcm.isNotEmpty()) {
+                    val pcmArray = combinedPcm.toByteArray()
+                    FileOutputStream(masterCompFile).use { fos ->
+                        val sampleRate = 44100
+                        val channels = 2
+                        val bitRate = 16
+                        val totalDataLen = pcmArray.size + 36
+                        val byteRate = sampleRate * channels * (bitRate / 8)
+
+                        fos.write("RIFF".toByteArray())
+                        fos.write(intToByteArray(totalDataLen), 0, 4)
+                        fos.write("WAVE".toByteArray())
+                        fos.write("fmt ".toByteArray())
+                        fos.write(intToByteArray(16), 0, 4)
+                        fos.write(shortToByteArray(1), 0, 2)
+                        fos.write(shortToByteArray(channels.toShort()), 0, 2)
+                        fos.write(intToByteArray(sampleRate), 0, 4)
+                        fos.write(intToByteArray(byteRate), 0, 4)
+                        fos.write(shortToByteArray((channels * (bitRate / 8)).toShort()), 0, 2)
+                        fos.write(shortToByteArray(bitRate.toShort()), 0, 2)
+                        fos.write("data".toByteArray())
+                        fos.write(intToByteArray(pcmArray.size), 0, 4)
+                        fos.write(pcmArray)
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        _uiState.update { it.copy(isCompingOpen = false, recordedTakesCount = it.recordedTakesCount + 1) }
+                        onFinished(true, masterCompFile)
+                    }
+                } else {
+                    withContext(Dispatchers.Main) { onFinished(false, null) }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) { onFinished(false, null) }
             }
         }
     }
