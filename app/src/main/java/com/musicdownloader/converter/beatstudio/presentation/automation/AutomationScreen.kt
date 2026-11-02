@@ -2,12 +2,17 @@ package com.musicdownloader.converter.beatstudio.presentation.automation
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -27,11 +32,11 @@ fun AutomationScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF13131A))
-            .padding(16.dp)
+            .padding(12.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // --- CABEZAL DEL MOTOR 9 ---
             Card(
@@ -41,23 +46,35 @@ fun AutomationScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(text = "MOTOR 9: AUTOMATION ENGINE", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Editando parámetro: ${state.selectedParameter.name}", color = Color.White, fontSize = 12.sp)
+                    Text(text = "Editando parámetro: ${state.selectedParameter.displayName}", color = Color.White, fontSize = 12.sp)
                 }
             }
 
-            // --- BOTONES PARA ELEGIR QUÉ QUEREMOS AUTOMATIZAR ---
-            Row(
+            // --- SELECTOR DESLIZANTE DE PARÁMETROS PROFESIONALES ---
+            LazyRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Button(onClick = { viewModel.selectParameter(AutomationParameterType.VOLUME) }) {
-                    Text("Volumen", fontSize = 10.sp)
-                }
-                Button(onClick = { viewModel.selectParameter(AutomationParameterType.REVERB) }) {
-                    Text("Reverb", fontSize = 10.sp)
-                }
-                Button(onClick = { viewModel.selectParameter(AutomationParameterType.CUTOFF) }) {
-                    Text("Filtro", fontSize = 10.sp)
+                items(AutomationParameterType.values()) { param ->
+                    val isSelected = state.selectedParameter == param
+                    val backgroundColor = if (isSelected) Color(0xFFFFD700) else Color(0xFF1E1E2C)
+                    val textColor = if (isSelected) Color.Black else Color.White
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(backgroundColor)
+                            .clickable { viewModel.selectParameter(param) }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = param.displayName,
+                            color = textColor,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
                 }
             }
 
@@ -67,13 +84,13 @@ fun AutomationScreen(
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(240.dp)
+                    .height(260.dp)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(8.dp)
-                        .pointerInput(Unit) {
+                        .pointerInput(state.selectedParameter) {
                             detectTapGestures { offset ->
                                 // Convertimos el toque de tu dedo en un tiempo (ms) y un valor (0 a 1)
                                 val timeMs = (offset.x / size.width) * totalDurationMs
@@ -86,13 +103,24 @@ fun AutomationScreen(
                         val width = size.width
                         val height = size.height
 
-                        // Dibujar líneas de cuadrícula para que luzca como un DAW real
+                        // Dibujar líneas de cuadrícula horizontal para que luzca como un DAW real
                         for (i in 0..4) {
                             val y = (height / 4) * i
                             drawLine(
                                 color = Color(0xFF3B3B4F),
                                 start = Offset(0f, y),
                                 end = Offset(width, y),
+                                strokeWidth = 1f
+                            )
+                        }
+
+                        // Dibujar líneas de cuadrícula vertical
+                        for (j in 0..6) {
+                            val x = (width / 6) * j
+                            drawLine(
+                                color = Color(0xFF3B3B4F),
+                                start = Offset(x, 0f),
+                                end = Offset(x, height),
                                 strokeWidth = 1f
                             )
                         }
@@ -123,7 +151,7 @@ fun AutomationScreen(
                                 val y = (1f - p.value) * height
                                 drawCircle(
                                     color = Color.Cyan,
-                                    radius = 7f,
+                                    radius = 8f,
                                     center = Offset(x, y)
                                 )
                             }
@@ -139,7 +167,7 @@ fun AutomationScreen(
                 modifier = Modifier.fillMaxWidth().height(42.dp),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text(text = "🗑️ Borrar Línea de Automatización", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text(text = "🗑️ Borrar Curva de Automatización", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
         }
     }
