@@ -1,8 +1,9 @@
-package com.musicdownloader.converter.beatstudio.presentation.synth
+package com.musicdownloader.converter.beatstudio.presentation.recording
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.musicdownloader.converter.util.AudioTrimmer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -12,338 +13,189 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import javax.inject.Inject
 
-/**
- * Evento individual de nota para el secuenciador y grabación de melodías.
- */
-data class NoteEvent(
-    val frequency: Float,
-    val startTimestampMs: Long,
-    val durationMs: Long,
-    val volume: Float
+data class RecordingUiState(
+    val isRecording: Boolean = false,
+    val isMonitorLiveOn: Boolean = false,
+    val isArmRecordOn: Boolean = true,
+    val isMetronomeOn: Boolean = false,
+    val currentBpm: Int = 120,
+    val currentBeat: Int = 1,
+    val currentMeterLevel: Float = 0.0f,
+    val recordedTakesCount: Int = 0,
+    val pendingTrimFile: File? = null
 )
 
-/**
- * Estructura de preset segura sin conflictos de corchetes angulares.
- */
-data class SynthPreset(
-    val name: String,
-    val patch: SynthPatch
-)
-
-class SynthPresetList : ArrayList<SynthPreset>()
-
-/**
- * Proyecto musical completo de Synth Studio (Parche + Secuencia de Melodía).
- */
-data class SynthProject(
-    val id: String = java.util.UUID.randomUUID().toString(),
-    val title: String,
-    val creationDate: Long = System.currentTimeMillis(),
-    val patch: SynthPatch,
-    val notes: List<NoteEvent>
-)
-
-/**
- * Estado visual del Synth Studio.
- */
-data class SynthUiState(
-    val currentPatch: SynthPatch = SynthPatch(
-        instrumentType = SynthInstrumentType.SYNTH_808
-    ),
-    val masterVolume: Float = 1.0f,
-    val pan: Float = 0.0f
-)
-
-/**
- * ViewModel principal del Synth Studio.
- */
 @HiltViewModel
-class SynthViewModel @Inject constructor(
+class RecordingViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(SynthUiState())
+    private val _uiState = MutableStateFlow(RecordingUiState())
     val uiState = _uiState.asStateFlow()
 
-    private var lastFrequency: Float = 440.0f
+    private var rawAudioFile: File? = null
+    private var wavOutputFile: File? = null
 
-    fun selectInstrument(instrumentType: SynthInstrumentType) {
-        _uiState.update { state ->
-            state.copy(
-                currentPatch = state.currentPatch.copy(
-                    instrumentType = instrumentType,
-                    waveform = instrumentType.defaultWaveform
-                )
-            )
-        }
+    fun toggleMonitorLive(enabled: Boolean) {
+        _uiState.update { it.copy(isMonitorLiveOn = enabled) }
     }
 
-    fun updateWaveform(waveform: WaveformType) {
-        _uiState.update { state ->
-            state.copy(
-                currentPatch = state.currentPatch.copy(
-                    waveform = waveform
-                )
-            )
-        }
+    fun toggleArmRecord(enabled: Boolean) {
+        _uiState.update { it.copy(isArmRecordOn = enabled) }
     }
 
-    fun updateCutoff(cutoff: Float) {
-        val safeCutoff = if (cutoff.isFinite()) cutoff.coerceIn(20f, 20000f) else 5000f
-        _uiState.update { state ->
-            state.copy(
-                currentPatch = state.currentPatch.copy(
-                    cutoffFreq = safeCutoff
-                )
-            )
-        }
+    // --- Control de BPM y Metrónomo ---
+    fun updateBpm(newBpm: Int) {
+        val clampedBpm = newBpm.coerceIn(40, 240)
+        RecordingEngineCore.currentBpm = clampedBpm
+        _uiState.update { it.copy(currentBpm = clampedBpm) }
     }
 
-    fun updateResonance(resonance: Float) {
-        val safeResonance = if (resonance.isFinite()) resonance.coerceIn(0.1f, 10f) else 0.707f
-        _uiState.update { state ->
-            state.copy(
-                currentPatch = state.currentPatch.copy(
-                    resonance = safeResonance
-                )
-            )
-        }
-    }
-
-    fun updateAdsr(
-        attack: Float,
-        decay: Float,
-        sustain: Float,
-        release: Float
-    ) {
-        val safeAttack = if (attack.isFinite()) attack.coerceIn(0f, 10000f) else 15f
-        val safeDecay = if (decay.isFinite()) decay.coerceIn(0f, 10000f) else 200f
-        val safeSustain = if (sustain.isFinite()) sustain.coerceIn(0f, 1f) else 0.7f
-        val safeRelease = if (release.isFinite()) release.coerceIn(0f, 10000f) else 300f
-
-        val newAdsr = ADSRState(
-            attackMs = safeAttack,
-            decayMs = safeDecay,
-            sustainLevel = safeSustain,
-            releaseMs = safeRelease
-        )
-
-        _uiState.update { state ->
-            state.copy(
-                currentPatch = state.currentPatch.copy(
-                    adsr = newAdsr
-                )
-            )
-        }
-    }
-
-    fun updateLfo(rateHz: Float, depth: Float) {
-        val safeRate = if (rateHz.isFinite()) rateHz.coerceIn(0.1f, 20.0f) else 2.0f
-        val safeDepth = if (depth.isFinite()) depth.coerceIn(0.0f, 1.0f) else 0.3f
-
-        _uiState.update { state ->
-            state.copy(
-                currentPatch = state.currentPatch.copy(
-                    lfo = state.currentPatch.lfo.copy(
-                        rateHz = safeRate,
-                        depth = safeDepth
-                    )
-                )
-            )
-        }
-    }
-
-    fun updateLfoDestination(destination: ModulationDestination) {
-        _uiState.update { state ->
-            state.copy(
-                currentPatch = state.currentPatch.copy(
-                    lfo = state.currentPatch.lfo.copy(
-                        destination = destination
-                    )
-                )
-            )
-        }
-    }
-
-    fun updatePortamento(portamentoMs: Float) {
-        val safePortamento = if (portamentoMs.isFinite()) portamentoMs.coerceIn(0f, 1000f) else 0f
-        _uiState.update { state ->
-            state.copy(
-                currentPatch = state.currentPatch.copy(
-                    portamentoMs = safePortamento
-                )
-            )
-        }
-    }
-
-    fun updateUnison(voices: Int) {
-        val safeVoices = voices.coerceIn(1, 5)
-        _uiState.update { state ->
-            state.copy(
-                currentPatch = state.currentPatch.copy(
-                    unisonVoices = safeVoices
-                )
-            )
-        }
-    }
-
-    fun updateDetune(detune: Float) {
-        val safeDetune = if (detune.isFinite()) detune.coerceIn(0.0f, 1.0f) else 0.0f
-        _uiState.update { state ->
-            state.copy(
-                currentPatch = state.currentPatch.copy(
-                    detuneAmount = safeDetune
-                )
-            )
-        }
-    }
-
-    fun updateFX(reverbMix: Float, delayMix: Float, distortionDrive: Float) {
-        val safeReverb = if (reverbMix.isFinite()) reverbMix.coerceIn(0.0f, 1.0f) else 0.0f
-        val safeDelay = if (delayMix.isFinite()) delayMix.coerceIn(0.0f, 1.0f) else 0.0f
-        val safeDistortion = if (distortionDrive.isFinite()) distortionDrive.coerceIn(0.0f, 1.0f) else 0.0f
-
-        _uiState.update { state ->
-            state.copy(
-                currentPatch = state.currentPatch.copy(
-                    fx = FXState(
-                        reverbMix = safeReverb,
-                        delayMix = safeDelay,
-                        distortionDrive = safeDistortion
-                    )
-                )
-            )
-        }
-    }
-
-    fun updateMasterVolume(volume: Float) {
-        val safeVolume = if (volume.isFinite()) volume.coerceIn(0f, 1f) else 1.0f
-        _uiState.update { state ->
-            state.copy(masterVolume = safeVolume)
-        }
-    }
-
-    fun updatePan(pan: Float) {
-        val safePan = if (pan.isFinite()) pan.coerceIn(-1f, 1f) else 0f
-        _uiState.update { state ->
-            state.copy(pan = safePan)
-        }
-    }
-
-    // -------------------------------------------------
-    // SISTEMA DE PRESETS Y EXPORTACIÓN A BIBLIOTECA
-    // -------------------------------------------------
-
-    private val _savedPresets = MutableStateFlow(SynthPresetList())
-    val savedPresets = _savedPresets.asStateFlow()
-
-    private val _currentPresetName = MutableStateFlow("Default Patch")
-    val currentPresetName = _currentPresetName.asStateFlow()
-
-    private val recordedNotes = mutableListOf<NoteEvent>()
-    private var recordingStartTime = 0L
-    private var isRecordingActive = false
-
-    fun saveCurrentPreset(name: String) {
-        if (name.isBlank()) return
-        val patchToSave = _uiState.value.currentPatch
-        val currentList = _savedPresets.value
-        val newList = SynthPresetList().apply {
-            addAll(currentList.filter { it.name != name })
-            add(SynthPreset(name, patchToSave))
-        }
-        _savedPresets.value = newList
-        _currentPresetName.value = name
-    }
-
-    fun loadPreset(name: String) {
-        val preset = _savedPresets.value.find { it.name == name } ?: return
-        _uiState.update { state ->
-            state.copy(currentPatch = preset.patch)
-        }
-        _currentPresetName.value = name
-    }
-
-    fun startRecordingMelody() {
-        recordedNotes.clear()
-        recordingStartTime = System.currentTimeMillis()
-        isRecordingActive = true
-    }
-
-    fun stopRecordingMelody(): List<NoteEvent> {
-        isRecordingActive = false
-        return recordedNotes.toList()
-    }
-
-    fun saveMelodyToLibrary(title: String, onComplete: (Boolean) -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val cleanTitle = title.ifBlank { "Synth_Melodia_${System.currentTimeMillis()}" }
-                val exportDir = File(context.filesDir, "exports")
-                if (!exportDir.exists()) {
-                    exportDir.mkdirs()
+    fun toggleMetronome(enabled: Boolean) {
+        _uiState.update { it.copy(isMetronomeOn = enabled) }
+        if (enabled) {
+            RecordingEngineCore.startMetronome { beat ->
+                viewModelScope.launch {
+                    _uiState.update { it.copy(currentBeat = beat) }
                 }
+            }
+        } else {
+            RecordingEngineCore.stopMetronome()
+        }
+    }
 
-                val wavFile = File(exportDir, "$cleanTitle.wav")
-                val patch = _uiState.value.currentPatch
-                val volume = _uiState.value.masterVolume
-                val pan = _uiState.value.pan
+    fun startRecordingSession(title: String) {
+        _uiState.update { it.copy(isArmRecordOn = true, pendingTrimFile = null) }
 
-                // Exportación secuenciada nota por nota basada en la grabación real
-                SynthEngineCore.exportSynthMelodyToWav(
-                    outputFile = wavFile,
-                    notes = recordedNotes.toList(),
-                    patch = patch,
-                    volume = volume,
-                    pan = pan
-                )
+        val cacheDir = context.cacheDir
+        rawAudioFile = File(cacheDir, "raw_recording_${System.currentTimeMillis()}.pcm")
 
-                withContext(Dispatchers.Main) {
-                    onComplete(true)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    onComplete(false)
+        rawAudioFile?.let { file ->
+            _uiState.update { it.copy(isRecording = true) }
+            
+            if (!_uiState.value.isMetronomeOn) {
+                toggleMetronome(true)
+            }
+
+            RecordingEngineCore.startRecording(file) { rms ->
+                viewModelScope.launch {
+                    _uiState.update { it.copy(currentMeterLevel = rms) }
                 }
             }
         }
     }
 
-    fun playTestNote(frequency: Float) {
-        val state = _uiState.value
-        if (!frequency.isFinite() || frequency <= 0f) return
+    fun stopRecordingSession(customTitle: String = "Toma_Voz") {
+        RecordingEngineCore.stopRecording()
+        RecordingEngineCore.stopMetronome()
 
-        val safeFrequency = frequency.coerceIn(20f, 20000f)
-        val patch = state.currentPatch
-        val volume = state.masterVolume
-        val currentPan = state.pan
+        viewModelScope.launch(Dispatchers.IO) {
+            rawAudioFile?.let { raw ->
+                if (raw.exists()) {
+                    val exportDir = File(context.filesDir, "exports")
+                    if (!exportDir.exists()) {
+                        exportDir.mkdirs()
+                    }
 
-        if (isRecordingActive) {
-            val timestamp = System.currentTimeMillis() - recordingStartTime
-            recordedNotes.add(
-                NoteEvent(
-                    frequency = safeFrequency,
-                    startTimestampMs = timestamp,
-                    durationMs = 600L,
-                    volume = volume
-                )
-            )
+                    val fileName = "${customTitle}_${System.currentTimeMillis()}.wav"
+                    wavOutputFile = File(exportDir, fileName)
+
+                    wavOutputFile?.let { wav ->
+                        rawToWav(raw, wav, 44100, 2, 16)
+                    }
+
+                    raw.delete()
+
+                    withContext(Dispatchers.Main) {
+                        _uiState.update { 
+                            it.copy(
+                                isRecording = false,
+                                isMetronomeOn = false,
+                                currentMeterLevel = 0.0f,
+                                recordedTakesCount = it.recordedTakesCount + 1,
+                                pendingTrimFile = wavOutputFile
+                            ) 
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // --- FUNCIÓN DE RECORTAR TOMA (TRIMMING) ---
+    fun applyTrimToPending(startSec: Int, endSec: Int, onFinished: (Boolean) -> Unit) {
+        val fileToTrim = _uiState.value.pendingTrimFile ?: return
+        if (startSec >= endSec) {
+            onFinished(false)
+            return
         }
 
-        val startFreq = if (patch.portamentoMs > 0f) lastFrequency else safeFrequency
-        lastFrequency = safeFrequency
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val parentDir = fileToTrim.parentFile ?: File(context.filesDir, "exports")
+                val trimmedFile = File(parentDir, "Trimmed_${fileToTrim.name}")
 
-        SynthEngineCore.playTone(
-            frequency = safeFrequency,
-            startFrequency = startFreq,
-            portamentoMs = patch.portamentoMs,
-            durationMs = 600L,
-            patch = patch,
-            volume = volume,
-            pan = currentPan
-        )
+                AudioTrimmer.trim(
+                    srcPath = fileToTrim.absolutePath,
+                    dstPath = trimmedFile.absolutePath,
+                    startMs = startSec * 1000L,
+                    endMs = endSec * 1000L
+                )
+
+                fileToTrim.delete()
+                trimmedFile.renameTo(fileToTrim)
+
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(pendingTrimFile = null) }
+                    onFinished(true)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    onFinished(false)
+                }
+            }
+        }
+    }
+
+    fun dismissTrim() {
+        _uiState.update { it.copy(pendingTrimFile = null) }
+    }
+
+    private fun rawToWav(rawFile: File, wavFile: File, sampleRate: Int, channels: Int, bitRate: Int) {
+        val rawData = ByteArray(rawFile.length().toInt())
+        FileInputStream(rawFile).use { it.read(rawData) }
+
+        FileOutputStream(wavFile).use { fos ->
+            val totalDataLen = rawData.size + 36
+            val byteRate = sampleRate * channels * (bitRate / 8)
+
+            fos.write("RIFF".toByteArray())
+            fos.write(intToByteArray(totalDataLen), 0, 4)
+            fos.write("WAVE".toByteArray())
+            fos.write("fmt ".toByteArray())
+            fos.write(intToByteArray(16), 0, 4)
+            fos.write(shortToByteArray(1), 0, 2)
+            fos.write(shortToByteArray(channels.toShort()), 0, 2)
+            fos.write(intToByteArray(sampleRate), 0, 4)
+            fos.write(intToByteArray(byteRate), 0, 4)
+            fos.write(shortToByteArray((channels * (bitRate / 8)).toShort()), 0, 2)
+            fos.write(shortToByteArray(bitRate.toShort()), 0, 2)
+            fos.write("data".toByteArray())
+            fos.write(intToByteArray(rawData.size), 0, 4)
+            fos.write(rawData)
+        }
+    }
+
+    private fun intToByteArray(value: Int): ByteArray {
+        return ByteArray(4) { (value shr (it * 8)).toByte() }
+    }
+
+    private fun shortToByteArray(value: Short): ByteArray {
+        return ByteArray(2) { (value.toInt() shr (it * 8)).toByte() }
     }
 }
