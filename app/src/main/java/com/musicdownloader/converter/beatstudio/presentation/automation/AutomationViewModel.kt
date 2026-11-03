@@ -26,13 +26,18 @@ class AutomationViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AutomationUiState())
     val uiState = _uiState.asStateFlow()
 
-    // Cambiar de parámetro activo y recalcular instantáneamente el valor de la curva en la posición actual
+    // Cambiar de parámetro activo y aplicar instantáneamente su valor actual al reproductor
     fun selectParameter(parameter: AutomationParameterType) {
         _uiState.update { state ->
             val lane = state.lanesMap[parameter] ?: AutomationLane(parameter)
+            val value = lane.getValueAtTime(state.playbackTimeMs)
+            
+            // Aplicar de inmediato al motor de audio al cambiar de carril
+            playerManager.applyAutomation(parameter, value)
+
             state.copy(
                 selectedParameter = parameter,
-                currentAutomationValue = lane.getValueAtTime(state.playbackTimeMs)
+                currentAutomationValue = value
             )
         }
     }
@@ -49,9 +54,14 @@ class AutomationViewModel @Inject constructor(
             val newLane = currentLane.copy(points = newPoints.toMutableList())
             updatedMap[state.selectedParameter] = newLane
             
+            val calculatedValue = newLane.getValueAtTime(state.playbackTimeMs)
+            
+            // Aplicar inmediatamente al reproductor al modificar la curva
+            playerManager.applyAutomation(state.selectedParameter, calculatedValue)
+
             state.copy(
                 lanesMap = updatedMap,
-                currentAutomationValue = newLane.getValueAtTime(state.playbackTimeMs)
+                currentAutomationValue = calculatedValue
             )
         }
     }
@@ -65,17 +75,25 @@ class AutomationViewModel @Inject constructor(
             val clearedLane = currentLane.copy(points = mutableListOf())
             updatedMap[state.selectedParameter] = clearedLane
             
+            val calculatedValue = clearedLane.getValueAtTime(state.playbackTimeMs)
+            playerManager.applyAutomation(state.selectedParameter, calculatedValue)
+
             state.copy(
                 lanesMap = updatedMap,
-                currentAutomationValue = clearedLane.getValueAtTime(state.playbackTimeMs)
+                currentAutomationValue = calculatedValue
             )
         }
     }
 
-    // Sincronizar la posición del reproductor en tiempo real y actualizar el valor del DSP
+    // Sincronizar la posición del reproductor en tiempo real y enviar el valor DSP al AudioPlayerManager
     fun updatePlaybackPosition(timeMs: Long) {
         _uiState.update { state ->
             val value = state.currentLane.getValueAtTime(timeMs)
+            
+            // --- CONEXIÓN QUIRÚRGICA CRUCIAL ---
+            // Envía el valor interpolado de la curva (Volumen, Pitch, Reverb, etc.) al reproductor en tiempo real
+            playerManager.applyAutomation(state.selectedParameter, value)
+
             state.copy(
                 playbackTimeMs = timeMs,
                 currentAutomationValue = value
