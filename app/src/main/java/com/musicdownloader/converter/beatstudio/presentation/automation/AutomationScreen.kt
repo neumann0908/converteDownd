@@ -18,13 +18,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun AutomationScreen(
     viewModel: AutomationViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    val totalDurationMs = 15000L // Duración total de la pista (15 segundos)
+    
+    // Obtenemos la duración real directamente del reproductor, con respaldo de 15s si está vacía
+    val playerDuration by viewModel.playerManager.duration.collectAsState()
+    val totalDurationMs = if (playerDuration > 0L) playerDuration else 15000L
+
+    // Sincronización en tiempo real con el AudioPlayerManager
+    LaunchedEffect(Unit) {
+        while (true) {
+            try {
+                val currentPos = viewModel.playerManager.currentPosition.value
+                viewModel.updatePlaybackPosition(currentPos)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            delay(50L) // Actualización fluida a ~20 FPS para el movimiento del Playhead y DSP
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -44,7 +61,7 @@ fun AutomationScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(text = "MOTOR 9: AUTOMATION ENGINE", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Editando parámetro: ${state.selectedParameter.displayName}", color = Color.White, fontSize = 12.sp)
+                    Text(text = "Editando parámetro: ${state.selectedParameter.displayName} (Valor actual: ${String.format("%.2f", state.currentAutomationValue)})", color = Color.White, fontSize = 12.sp)
                 }
             }
 
@@ -98,7 +115,7 @@ fun AutomationScreen(
 
                                 if (canvasWidth > 0f && canvasHeight > 0f) {
                                     val timeMs = (offset.x / canvasWidth) * totalDurationMs
-                                    val value = 1f - (offset.y / canvasHeight) // Invertir eje Y para que arriba sea 1.0 y abajo 0.0
+                                    val value = 1f - (offset.y / canvasHeight)
                                     viewModel.addOrUpdatePoint(timeMs.toLong(), value.coerceIn(0f, 1f))
                                 }
                             }
@@ -108,7 +125,7 @@ fun AutomationScreen(
                         val width = size.width
                         val height = size.height
 
-                        // Dibujar líneas de cuadrícula horizontal para estilo DAW real
+                        // Cuadrícula horizontal
                         for (i in 0..4) {
                             val y = (height / 4) * i
                             drawLine(
@@ -119,7 +136,7 @@ fun AutomationScreen(
                             )
                         }
 
-                        // Dibujar líneas de cuadrícula vertical
+                        // Cuadrícula vertical
                         for (j in 0..6) {
                             val x = (width / 6) * j
                             drawLine(
@@ -130,7 +147,7 @@ fun AutomationScreen(
                             )
                         }
 
-                        // Dibujar las líneas de la curva que unen los puntos del carril actual
+                        // Curvas y puntos del carril actual
                         val points = state.currentLane.points
                         if (points.isNotEmpty()) {
                             for (i in 0 until points.size - 1) {
@@ -143,14 +160,13 @@ fun AutomationScreen(
                                 val y2 = (1f - p2.value) * height
 
                                 drawLine(
-                                    color = Color(0xFFFFD700), // Línea dorada brillante de automatización
+                                    color = Color(0xFFFFD700),
                                     start = Offset(x1, y1),
                                     end = Offset(x2, y2),
                                     strokeWidth = 3f
                                 )
                             }
 
-                            // Dibujar puntitos celestes en cada nodo interactivo
                             for (p in points) {
                                 val x = (p.timeMs.toFloat() / totalDurationMs) * width
                                 val y = (1f - p.value) * height
@@ -162,13 +178,13 @@ fun AutomationScreen(
                             }
                         }
 
-                        // --- CABEZAL DE REPRODUCCIÓN (PLAYHEAD) ---
+                        // --- CABEZAL DE REPRODUCCIÓN (PLAYHEAD) SINCRONIZADO ---
                         val playheadX = (state.playbackTimeMs.toFloat() / totalDurationMs) * width
                         drawLine(
-                            color = Color.White, // Línea blanca vertical del playhead
+                            color = Color.White,
                             start = Offset(playheadX, 0f),
                             end = Offset(playheadX, height),
-                            strokeWidth = 2f
+                            strokeWidth = 3f
                         )
                     }
                 }
