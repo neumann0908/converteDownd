@@ -18,7 +18,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import kotlinx.coroutines.delay
 
 @Composable
 fun AutomationScreen(
@@ -26,28 +25,23 @@ fun AutomationScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     
-    // Obtenemos la duración real directamente del reproductor, con respaldo de 15s si está vacía
+    // --- SINCRONIZACIÓN REACTIVA CON EL REPRODUCTOR ---
+    val currentPosition by viewModel.playerManager.currentPosition.collectAsState()
     val playerDuration by viewModel.playerManager.duration.collectAsState()
-    val totalDurationMs = if (playerDuration > 0L) playerDuration else 15000L
+    
+    // Duración total real de la pista (si el reproductor la indica, se usa; si no, 3 minutos por defecto para beats)
+    val totalDurationMs = if (playerDuration > 0L) playerDuration else 180000L
 
-    // --- EXTRACCIÓN QUIRÚRGICA FUERA DEL CANVAS PARA FORZAR RECOMPOSICIÓN FLUIDA ---
+    // Actualizamos la posición en tiempo real cada vez que el reproductor emita un cambio
+    LaunchedEffect(currentPosition) {
+        viewModel.updatePlaybackPosition(currentPosition)
+    }
+
+    // Extracción de estado para forzar la recomposición fluida del Canvas
     val playbackTimeMs = state.playbackTimeMs
     val currentLane = state.currentLane
     val selectedParameter = state.selectedParameter
     val currentAutomationValue = state.currentAutomationValue
-
-    // Sincronización en tiempo real con el AudioPlayerManager
-    LaunchedEffect(Unit) {
-        while (true) {
-            try {
-                val currentPos = viewModel.playerManager.currentPosition.value
-                viewModel.updatePlaybackPosition(currentPos)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-            delay(50L) // Actualización fluida a ~20 FPS para el movimiento del Playhead y DSP
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -75,7 +69,7 @@ fun AutomationScreen(
                 }
             }
 
-            // --- SELECTOR DESLIZANTE DE PARÁMETROS PROFESIONALES ---
+            // --- SELECTOR DE PARÁMETROS PROFESIONALES ---
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -106,7 +100,7 @@ fun AutomationScreen(
                 }
             }
 
-            // --- LIENZO TÁCTIL PARA DIBUJAR LAS CURVAS ---
+            // --- LIENZO TÁCTIL Y DE RENDERIZADO ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
                 shape = RoundedCornerShape(10.dp),
@@ -188,7 +182,7 @@ fun AutomationScreen(
                             }
                         }
 
-                        // --- CABEZAL DE REPRODUCCIÓN (PLAYHEAD) DINÁMICO ---
+                        // --- CABEZAL DE REPRODUCCIÓN (PLAYHEAD) ADAPTATIVO ---
                         val playheadX = (playbackTimeMs.toFloat() / totalDurationMs) * width
                         drawLine(
                             color = Color.White,
