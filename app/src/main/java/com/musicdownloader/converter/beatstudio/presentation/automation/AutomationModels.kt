@@ -24,7 +24,7 @@ data class AutomationLane(
     val parameter: AutomationParameterType,
     val points: MutableList<AutomationPoint> = mutableListOf()
 ) {
-    // Función matemática que calcula mágicamente el valor exacto en cualquier milisegundo
+    // Función matemática que calcula el valor exacto en cualquier milisegundo
     fun getValueAtTime(timeMs: Long): Float {
         if (points.isEmpty()) return getDefaultValue(parameter)
         if (timeMs <= points.first().timeMs) return points.first().value
