@@ -30,6 +30,12 @@ fun AutomationScreen(
     val playerDuration by viewModel.playerManager.duration.collectAsState()
     val totalDurationMs = if (playerDuration > 0L) playerDuration else 15000L
 
+    // --- EXTRACCIÓN QUIRÚRGICA FUERA DEL CANVAS PARA FORZAR RECOMPOSICIÓN FLUIDA ---
+    val playbackTimeMs = state.playbackTimeMs
+    val currentLane = state.currentLane
+    val selectedParameter = state.selectedParameter
+    val currentAutomationValue = state.currentAutomationValue
+
     // Sincronización en tiempo real con el AudioPlayerManager
     LaunchedEffect(Unit) {
         while (true) {
@@ -61,7 +67,11 @@ fun AutomationScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(text = "MOTOR 9: AUTOMATION ENGINE", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Editando parámetro: ${state.selectedParameter.displayName} (Valor actual: ${String.format("%.2f", state.currentAutomationValue)})", color = Color.White, fontSize = 12.sp)
+                    Text(
+                        text = "Editando parámetro: ${selectedParameter.displayName} (Valor actual: ${String.format("%.2f", currentAutomationValue)})", 
+                        color = Color.White, 
+                        fontSize = 12.sp
+                    )
                 }
             }
 
@@ -71,7 +81,7 @@ fun AutomationScreen(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 items(AutomationParameterType.entries) { param ->
-                    val isSelected = state.selectedParameter == param
+                    val isSelected = selectedParameter == param
                     val backgroundColor = if (isSelected) Color(0xFFFFD700) else Color(0xFF1E1E2C)
                     val textColor = if (isSelected) Color.Black else Color.White
 
@@ -108,7 +118,7 @@ fun AutomationScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(8.dp)
-                        .pointerInput(state.selectedParameter) {
+                        .pointerInput(selectedParameter) {
                             detectTapGestures { offset ->
                                 val canvasWidth = size.width.toFloat()
                                 val canvasHeight = size.height.toFloat()
@@ -148,7 +158,7 @@ fun AutomationScreen(
                         }
 
                         // Curvas y puntos del carril actual
-                        val points = state.currentLane.points
+                        val points = currentLane.points
                         if (points.isNotEmpty()) {
                             for (i in 0 until points.size - 1) {
                                 val p1 = points[i]
@@ -178,8 +188,8 @@ fun AutomationScreen(
                             }
                         }
 
-                        // --- CABEZAL DE REPRODUCCIÓN (PLAYHEAD) SINCRONIZADO ---
-                        val playheadX = (state.playbackTimeMs.toFloat() / totalDurationMs) * width
+                        // --- CABEZAL DE REPRODUCCIÓN (PLAYHEAD) DINÁMICO ---
+                        val playheadX = (playbackTimeMs.toFloat() / totalDurationMs) * width
                         drawLine(
                             color = Color.White,
                             start = Offset(playheadX, 0f),
