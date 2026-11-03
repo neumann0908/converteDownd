@@ -24,7 +24,7 @@ fun AutomationScreen(
     viewModel: AutomationViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    val totalDurationMs = 15000L // Supongamos que nuestra pista dura 15 segundos
+    val totalDurationMs = 15000L // Duración total de la pista (15 segundos)
 
     Box(
         modifier = Modifier
@@ -48,7 +48,7 @@ fun AutomationScreen(
                 }
             }
 
-            // --- SELECTOR DESLIZANTE DE PARÁMETROS PROFESIONALES (CON SURFACE CLICKABLE) ---
+            // --- SELECTOR DESLIZANTE DE PARÁMETROS PROFESIONALES ---
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -58,7 +58,6 @@ fun AutomationScreen(
                     val backgroundColor = if (isSelected) Color(0xFFFFD700) else Color(0xFF1E1E2C)
                     val textColor = if (isSelected) Color.Black else Color.White
 
-                    // Usamos Surface con onClick para garantizar una respuesta táctil perfecta y nativa
                     Surface(
                         onClick = { viewModel.selectParameter(param) },
                         shape = RoundedCornerShape(8.dp),
@@ -94,10 +93,14 @@ fun AutomationScreen(
                         .padding(8.dp)
                         .pointerInput(state.selectedParameter) {
                             detectTapGestures { offset ->
-                                // Convertimos el toque de tu dedo en un tiempo (ms) y un valor (0 a 1)
-                                val timeMs = (offset.x / size.width) * totalDurationMs
-                                val value = 1f - (offset.y / size.height) // Invertimos Y para que arriba sea 1.0
-                                viewModel.addOrUpdatePoint(timeMs.toLong(), value)
+                                val canvasWidth = size.width.toFloat()
+                                val canvasHeight = size.height.toFloat()
+
+                                if (canvasWidth > 0f && canvasHeight > 0f) {
+                                    val timeMs = (offset.x / canvasWidth) * totalDurationMs
+                                    val value = 1f - (offset.y / canvasHeight) // Invertir eje Y para que arriba sea 1.0 y abajo 0.0
+                                    viewModel.addOrUpdatePoint(timeMs.toLong(), value.coerceIn(0f, 1f))
+                                }
                             }
                         }
                 ) {
@@ -105,7 +108,7 @@ fun AutomationScreen(
                         val width = size.width
                         val height = size.height
 
-                        // Dibujar líneas de cuadrícula horizontal para que luzca como un DAW real
+                        // Dibujar líneas de cuadrícula horizontal para estilo DAW real
                         for (i in 0..4) {
                             val y = (height / 4) * i
                             drawLine(
@@ -127,7 +130,7 @@ fun AutomationScreen(
                             )
                         }
 
-                        // Dibujar las líneas de la curva que unen tus puntos
+                        // Dibujar las líneas de la curva que unen los puntos del carril actual
                         val points = state.currentLane.points
                         if (points.isNotEmpty()) {
                             for (i in 0 until points.size - 1) {
@@ -140,14 +143,14 @@ fun AutomationScreen(
                                 val y2 = (1f - p2.value) * height
 
                                 drawLine(
-                                    color = Color(0xFFFFD700), // Línea dorada brillante
+                                    color = Color(0xFFFFD700), // Línea dorada brillante de automatización
                                     start = Offset(x1, y1),
                                     end = Offset(x2, y2),
                                     strokeWidth = 3f
                                 )
                             }
 
-                            // Dibujar puntitos celestes en cada nodo que tocaste
+                            // Dibujar puntitos celestes en cada nodo interactivo
                             for (p in points) {
                                 val x = (p.timeMs.toFloat() / totalDurationMs) * width
                                 val y = (1f - p.value) * height
@@ -174,3 +177,4 @@ fun AutomationScreen(
         }
     }
 }
+
