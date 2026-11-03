@@ -35,6 +35,9 @@ data class AutomationLane(
         val prev = points[nextIndex - 1]
         val next = points[nextIndex]
 
+        // Protección quirúrgica contra división por cero si dos puntos comparten timestamp
+        if (next.timeMs == prev.timeMs) return prev.value
+
         // Interpolación lineal (crear una rampa suave entre punto y punto)
         val progress = (timeMs - prev.timeMs).toFloat() / (next.timeMs - prev.timeMs).toFloat()
         return prev.value + (next.value - prev.value) * progress
