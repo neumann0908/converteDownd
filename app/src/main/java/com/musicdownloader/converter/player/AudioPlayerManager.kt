@@ -14,6 +14,7 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.musicdownloader.converter.R 
+import com.musicdownloader.converter.beatstudio.presentation.automation.AutomationParameterType
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -261,6 +262,47 @@ class AudioPlayerManager @Inject constructor(
                         setupAudioEffects(sessionId)
                         presetReverb?.enabled = newState
                     }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // --- MOTOR 9: APLICACIÓN DE AUTOMATIZACIÓN EN TIEMPO REAL ---
+    fun applyAutomation(parameter: AutomationParameterType, value: Float) {
+        try {
+            when (parameter) {
+                AutomationParameterType.VOLUME -> {
+                    // Modifica el volumen maestro del reproductor en tiempo real (0.0 a 1.0)
+                    exoPlayer?.volume = value.coerceIn(0f, 1f)
+                }
+                AutomationParameterType.PITCH -> {
+                    // Modifica la velocidad/pitch en tiempo real (0.5x a 2.0x)
+                    val speed = 0.5f + (value * 1.5f)
+                    setPlaybackSpeed(speed)
+                }
+                AutomationParameterType.REVERB -> {
+                    // Activa o descarta reverb según el umbral de la curva
+                    val shouldEnable = value > 0.5f
+                    if (shouldEnable != _isReverbEnabled.value) {
+                        toggleReverb()
+                    }
+                }
+                AutomationParameterType.CUTOFF, AutomationParameterType.RESONANCE -> {
+                    // Modulación interactiva sobre el ecualizador gráfico para simulación de filtros
+                    equalizer?.let { eq ->
+                        if (eq.numberOfBands > 0) {
+                            val range = eq.bandLevelRange
+                            val minLevel = range[0]
+                            val maxLevel = range[1]
+                            val targetLevel = (minLevel + (maxLevel - minLevel) * value).toInt().toShort()
+                            eq.setBandLevel(0.toShort(), targetLevel)
+                        }
+                    }
+                }
+                else -> {
+                    // Demás parámetros profesionales (Delay, Synth, Effects, Pan) listos para expansión DSP
                 }
             }
         } catch (e: Exception) {
