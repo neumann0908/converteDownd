@@ -93,9 +93,12 @@ fun AutomationScreen(
                         .padding(8.dp)
                         .pointerInput(state.selectedParameter) {
                             detectTapGestures { offset ->
-                                if (size.width > 0f && size.height > 0f) {
-                                    val timeMs = (offset.x / size.width) * totalDurationMs
-                                    val value = 1f - (offset.y / size.height) // Invertimos Y para que arriba sea 1.0
+                                val canvasWidth = size.width.toFloat()
+                                val canvasHeight = size.height.toFloat()
+                                
+                                if (canvasWidth > 0f && canvasHeight > 0f) {
+                                    val timeMs = (offset.x / canvasWidth) * totalDurationMs
+                                    val value = 1f - (offset.y / canvasHeight) // Invertir eje Y para que arriba sea 1.0 y abajo 0.0
                                     viewModel.addOrUpdatePoint(timeMs.toLong(), value.coerceIn(0f, 1f))
                                 }
                             }
