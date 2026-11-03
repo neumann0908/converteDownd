@@ -161,6 +161,15 @@ fun AutomationScreen(
                                 )
                             }
                         }
+
+                        // --- CABEZAL DE REPRODUCCIÓN (PLAYHEAD) ---
+                        val playheadX = (state.playbackTimeMs.toFloat() / totalDurationMs) * width
+                        drawLine(
+                            color = Color.White, // Línea blanca vertical del playhead
+                            start = Offset(playheadX, 0f),
+                            end = Offset(playheadX, height),
+                            strokeWidth = 2f
+                        )
                     }
                 }
             }
@@ -177,4 +186,3 @@ fun AutomationScreen(
         }
     }
 }
-
