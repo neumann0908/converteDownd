@@ -51,13 +51,12 @@ class AutomationViewModel @Inject constructor(
         }
     }
 
-    // Cambiar de parámetro activo y aplicar instantáneamente su valor actual al reproductor
+    // Cambiar de parámetro activo y aplicar instantáneamente al reproductor
     fun selectParameter(parameter: AutomationParameterType) {
         _uiState.update { state ->
             val lane = state.lanesMap[parameter] ?: AutomationLane(parameter)
             val value = lane.getValueAtTime(state.playbackTimeMs)
             
-            // Aplicar de inmediato al motor de audio al cambiar de carril
             playerManager.applyAutomation(parameter, value)
 
             state.copy(
@@ -92,7 +91,20 @@ class AutomationViewModel @Inject constructor(
         }
     }
 
-    // --- NUEVO: Deshacer acción (Undo) ---
+    // --- NUEVO: Alternar Snap-to-Grid (Ajuste magnético a la cuadrícula) ---
+    fun toggleSnapToGrid() {
+        _uiState.update { state ->
+            val updatedMap = state.lanesMap.toMutableMap()
+            val currentLane = updatedMap[state.selectedParameter] ?: AutomationLane(state.selectedParameter)
+            
+            val newLane = currentLane.copy(isSnapToGridEnabled = !currentLane.isSnapToGridEnabled)
+            updatedMap[state.selectedParameter] = newLane
+
+            state.copy(lanesMap = updatedMap)
+        }
+    }
+
+    // --- Deshacer acción (Undo) ---
     fun undo() {
         _uiState.update { state ->
             val updatedMap = state.lanesMap.toMutableMap()
@@ -117,7 +129,7 @@ class AutomationViewModel @Inject constructor(
         }
     }
 
-    // --- NUEVO: Rehacer acción (Redo) ---
+    // --- Rehacer acción (Redo) ---
     fun redo() {
         _uiState.update { state ->
             val updatedMap = state.lanesMap.toMutableMap()
@@ -142,22 +154,31 @@ class AutomationViewModel @Inject constructor(
         }
     }
 
-    // Agregar o actualizar puntos de automatización registrando el snapshot en la pila de Undo
-    fun addOrUpdatePoint(timeMs: Long, value: Float) {
+    // Agregar o actualizar puntos aplicando imantación a la cuadrícula y respaldo en Undo
+    fun addOrUpdatePoint(timeMs: Long, canvasWidth: Float, totalDurationMs: Long, value: Float) {
         _uiState.update { state ->
             val updatedMap = state.lanesMap.toMutableMap()
             val currentLane = updatedMap[state.selectedParameter] ?: AutomationLane(state.selectedParameter)
             
-            // Guardamos el estado actual antes del cambio en la pila de Undo
+            // --- CÁLCULO DE IMANTACIÓN QUIRÚRGICA A LA CUADRÍCULA ---
+            val finalTimeMs = if (currentLane.isSnapToGridEnabled && canvasWidth > 0f) {
+                val gridDivisions = 6 // Coincide con las 6 divisiones verticales de la pantalla
+                val gridStepMs = totalDurationMs.toFloat() / gridDivisions
+                val nearestIndex = kotlin.math.round(timeMs.toFloat() / gridStepMs).toInt().coerceIn(0, gridDivisions)
+                (nearestIndex * gridStepMs).toLong()
+            } else {
+                timeMs
+            }
+
             val currentPointsSnapshot = currentLane.points.toList()
             
-            val filteredPoints = currentLane.points.filter { kotlin.math.abs(it.timeMs - timeMs) >= 200L }
-            val newPoints = (filteredPoints + AutomationPoint(timeMs, value.coerceIn(0f, 1f))).sortedBy { it.timeMs }
+            val filteredPoints = currentLane.points.filter { kotlin.math.abs(it.timeMs - finalTimeMs) >= 200L }
+            val newPoints = (filteredPoints + AutomationPoint(finalTimeMs, value.coerceIn(0f, 1f))).sortedBy { it.timeMs }
             
             val newLane = currentLane.copy(
                 points = newPoints.toMutableList(),
                 undoStack = currentLane.undoStack + listOf(currentPointsSnapshot),
-                redoStack = emptyList() // Limpiamos Redo al realizar una nueva modificación
+                redoStack = emptyList()
             )
             updatedMap[state.selectedParameter] = newLane
             
@@ -198,7 +219,7 @@ class AutomationViewModel @Inject constructor(
         }
     }
 
-    // Sincronizar la posición del reproductor en tiempo real y enviar el valor DSP al AudioPlayerManager
+    // Sincronizar la posición del reproductor en tiempo real
     fun updatePlaybackPosition(timeMs: Long) {
         _uiState.update { state ->
             val value = state.currentLane.getValueAtTime(timeMs)
