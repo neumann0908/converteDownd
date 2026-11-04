@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun AutomationScreen(
@@ -34,6 +35,12 @@ fun AutomationScreen(
     val currentLane = state.currentLane
     val selectedParameter = state.selectedParameter
     val currentAutomationValue = state.currentAutomationValue
+
+    // --- ESTADOS PARA EL DIÁLOGO DE GUARDADO Y SNACKBAR ---
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var presetNameInput by remember { mutableStateOf("Mix_Motor9_${System.currentTimeMillis().toString().takeLast(4)}") }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     Box(
         modifier = Modifier
@@ -280,6 +287,16 @@ fun AutomationScreen(
                 Text(text = modeText, color = Color(0xFFFFD700), fontWeight = FontWeight.Bold, fontSize = 11.sp)
             }
 
+            // --- NUEVO: BOTÓN DE GUARDAR EN BIBLIOTECA ---
+            Button(
+                onClick = { showSaveDialog = true },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth().height(42.dp)
+            ) {
+                Text(text = "💾 Guardar Audio en Biblioteca", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+
             // --- BOTÓN DE BORRAR ---
             Button(
                 onClick = { viewModel.clearPoints() },
@@ -290,5 +307,53 @@ fun AutomationScreen(
                 Text(text = "🗑️ Borrar Curva de Automatización", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
         }
+
+        // --- DIÁLOGO EMERGENTE PARA NOMBRAR EL AUDIO A GUARDAR ---
+        if (showSaveDialog) {
+            AlertDialog(
+                onDismissRequest = { showSaveDialog = false },
+                title = { Text(text = "Guardar en Biblioteca", color = Color.White) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(text = "Introduce el nombre para tu archivo de audio:", color = Color.Gray, fontSize = 12.sp)
+                        OutlinedTextField(
+                            value = presetNameInput,
+                            onValueChange = { presetNameInput = it },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFFFFD700),
+                                unfocusedBorderColor = Color.Gray,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            )
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showSaveDialog = false
+                        viewModel.saveMixToLibrary(presetNameInput) { fileName ->
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("¡Audio guardado exitosamente: $fileName!")
+                            }
+                        }
+                    }) {
+                        Text("Guardar", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSaveDialog = false }) {
+                        Text("Cancelar", color = Color.Gray)
+                    }
+                },
+                containerColor = Color(0xFF1E1E2C)
+            )
+        }
+
+        // --- HOST DE SNACKBAR PARA NOTIFICACIONES ---
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
