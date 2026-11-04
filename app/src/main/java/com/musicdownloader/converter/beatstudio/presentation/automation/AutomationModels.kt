@@ -1,5 +1,10 @@
 package com.musicdownloader.converter.beatstudio.presentation.automation
 
+// --- NUEVO: Modos de interpolación para las curvas (Rampa suave vs. Escalón rítmico) ---
+enum class InterpolationMode {
+    LINEAR, STEP
+}
+
 // Todos los parámetros profesionales con su respectivo displayName para la interfaz
 enum class AutomationParameterType(val displayName: String) {
     VOLUME("Volumen"),
@@ -19,12 +24,13 @@ data class AutomationPoint(
     val value: Float // Un valor limpio de 0.0 (mínimo) a 1.0 (máximo)
 )
 
-// La línea de tiempo completa para un parámetro (ej. la línea de volumen)
+// La línea de tiempo completa para un parámetro con soporte de interpolación configurable
 data class AutomationLane(
     val parameter: AutomationParameterType,
-    val points: MutableList<AutomationPoint> = mutableListOf()
+    val points: MutableList<AutomationPoint> = mutableListOf(),
+    val interpolationMode: InterpolationMode = InterpolationMode.LINEAR // <--- Modo activo por defecto
 ) {
-    // Función matemática que calcula el valor exacto en cualquier milisegundo
+    // Función matemática que calcula el valor exacto en cualquier milisegundo según el modo de interpolación
     fun getValueAtTime(timeMs: Long): Float {
         if (points.isEmpty()) return getDefaultValue(parameter)
         if (timeMs <= points.first().timeMs) return points.first().value
@@ -38,9 +44,17 @@ data class AutomationLane(
         // Protección quirúrgica contra división por cero si dos puntos comparten timestamp
         if (next.timeMs == prev.timeMs) return prev.value
 
-        // Interpolación lineal (crear una rampa suave entre punto y punto)
-        val progress = (timeMs - prev.timeMs).toFloat() / (next.timeMs - prev.timeMs).toFloat()
-        return prev.value + (next.value - prev.value) * progress
+        return when (interpolationMode) {
+            InterpolationMode.LINEAR -> {
+                // Interpolación lineal (crear una rampa suave entre punto y punto)
+                val progress = (timeMs - prev.timeMs).toFloat() / (next.timeMs - prev.timeMs).toFloat()
+                prev.value + (next.value - prev.value) * progress
+            }
+            InterpolationMode.STEP -> {
+                // En modo escalón, mantiene el valor plano del nodo anterior hasta llegar al salto exacto del siguiente
+                prev.value
+            }
+        }
     }
 
     private fun getDefaultValue(param: AutomationParameterType): Float {
