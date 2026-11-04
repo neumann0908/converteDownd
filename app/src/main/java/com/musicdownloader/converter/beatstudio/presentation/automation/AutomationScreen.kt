@@ -112,7 +112,8 @@ fun AutomationScreen(
                                 if (canvasWidth > 0f && canvasHeight > 0f) {
                                     val timeMs = (offset.x / canvasWidth) * totalDurationMs
                                     val value = 1f - (offset.y / canvasHeight)
-                                    viewModel.addOrUpdatePoint(timeMs.toLong(), value.coerceIn(0f, 1f))
+                                    // --- INTEGRACIÓN QUIRÚRGICA: Pasamos ancho y duración para el Snap-to-Grid ---
+                                    viewModel.addOrUpdatePoint(timeMs.toLong(), canvasWidth, totalDurationMs, value.coerceIn(0f, 1f))
                                 }
                             }
                         }
@@ -132,7 +133,7 @@ fun AutomationScreen(
                             )
                         }
 
-                        // Cuadrícula vertical
+                        // Cuadrícula vertical (6 divisiones / compases)
                         for (j in 0..6) {
                             val x = (width / 6) * j
                             drawLine(
@@ -245,6 +246,22 @@ fun AutomationScreen(
                         fontSize = 11.sp
                     )
                 }
+            }
+
+            // --- BOTÓN DE ALTERNANCIA DE SNAP-TO-GRID (AJUSTE MAGNÉTICO) ---
+            val snapText = if (currentLane.isSnapToGridEnabled) {
+                "Ajuste Magnético (Snap): Activado 🧲"
+            } else {
+                "Ajuste Magnético (Snap): Desactivado 🔓"
+            }
+            
+            Button(
+                onClick = { viewModel.toggleSnapToGrid() },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A2A3D)),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth().height(38.dp)
+            ) {
+                Text(text = snapText, color = Color(0xFFFFD700), fontWeight = FontWeight.Bold, fontSize = 11.sp)
             }
 
             // --- BOTÓN DE ALTERNANCIA DE MODO (LINEAL / STEP) ---
