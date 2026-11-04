@@ -269,6 +269,11 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
+    // --- CONSULTA DIRECTA DE POSICIÓN EN TIEMPO REAL (ALTA FRECUENCIA PARA MOTOR 9) ---
+    fun getCurrentPositionDirect(): Long {
+        return exoPlayer?.currentPosition ?: 0L
+    }
+
     // --- MOTOR 9: APLICACIÓN DE AUTOMATIZACIÓN EN TIEMPO REAL ---
     fun applyAutomation(parameter: AutomationParameterType, value: Float) {
         try {
