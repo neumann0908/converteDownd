@@ -1,11 +1,15 @@
 package com.musicdownloader.converter.beatstudio.presentation.automation
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.musicdownloader.converter.player.AudioPlayerManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class AutomationUiState(
@@ -25,6 +29,27 @@ class AutomationViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(AutomationUiState())
     val uiState = _uiState.asStateFlow()
+
+    private var automationJob: Job? = null
+
+    init {
+        startHighFrequencySync()
+    }
+
+    // --- BUCLE DE ALTA FRECUENCIA (~30 FPS) ---
+    // Consulta la posición del reproductor en tiempo real y aplica la automatización al audio de forma continua
+    private fun startHighFrequencySync() {
+        automationJob?.cancel()
+        automationJob = viewModelScope.launch {
+            while (true) {
+                if (playerManager.isPlaying.value) {
+                    val currentPos = playerManager.getCurrentPositionDirect()
+                    updatePlaybackPosition(currentPos)
+                }
+                delay(33L) // Actualización ultrafluida cada 33ms para un control DSP milimétrico
+            }
+        }
+    }
 
     // Cambiar de parámetro activo y aplicar instantáneamente su valor actual al reproductor
     fun selectParameter(parameter: AutomationParameterType) {
@@ -99,5 +124,10 @@ class AutomationViewModel @Inject constructor(
                 currentAutomationValue = value
             )
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        automationJob?.cancel()
     }
 }
