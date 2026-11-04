@@ -67,7 +67,7 @@ class AutomationViewModel @Inject constructor(
         }
     }
 
-    // --- NUEVO: Alternar modo de interpolación (LINEAL vs. STEP) ---
+    // --- Alternar modo de interpolación (LINEAL vs. STEP) ---
     fun toggleInterpolationMode() {
         _uiState.update { state ->
             val updatedMap = state.lanesMap.toMutableMap()
@@ -92,21 +92,76 @@ class AutomationViewModel @Inject constructor(
         }
     }
 
-    // Agregar o actualizar puntos de automatización con inmutabilidad estricta
+    // --- NUEVO: Deshacer acción (Undo) ---
+    fun undo() {
+        _uiState.update { state ->
+            val updatedMap = state.lanesMap.toMutableMap()
+            val lane = updatedMap[state.selectedParameter] ?: return@update state
+            if (lane.undoStack.isEmpty()) return@update state
+
+            val previousPoints = lane.undoStack.last()
+            val newUndoStack = lane.undoStack.dropLast(1)
+            val newRedoStack = listOf(lane.points.toList()) + lane.redoStack
+
+            val newLane = lane.copy(
+                points = previousPoints.toMutableList(),
+                undoStack = newUndoStack,
+                redoStack = newRedoStack
+            )
+            updatedMap[state.selectedParameter] = newLane
+
+            val calculatedValue = newLane.getValueAtTime(state.playbackTimeMs)
+            playerManager.applyAutomation(state.selectedParameter, calculatedValue)
+
+            state.copy(lanesMap = updatedMap, currentAutomationValue = calculatedValue)
+        }
+    }
+
+    // --- NUEVO: Rehacer acción (Redo) ---
+    fun redo() {
+        _uiState.update { state ->
+            val updatedMap = state.lanesMap.toMutableMap()
+            val lane = updatedMap[state.selectedParameter] ?: return@update state
+            if (lane.redoStack.isEmpty()) return@update state
+
+            val nextPoints = lane.redoStack.first()
+            val newRedoStack = lane.redoStack.drop(1)
+            val newUndoStack = lane.undoStack + listOf(lane.points.toList())
+
+            val newLane = lane.copy(
+                points = nextPoints.toMutableList(),
+                undoStack = newUndoStack,
+                redoStack = newRedoStack
+            )
+            updatedMap[state.selectedParameter] = newLane
+
+            val calculatedValue = newLane.getValueAtTime(state.playbackTimeMs)
+            playerManager.applyAutomation(state.selectedParameter, calculatedValue)
+
+            state.copy(lanesMap = updatedMap, currentAutomationValue = calculatedValue)
+        }
+    }
+
+    // Agregar o actualizar puntos de automatización registrando el snapshot en la pila de Undo
     fun addOrUpdatePoint(timeMs: Long, value: Float) {
         _uiState.update { state ->
             val updatedMap = state.lanesMap.toMutableMap()
             val currentLane = updatedMap[state.selectedParameter] ?: AutomationLane(state.selectedParameter)
             
+            // Guardamos el estado actual antes del cambio en la pila de Undo
+            val currentPointsSnapshot = currentLane.points.toList()
+            
             val filteredPoints = currentLane.points.filter { kotlin.math.abs(it.timeMs - timeMs) >= 200L }
             val newPoints = (filteredPoints + AutomationPoint(timeMs, value.coerceIn(0f, 1f))).sortedBy { it.timeMs }
             
-            val newLane = currentLane.copy(points = newPoints.toMutableList())
+            val newLane = currentLane.copy(
+                points = newPoints.toMutableList(),
+                undoStack = currentLane.undoStack + listOf(currentPointsSnapshot),
+                redoStack = emptyList() // Limpiamos Redo al realizar una nueva modificación
+            )
             updatedMap[state.selectedParameter] = newLane
             
             val calculatedValue = newLane.getValueAtTime(state.playbackTimeMs)
-            
-            // Aplicar inmediatamente al reproductor al modificar la curva
             playerManager.applyAutomation(state.selectedParameter, calculatedValue)
 
             state.copy(
@@ -116,13 +171,21 @@ class AutomationViewModel @Inject constructor(
         }
     }
 
-    // Limpiar todos los puntos del carril actual
+    // Limpiar todos los puntos del carril actual registrando el snapshot en Undo
     fun clearPoints() {
         _uiState.update { state ->
             val updatedMap = state.lanesMap.toMutableMap()
             val currentLane = updatedMap[state.selectedParameter] ?: AutomationLane(state.selectedParameter)
             
-            val clearedLane = currentLane.copy(points = mutableListOf())
+            if (currentLane.points.isEmpty()) return@update state
+            
+            val currentPointsSnapshot = currentLane.points.toList()
+            
+            val clearedLane = currentLane.copy(
+                points = mutableListOf(),
+                undoStack = currentLane.undoStack + listOf(currentPointsSnapshot),
+                redoStack = emptyList()
+            )
             updatedMap[state.selectedParameter] = clearedLane
             
             val calculatedValue = clearedLane.getValueAtTime(state.playbackTimeMs)
@@ -139,9 +202,6 @@ class AutomationViewModel @Inject constructor(
     fun updatePlaybackPosition(timeMs: Long) {
         _uiState.update { state ->
             val value = state.currentLane.getValueAtTime(timeMs)
-            
-            // --- CONEXIÓN QUIRÚRGICA CRUCIAL ---
-            // Envía el valor interpolado de la curva (Volumen, Pitch, Reverb, etc.) al reproductor en tiempo real
             playerManager.applyAutomation(state.selectedParameter, value)
 
             state.copy(
