@@ -143,7 +143,7 @@ fun AutomationScreen(
                             )
                         }
 
-                        // Curvas y puntos del carril actual
+                        // Curvas y puntos del carril actual (con soporte Linear y Step)
                         val points = currentLane.points
                         if (points.isNotEmpty()) {
                             for (i in 0 until points.size - 1) {
@@ -155,12 +155,29 @@ fun AutomationScreen(
                                 val x2 = (p2.timeMs.toFloat() / totalDurationMs) * width
                                 val y2 = (1f - p2.value) * height
 
-                                drawLine(
-                                    color = Color(0xFFFFD700),
-                                    start = Offset(x1, y1),
-                                    end = Offset(x2, y2),
-                                    strokeWidth = 3f
-                                )
+                                if (currentLane.interpolationMode == InterpolationMode.LINEAR) {
+                                    // Rampa lineal suave
+                                    drawLine(
+                                        color = Color(0xFFFFD700),
+                                        start = Offset(x1, y1),
+                                        end = Offset(x2, y2),
+                                        strokeWidth = 3f
+                                    )
+                                } else {
+                                    // Modo Escalón (Step): Línea horizontal y salto vertical en ángulo recto
+                                    drawLine(
+                                        color = Color(0xFFFFD700),
+                                        start = Offset(x1, y1),
+                                        end = Offset(x2, y1),
+                                        strokeWidth = 3f
+                                    )
+                                    drawLine(
+                                        color = Color(0xFFFFD700),
+                                        start = Offset(x2, y1),
+                                        end = Offset(x2, y2),
+                                        strokeWidth = 3f
+                                    )
+                                }
                             }
 
                             for (p in points) {
@@ -184,6 +201,22 @@ fun AutomationScreen(
                         )
                     }
                 }
+            }
+
+            // --- BOTÓN DE ALTERNANCIA DE MODO (LINEAL / STEP) ---
+            val modeText = if (currentLane.interpolationMode == InterpolationMode.LINEAR) {
+                "Modo: Rampa Lineal 📈"
+            } else {
+                "Modo: Escalón (Step) 🧱"
+            }
+            
+            Button(
+                onClick = { viewModel.toggleInterpolationMode() },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A2A3D)),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth().height(38.dp)
+            ) {
+                Text(text = modeText, color = Color(0xFFFFD700), fontWeight = FontWeight.Bold, fontSize = 11.sp)
             }
 
             // --- BOTÓN DE BORRAR ---
