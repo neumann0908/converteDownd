@@ -24,13 +24,14 @@ data class AutomationPoint(
     val value: Float // Un valor limpio de 0.0 (mínimo) a 1.0 (máximo)
 )
 
-// La línea de tiempo completa para un parámetro con soporte de interpolación e historial (Undo/Redo)
+// La línea de tiempo completa para un parámetro con soporte de interpolación, historial e imantación
 data class AutomationLane(
     val parameter: AutomationParameterType,
     val points: MutableList<AutomationPoint> = mutableListOf(),
     val interpolationMode: InterpolationMode = InterpolationMode.LINEAR, // Modo activo por defecto
     val undoStack: List<List<AutomationPoint>> = emptyList(), // Pila de deshacer independiente por carril
-    val redoStack: List<List<AutomationPoint>> = emptyList()  // Pila de rehacer independiente por carril
+    val redoStack: List<List<AutomationPoint>> = emptyList(), // Pila de rehacer independiente por carril
+    val isSnapToGridEnabled: Boolean = true                   // <--- NUEVO: Imantación activa por defecto
 ) {
     // Función matemática que calcula el valor exacto en cualquier milisegundo según el modo de interpolación
     fun getValueAtTime(timeMs: Long): Float {
