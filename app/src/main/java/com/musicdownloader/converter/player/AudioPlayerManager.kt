@@ -23,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -346,6 +347,37 @@ class AudioPlayerManager @Inject constructor(
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    // --- NUEVO: EXPORTAR AUDIO ACTUAL A LA BIBLIOTECA ---
+    fun exportCurrentAudioToLibrary(customTitle: String, onSaved: (File) -> Unit) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads").apply {
+                    if (!exists()) mkdirs()
+                }
+                
+                val currentMediaItem = exoPlayer?.currentMediaItem
+                val sourceUri = currentMediaItem?.localConfiguration?.uri
+                
+                if (sourceUri != null && sourceUri.scheme == "file") {
+                    val sourceFile = File(sourceUri.path ?: "")
+                    if (sourceFile.exists()) {
+                        val sanitizedTitle = customTitle.ifEmpty { "Motor9_Mix_${System.currentTimeMillis()}" }
+                        val extension = sourceFile.extension.ifEmpty { "wav" }
+                        val destinationFile = File(downloadDir, "$sanitizedTitle.$extension")
+                        
+                        sourceFile.copyTo(destinationFile, overwrite = true)
+                        
+                        withContext(Dispatchers.Main) {
+                            onSaved(destinationFile)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
