@@ -25,19 +25,11 @@ fun AutomationScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     
-    // --- SINCRONIZACIÓN REACTIVA CON EL REPRODUCTOR ---
-    val currentPosition by viewModel.playerManager.currentPosition.collectAsState()
+    // Obtenemos la duración real directamente del reproductor, con respaldo de 3 minutos si está vacía
     val playerDuration by viewModel.playerManager.duration.collectAsState()
-    
-    // Duración total real de la pista (si el reproductor la indica, se usa; si no, 3 minutos por defecto para beats)
     val totalDurationMs = if (playerDuration > 0L) playerDuration else 180000L
 
-    // Actualizamos la posición en tiempo real cada vez que el reproductor emita un cambio
-    LaunchedEffect(currentPosition) {
-        viewModel.updatePlaybackPosition(currentPosition)
-    }
-
-    // Extracción de estado para forzar la recomposición fluida del Canvas
+    // Extracción limpia del estado gestionado por el bucle de alta frecuencia del ViewModel
     val playbackTimeMs = state.playbackTimeMs
     val currentLane = state.currentLane
     val selectedParameter = state.selectedParameter
