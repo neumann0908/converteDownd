@@ -67,6 +67,31 @@ class AutomationViewModel @Inject constructor(
         }
     }
 
+    // --- NUEVO: Alternar modo de interpolación (LINEAL vs. STEP) ---
+    fun toggleInterpolationMode() {
+        _uiState.update { state ->
+            val updatedMap = state.lanesMap.toMutableMap()
+            val currentLane = updatedMap[state.selectedParameter] ?: AutomationLane(state.selectedParameter)
+            
+            val newMode = if (currentLane.interpolationMode == InterpolationMode.LINEAR) {
+                InterpolationMode.STEP
+            } else {
+                InterpolationMode.LINEAR
+            }
+            
+            val newLane = currentLane.copy(interpolationMode = newMode)
+            updatedMap[state.selectedParameter] = newLane
+            
+            val calculatedValue = newLane.getValueAtTime(state.playbackTimeMs)
+            playerManager.applyAutomation(state.selectedParameter, calculatedValue)
+
+            state.copy(
+                lanesMap = updatedMap,
+                currentAutomationValue = calculatedValue
+            )
+        }
+    }
+
     // Agregar o actualizar puntos de automatización con inmutabilidad estricta
     fun addOrUpdatePoint(timeMs: Long, value: Float) {
         _uiState.update { state ->
