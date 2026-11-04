@@ -91,7 +91,7 @@ class AutomationViewModel @Inject constructor(
         }
     }
 
-    // --- NUEVO: Alternar Snap-to-Grid (Ajuste magnético a la cuadrícula) ---
+    // --- Alternar Snap-to-Grid (Ajuste magnético a la cuadrícula) ---
     fun toggleSnapToGrid() {
         _uiState.update { state ->
             val updatedMap = state.lanesMap.toMutableMap()
@@ -229,6 +229,13 @@ class AutomationViewModel @Inject constructor(
                 playbackTimeMs = timeMs,
                 currentAutomationValue = value
             )
+        }
+    }
+
+    // --- NUEVO: Guardar la mezcla o audio actual directamente hacia la Biblioteca ---
+    fun saveMixToLibrary(customName: String, onComplete: (String) -> Unit) {
+        playerManager.exportCurrentAudioToLibrary(customName) { savedFile ->
+            onComplete(savedFile.name)
         }
     }
 
