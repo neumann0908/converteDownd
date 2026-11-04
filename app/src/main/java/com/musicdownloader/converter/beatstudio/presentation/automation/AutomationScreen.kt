@@ -203,6 +203,50 @@ fun AutomationScreen(
                 }
             }
 
+            // --- FILA DE BOTONES DE HISTORIAL (UNDO / REDO) ---
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val canUndo = currentLane.undoStack.isNotEmpty()
+                Button(
+                    onClick = { viewModel.undo() },
+                    enabled = canUndo,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF2A2A3D),
+                        disabledContainerColor = Color(0xFF1B1B26)
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1f).height(38.dp)
+                ) {
+                    Text(
+                        text = "↶ Deshacer", 
+                        color = if (canUndo) Color(0xFFFFD700) else Color.Gray, 
+                        fontWeight = FontWeight.Bold, 
+                        fontSize = 11.sp
+                    )
+                }
+
+                val canRedo = currentLane.redoStack.isNotEmpty()
+                Button(
+                    onClick = { viewModel.redo() },
+                    enabled = canRedo,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF2A2A3D),
+                        disabledContainerColor = Color(0xFF1B1B26)
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1f).height(38.dp)
+                ) {
+                    Text(
+                        text = "↷ Rehacer", 
+                        color = if (canRedo) Color(0xFFFFD700) else Color.Gray, 
+                        fontWeight = FontWeight.Bold, 
+                        fontSize = 11.sp
+                    )
+                }
+            }
+
             // --- BOTÓN DE ALTERNANCIA DE MODO (LINEAL / STEP) ---
             val modeText = if (currentLane.interpolationMode == InterpolationMode.LINEAR) {
                 "Modo: Rampa Lineal 📈"
