@@ -1,4 +1,4 @@
-package com.musicdownloader.converter.presentation.navigation
+Package com.musicdownloader.converter.presentation.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -39,6 +39,10 @@ import com.musicdownloader.converter.beatstudio.presentation.recording.Recording
 import com.musicdownloader.converter.beatstudio.presentation.automation.AutomationScreen
 import com.musicdownloader.converter.beatstudio.presentation.automation.AutomationViewModel
 
+// 🚀 10. Importaciones de nuestro Master Engine Pro (Motor 10)
+import com.musicdownloader.converter.beatstudio.presentation.master.MasterScreen
+import com.musicdownloader.converter.beatstudio.presentation.master.MasterViewModel
+
 @Composable
 fun AppNavGraph(navController: NavHostController, modifier: Modifier = Modifier) {
     NavHost(
@@ -59,39 +63,45 @@ fun AppNavGraph(navController: NavHostController, modifier: Modifier = Modifier)
         }
 
         // 🛠️ FASE 1: Integración Quirúrgica del Nuevo Beat Studio Pro (Motor 1)
-        composable("beat_studio") {
+        composable(Screen.BeatStudio.route) {
             val drumStudioViewModel: DrumStudioViewModel = hiltViewModel()
             BeatStudioScreen(viewModel = drumStudioViewModel)
         }
 
         // 🎙️ FASE 2: Integración Quirúrgica del Nuevo Sampler Studio Pro (Motor 2)
-        composable("sampler_studio") {
+        composable(Screen.SamplerStudio.route) {
             val samplerStudioViewModel: SamplerStudioViewModel = hiltViewModel()
             SamplerStudioScreen(viewModel = samplerStudioViewModel)
         }
 
         // 🎹 FASE 3: Integración Quirúrgica del Nuevo Sequencer Studio Pro (Motor 3)
-        composable("sequencer_studio") {
+        composable(Screen.SequencerStudio.route) {
             val sequencerStudioViewModel: SequencerStudioViewModel = hiltViewModel()
             SequencerStudioScreen(viewModel = sequencerStudioViewModel)
         }
 
         // 🎹 FASE 5: Integración Quirúrgica del Nuevo Synth Studio Pro (Motor 5)
-        composable("synth_studio") {
+        composable(Screen.SynthStudio.route) {
             val synthViewModel: SynthViewModel = hiltViewModel()
             SynthStudioScreen(viewModel = synthViewModel)
         }
 
         // 🎙️ FASE 8: Integración Quirúrgica del Nuevo Recording Engine (Motor 8)
-        composable("recording_studio") {
+        composable(Screen.RecordingStudio.route) {
             val recordingViewModel: RecordingViewModel = hiltViewModel()
             RecordingScreen(viewModel = recordingViewModel)
         }
 
         // 📈 FASE 9: Integración Quirúrgica del Nuevo Automation Engine (Motor 9)
-        composable("automation_studio") {
+        composable(Screen.AutomationStudio.route) {
             val automationViewModel: AutomationViewModel = hiltViewModel()
             AutomationScreen(viewModel = automationViewModel)
+        }
+
+        // 🚀 FASE 10: Integración Quirúrgica del Nuevo Master Engine (Motor 10)
+        composable(Screen.MasterStudio.route) {
+            val masterViewModel: MasterViewModel = hiltViewModel()
+            MasterScreen(viewModel = masterViewModel)
         }
     }
 }
