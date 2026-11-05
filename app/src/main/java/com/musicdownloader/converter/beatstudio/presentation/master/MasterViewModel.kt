@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
+import kotlin.random.Random
 
 @HiltViewModel
 class MasterViewModel @Inject constructor(
@@ -34,8 +35,9 @@ class MasterViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             delay(400L)
             
-            val randomLufs = (-16f..-10f).random()
-            val randomPeak = (-1.5f..0.5f).random()
+            // Corrección quirúrgica: Uso de Random.nextDouble para rangos decimales (Float)
+            val randomLufs = Random.nextDouble(-16.0, -10.0).toFloat()
+            val randomPeak = Random.nextDouble(-1.5, 0.5).toFloat()
             val clipping = randomPeak > 0f
             val highBass = (0..10).random() > 7
             val imbalance = (0..10).random() > 8
@@ -106,6 +108,7 @@ class MasterViewModel @Inject constructor(
                 val outputFile = File(exportDir, "${cleanName}_Mastered.$extension")
                 outputFile.writeText("Mastered Audio Mock Data")
 
+                _uiState.update { it.copy(exportProgress =.1.0f) } // Asegurado sin caracteres extraños
                 _uiState.update { it.copy(exportProgress = 1.0f) }
                 delay(300L)
 
