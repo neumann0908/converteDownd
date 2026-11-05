@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -38,9 +39,15 @@ fun AutomationScreen(
     val selectedParameter = state.selectedParameter
     val currentAutomationValue = state.currentAutomationValue
 
-    // --- ESTADOS PARA EL DIÁLOGO DE GUARDADO Y SNACKBAR ---
+    // --- ESTADOS PARA DIÁLOGOS DE AUDIO Y PRESETS JSON ---
     var showSaveDialog by remember { mutableStateOf(false) }
+    var showSavePresetDialog by remember { mutableStateOf(false) }
+    var showViewPresetsDialog by remember { mutableStateOf(false) }
+    
     var presetNameInput by remember { mutableStateOf("Mix_Motor9_${System.currentTimeMillis().toString().takeLast(4)}") }
+    var presetNameToSave by remember { mutableStateOf("Preset_${System.currentTimeMillis().toString().takeLast(4)}") }
+    var savedPresetsList by remember { mutableStateOf(listOf<String>()) }
+
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -56,7 +63,7 @@ fun AutomationScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState), // <-- INTEGRACIÓN QUIRÚRGICA: Scroll vertical habilitado para ver todos los botones
+                .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // --- CABEZAL DEL MOTOR 9 ---
@@ -126,7 +133,6 @@ fun AutomationScreen(
                                 if (canvasWidth > 0f && canvasHeight > 0f) {
                                     val timeMs = (offset.x / canvasWidth) * totalDurationMs
                                     val value = 1f - (offset.y / canvasHeight)
-                                    // --- INTEGRACIÓN QUIRÚRGICA: Pasamos ancho y duración para el Snap-to-Grid ---
                                     viewModel.addOrUpdatePoint(timeMs.toLong(), canvasWidth, totalDurationMs, value.coerceIn(0f, 1f))
                                 }
                             }
@@ -171,7 +177,6 @@ fun AutomationScreen(
                                 val y2 = (1f - p2.value) * height
 
                                 if (currentLane.interpolationMode == InterpolationMode.LINEAR) {
-                                    // Rampa lineal suave
                                     drawLine(
                                         color = Color(0xFFFFD700),
                                         start = Offset(x1, y1),
@@ -179,7 +184,6 @@ fun AutomationScreen(
                                         strokeWidth = 3f
                                     )
                                 } else {
-                                    // Modo Escalón (Step): Línea horizontal y salto vertical en ángulo recto
                                     drawLine(
                                         color = Color(0xFFFFD700),
                                         start = Offset(x1, y1),
@@ -294,7 +298,34 @@ fun AutomationScreen(
                 Text(text = modeText, color = Color(0xFFFFD700), fontWeight = FontWeight.Bold, fontSize = 11.sp)
             }
 
-            // --- NUEVO: BOTÓN DE GUARDAR EN BIBLIOTECA ---
+            // --- NUEVO: FILA CON LOS DOS BOTONES DE PRESETS JSON ---
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { showSavePresetDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3F51B5)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1f).height(38.dp)
+                ) {
+                    Text(text = "💾 Guardar Preset", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                }
+
+                Button(
+                    onClick = { 
+                        savedPresetsList = viewModel.getSavedPresetsList()
+                        showViewPresetsDialog = true 
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00ACC1)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1f).height(38.dp)
+                ) {
+                    Text(text = "👁️ Ver Presets", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                }
+            }
+
+            // --- BOTÓN DE GUARDAR AUDIO EN BIBLIOTECA ---
             Button(
                 onClick = { showSaveDialog = true },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
@@ -318,7 +349,7 @@ fun AutomationScreen(
             Spacer(modifier = Modifier.height(48.dp))
         }
 
-        // --- DIÁLOGO EMERGENTE PARA NOMBRAR EL AUDIO A GUARDAR ---
+        // --- DIÁLOGO 1: GUARDAR AUDIO EN BIBLIOTECA ---
         if (showSaveDialog) {
             AlertDialog(
                 onDismissRequest = { showSaveDialog = false },
@@ -354,6 +385,104 @@ fun AutomationScreen(
                 dismissButton = {
                     TextButton(onClick = { showSaveDialog = false }) {
                         Text("Cancelar", color = Color.Gray)
+                    }
+                },
+                containerColor = Color(0xFF1E1E2C)
+            )
+        }
+
+        // --- DIÁLOGO 2: GUARDAR PRESET JSON ---
+        if (showSavePresetDialog) {
+            AlertDialog(
+                onDismissRequest = { showSavePresetDialog = false },
+                title = { Text(text = "Guardar Preset de Automatización", color = Color.White) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(text = "Introduce el nombre del preset:", color = Color.Gray, fontSize = 12.sp)
+                        OutlinedTextField(
+                            value = presetNameToSave,
+                            onValueChange = { presetNameToSave = it },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFFFFD700),
+                                unfocusedBorderColor = Color.Gray,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            )
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showSavePresetDialog = false
+                        viewModel.savePreset(presetNameToSave) { success ->
+                            coroutineScope.launch {
+                                val msg = if (success) "¡Preset guardado con éxito!" else "Error al guardar preset"
+                                snackbarHostState.showSnackbar(msg)
+                            }
+                        }
+                    }) {
+                        Text("Guardar", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSavePresetDialog = false }) {
+                        Text("Cancelar", color = Color.Gray)
+                    }
+                },
+                containerColor = Color(0xFF1E1E2C)
+            )
+        }
+
+        // --- DIÁLOGO 3: VISUALIZAR Y CARGAR PRESETS JSON GUARDADOS ---
+        if (showViewPresetsDialog) {
+            AlertDialog(
+                onDismissRequest = { showViewPresetsDialog = false },
+                title = { Text(text = "Presets Guardados", color = Color.White) },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (savedPresetsList.isEmpty()) {
+                            Text(text = "No hay presets guardados todavía.", color = Color.Gray, fontSize = 12.sp)
+                        } else {
+                            Text(text = "Pulsa sobre un preset para cargarlo:", color = Color.Gray, fontSize = 11.sp)
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(savedPresetsList) { presetName ->
+                                    Surface(
+                                        onClick = {
+                                            showViewPresetsDialog = false
+                                            viewModel.loadPreset(presetName) { success ->
+                                                coroutineScope.launch {
+                                                    val msg = if (success) "¡Preset '$presetName' cargado!" else "Error al cargar"
+                                                    snackbarHostState.showSnackbar(msg)
+                                                }
+                                            }
+                                        },
+                                        color = Color(0xFF2A2A3D),
+                                        shape = RoundedCornerShape(6.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = "📄 $presetName",
+                                            color = Color(0xFFFFD700),
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.padding(12.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { showViewPresetsDialog = false }) {
+                        Text("Cerrar", color = Color.Gray)
                     }
                 },
                 containerColor = Color(0xFF1E1E2C)
