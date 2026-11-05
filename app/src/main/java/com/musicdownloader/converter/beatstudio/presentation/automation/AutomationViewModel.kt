@@ -1,15 +1,22 @@
 package com.musicdownloader.converter.beatstudio.presentation.automation
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.musicdownloader.converter.player.AudioPlayerManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
 import javax.inject.Inject
 
 data class AutomationUiState(
@@ -24,6 +31,7 @@ data class AutomationUiState(
 
 @HiltViewModel
 class AutomationViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     val playerManager: AudioPlayerManager
 ) : ViewModel() {
 
@@ -232,10 +240,125 @@ class AutomationViewModel @Inject constructor(
         }
     }
 
-    // --- NUEVO: Guardar la mezcla o audio actual directamente hacia la Biblioteca ---
+    // --- GUARDAR LA MEZCLA O AUDIO ACTUAL DIRECTAMENTE HACIA LA BIBLIOTECA ---
     fun saveMixToLibrary(customName: String, onComplete: (String) -> Unit) {
         playerManager.exportCurrentAudioToLibrary(customName) { savedFile ->
             onComplete(savedFile.name)
+        }
+    }
+
+    // --- NUEVO: SISTEMA DE PRESETS JSON ---
+
+    // Guardar el estado actual de los carriles en un archivo JSON interno
+    fun savePreset(presetName: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val presetDir = File(context.filesDir, "presets").apply { if (!exists()) mkdirs() }
+                val sanitizedName = presetName.ifEmpty { "Preset_${System.currentTimeMillis()}" }
+                val file = File(presetDir, "$sanitizedName.json")
+
+                val rootObject = JSONObject()
+                val lanesArray = JSONArray()
+
+                uiState.value.lanesMap.forEach { (param, lane) ->
+                    val laneObj = JSONObject().apply {
+                        put("parameter", param.name)
+                        put("interpolationMode", lane.interpolationMode.name)
+                        put("isSnapToGridEnabled", lane.isSnapToGridEnabled)
+
+                        val pointsArray = JSONArray()
+                        lane.points.forEach { point ->
+                            val pObj = JSONObject().apply {
+                                put("timeMs", point.timeMs)
+                                put("value", point.value.toDouble())
+                            }
+                            pointsArray.put(pObj)
+                        }
+                        put("points", pointsArray)
+                    }
+                    lanesArray.put(laneObj)
+                }
+                rootObject.put("lanes", lanesArray)
+
+                file.writeText(rootObject.toString())
+                withContext(Dispatchers.Main) { onComplete(true) }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) { onComplete(false) }
+            }
+        }
+    }
+
+    // Obtener la lista de nombres de presets disponibles
+    fun getSavedPresetsList(): List<String> {
+        val presetDir = File(context.filesDir, "presets")
+        if (!presetDir.exists() || !presetDir.isDirectory) return emptyList()
+        return presetDir.listFiles { file -> file.isFile && file.extension.equals("json", true) }
+            ?.map { it.nameWithoutExtension }?.sorted() ?: emptyList()
+    }
+
+    // Cargar un preset guardado desde su archivo JSON
+    fun loadPreset(presetName: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val file = File(File(context.filesDir, "presets"), "$presetName.json")
+                if (!file.exists()) {
+                    withContext(Dispatchers.Main) { onComplete(false) }
+                    return@launch
+                }
+
+                val jsonString = file.readText()
+                val rootObject = JSONObject(jsonString)
+                val lanesArray = rootObject.getJSONArray("lanes")
+
+                val newLanesMap = mutableMapOf<AutomationParameterType, AutomationLane>()
+
+                for (i in 0 until lanesArray.length()) {
+                    val laneObj = lanesArray.getJSONObject(i)
+                    val paramName = laneObj.getString("parameter")
+                    val param = AutomationParameterType.valueOf(paramName)
+
+                    val modeName = laneObj.getString("interpolationMode")
+                    val mode = InterpolationMode.valueOf(modeName)
+                    val snap = laneObj.getBoolean("isSnapToGridEnabled")
+
+                    val pointsArray = laneObj.getJSONArray("points")
+                    val points = mutableListOf<AutomationPoint>()
+                    for (j in 0 until pointsArray.length()) {
+                        val pObj = pointsArray.getJSONObject(j)
+                        points.add(
+                            AutomationPoint(
+                                timeMs = pObj.getLong("timeMs"),
+                                value = pObj.getDouble("value").toFloat()
+                            )
+                        )
+                    }
+
+                    newLanesMap[param] = AutomationLane(
+                        parameter = param,
+                        points = points,
+                        interpolationMode = mode,
+                        isSnapToGridEnabled = snap
+                    )
+                }
+
+                withContext(Dispatchers.Main) {
+                    _uiState.update { state ->
+                        val currentLane = newLanesMap[state.selectedParameter] ?: AutomationLane(state.selectedParameter)
+                        val calcValue = currentLane.getValueAtTime(state.playbackTimeMs)
+                        playerManager.applyAutomation(state.selectedParameter, calcValue)
+
+                        state.copy(
+                            lanesMap = newLanesMap,
+                            currentAutomationValue = calcValue
+                        )
+                    }
+                    onComplete(true)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) { onComplete(false) }
+            }
         }
     }
 
