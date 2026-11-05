@@ -6,7 +6,9 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +44,9 @@ fun AutomationScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
+    // --- ESTADO DE SCROLL VERTICAL FLUIDO ---
+    val scrollState = rememberScrollState()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -49,7 +54,9 @@ fun AutomationScreen(
             .padding(12.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState), // <-- INTEGRACIÓN QUIRÚRGICA: Scroll vertical habilitado para ver todos los botones
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // --- CABEZAL DEL MOTOR 9 ---
@@ -306,6 +313,9 @@ fun AutomationScreen(
             ) {
                 Text(text = "🗑️ Borrar Curva de Automatización", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
+
+            // --- ESPACIADOR INFERIOR PARA EVITAR SOLAPAMIENTO CON LA BARRA DE NAVEGACIÓN ---
+            Spacer(modifier = Modifier.height(48.dp))
         }
 
         // --- DIÁLOGO EMERGENTE PARA NOMBRAR EL AUDIO A GUARDAR ---
