@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Tune // 🎹 Ícono de controles/s
 import androidx.compose.material.icons.filled.Piano // 🎹 Ícono de piano para el Synth Studio (Motor 5)
 import androidx.compose.material.icons.filled.Mic // 🎙️ Ícono de micrófono para el Recording Engine (Motor 8)
 import androidx.compose.material.icons.filled.Timeline // 📈 Ícono de línea de tiempo para el Automation Engine (Motor 9)
+import androidx.compose.material.icons.filled.HighQuality // 🚀 Ícono de alta calidad para el Master Engine (Motor 10)
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class BottomNavItem(
@@ -46,4 +47,7 @@ sealed class BottomNavItem(
 
     // 📈 FASE 9: Automation Engine (Motor 9 - Curvas de automatización)
     object AutomationStudio : BottomNavItem("automation_studio", "Automation", Icons.Default.Timeline)
+
+    // 🚀 FASE 10: Master Engine (Motor 10 - Mastering y exportación profesional)
+    object MasterStudio : BottomNavItem("master_studio", "Master", Icons.Default.HighQuality)
 }
