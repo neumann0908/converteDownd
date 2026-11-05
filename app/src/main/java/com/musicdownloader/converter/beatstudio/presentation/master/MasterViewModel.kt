@@ -106,7 +106,7 @@ class MasterViewModel @Inject constructor(
                 val outputFile = File(exportDir, "${cleanName}_Mastered.$extension")
                 outputFile.writeText("Mastered Audio Mock Data")
 
-                _uiState.update { it.copy(exportProgress = 1.0f)</i> }
+                _uiState.update { it.copy(exportProgress = 1.0f) }
                 delay(300L)
 
                 withContext(Dispatchers.Main) {
