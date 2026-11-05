@@ -27,4 +27,8 @@ sealed class Screen(val route: String) {
 
     // 📈 FASE 9: Automation Engine (Motor 9 - Curvas de automatización)
     object AutomationStudio : Screen("automation_studio")
+
+    // 🚀 FASE 10: Master Engine (Motor 10 - Mastering y exportación profesional)
+    object MasterStudio : Screen("master_studio")
 }
+
