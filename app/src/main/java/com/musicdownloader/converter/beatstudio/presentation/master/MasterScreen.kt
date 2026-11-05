@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,6 +30,10 @@ fun MasterScreen(
 
     var showExportDialog by remember { mutableStateOf(false) }
     var exportFileName by remember { mutableStateOf("MiPista_Master") }
+    
+    // Controles de hardware virtual (Sliders de consola)
+    var inputDrive by remember { mutableStateOf(0.0f) }
+    var limiterCeiling by remember { mutableStateOf(-0.3f) }
 
     Box(
         modifier = Modifier
@@ -122,6 +127,114 @@ fun MasterScreen(
                             }
                         }
                     }
+                }
+            }
+
+            // --- 🎚️ INTERFAZ DE HARDWARE: MEDIDORES LED ESTÉREO Y SLIDERS ---
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF161B22)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "🎚️ Master Output LED Meters", color = Color(0xFFFFD700), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "PEAK / RMS", color = Color.Gray, fontSize = 10.sp)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Canal L
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(text = "CH L", color = Color.Gray, fontSize = 9.sp)
+                                Text(text = "${state.diagnostics.truePeakDb} dB", color = Color.Cyan, fontSize = 9.sp)
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(10.dp)
+                                    .background(Color(0xFF0B0E14), RoundedCornerShape(3.dp))
+                                    .padding(2.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .fillMaxWidth(0.75f)
+                                        .background(
+                                            Brush.horizontalGradient(
+                                                listOf(Color(0xFF00E676), Color(0xFFFFEB3B), Color(0xFFFF5252))
+                                            ),
+                                            RoundedCornerShape(2.dp)
+                                        )
+                                )
+                            }
+                        }
+
+                        // Canal R
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(text = "CH R", color = Color.Gray, fontSize = 9.sp)
+                                Text(text = "${state.diagnostics.truePeakDb} dB", color = Color.Cyan, fontSize = 9.sp)
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(10.dp)
+                                    .background(Color(0xFF0B0E14), RoundedCornerShape(3.dp))
+                                    .padding(2.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .fillMaxWidth(0.72f)
+                                        .background(
+                                            Brush.horizontalGradient(
+                                                listOf(Color(0xFF00E676), Color(0xFFFFEB3B), Color(0xFFFF5252))
+                                            ),
+                                            RoundedCornerShape(2.dp)
+                                        )
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    Text(text = "Input Drive (Gain): ${String.format(java.util.Locale.US, "%.1f", inputDrive)} dB", color = Color.LightGray, fontSize = 11.sp)
+                    Slider(
+                        value = inputDrive,
+                        onValueChange = { inputDrive = it },
+                        valueRange = -6.0f..12.0f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFFFFD700),
+                            activeTrackColor = Color(0xFFFFD700),
+                            inactiveTrackColor = Color(0xFF2A2A3D)
+                        ),
+                        modifier = Modifier.height(20.dp)
+                    )
+
+                    Text(text = "Limiter Ceiling: ${String.format(java.util.Locale.US, "%.1f", limiterCeiling)} dB", color = Color.LightGray, fontSize = 11.sp)
+                    Slider(
+                        value = limiterCeiling,
+                        onValueChange = { limiterCeiling = it },
+                        valueRange = -3.0f..0.0f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFFFFD700),
+                            activeTrackColor = Color(0xFFFFD700),
+                            inactiveTrackColor = Color(0xFF2A2A3D)
+                        ),
+                        modifier = Modifier.height(20.dp)
+                    )
                 }
             }
 
