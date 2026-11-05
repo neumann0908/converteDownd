@@ -35,7 +35,6 @@ class MasterViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             delay(400L)
             
-            // Corrección quirúrgica: Uso de Random.nextDouble para rangos decimales (Float)
             val randomLufs = Random.nextDouble(-16.0, -10.0).toFloat()
             val randomPeak = Random.nextDouble(-1.5, 0.5).toFloat()
             val clipping = randomPeak > 0f
@@ -108,7 +107,6 @@ class MasterViewModel @Inject constructor(
                 val outputFile = File(exportDir, "${cleanName}_Mastered.$extension")
                 outputFile.writeText("Mastered Audio Mock Data")
 
-                _uiState.update { it.copy(exportProgress =.1.0f) } // Asegurado sin caracteres extraños
                 _uiState.update { it.copy(exportProgress = 1.0f) }
                 delay(300L)
 
