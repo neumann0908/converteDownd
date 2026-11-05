@@ -1,5 +1,6 @@
 package com.musicdownloader.converter.beatstudio.presentation.master
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -9,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,7 +33,7 @@ fun MasterScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF13131A))
+            .background(Color(0xFF0D1117)) // Fondo DAW oscuro profesional estilo FL Studio
             .padding(12.dp)
     ) {
         Column(
@@ -47,8 +49,114 @@ fun MasterScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text(text = "MOTOR 10: MASTER ENGINE", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "MOTOR 10: MASTER ENGINE", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "FL-Studio Pro Style", color = Color.Gray, fontSize = 10.sp)
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(text = "Exportación profesional, Mastering asistido y Stems", color = Color.White, fontSize = 12.sp)
+                }
+            }
+
+            // --- VENTANA FLOTANTE OSCILOSCOPIO / "WAVE CANDY" ---
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xEE161B22)),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp)
+                ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "Wave Candy (Master Output)", color = Color.Cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "REAL-TIME DSP", color = Color.Gray, fontSize = 9.sp)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .background(Color(0xFF080C10), RoundedCornerShape(6.dp))
+                                .padding(4.dp)
+                        ) {
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val width = size.width
+                                val height = size.height
+
+                                // Cuadrícula de referencia central
+                                drawLine(Color(0xFF1F2937), Offset(0f, height / 2), Offset(width, height / 2), strokeWidth = 1f)
+                                drawLine(Color(0xFF1F2937), Offset(width / 2, 0f), Offset(width / 2, height), strokeWidth = 1f)
+
+                                // Onda simulada en tiempo real tipo Wave Candy
+                                val points = 80
+                                val stepX = width / points
+                                val pathPoints = mutableListOf<Offset>()
+                                for (i in 0..points) {
+                                    val x = i * stepX
+                                    val angle = (i.toFloat() / points) * 4f * Math.PI.toFloat()
+                                    val y = (height / 2) + kotlin.math.sin(angle + System.currentTimeMillis() * 0.006f) * (height * 0.35f) * (1f - (i % 5) * 0.05f)
+                                    pathPoints.add(Offset(x, y))
+                                }
+
+                                for (i in 0 until pathPoints.size - 1) {
+                                    drawLine(
+                                        color = Color(0xFF00FFCC),
+                                        start = pathPoints[i],
+                                        end = pathPoints[i + 1],
+                                        strokeWidth = 2.5f
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- VISTA PREVIA DE MULTI-PISTAS (PLAYLIST / STEMS) ---
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(text = "📁 Playlist & Stems Activos", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    
+                    val tracks = listOf(
+                        Pair("Moon Halo vocal", Color(0xFFE57373)),
+                        Pair("Piano & Strings Bus", Color(0xFF81C784)),
+                        Pair("Guitar & Melody", Color(0xFFFFB74D)),
+                        Pair("Bass & SubBass Bus", Color(0xFFBA68C8))
+                    )
+                    
+                    tracks.forEach { (trackName, color) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFF13131A), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Box(modifier = Modifier.size(8.dp).background(color, RoundedCornerShape(2.dp)))
+                                Text(text = trackName, color = Color.White, fontSize = 10.sp)
+                            }
+                            Text(text = "Stereo • 24bit", color = Color.Gray, fontSize = 9.sp)
+                        }
+                    }
                 }
             }
 
