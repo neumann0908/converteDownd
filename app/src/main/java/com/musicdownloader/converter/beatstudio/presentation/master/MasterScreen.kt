@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -24,6 +25,7 @@ fun MasterScreen(
     viewModel: MasterViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val advancedState by viewModel.advancedState.collectAsState()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -60,10 +62,10 @@ fun MasterScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(text = "MOTOR 10: MASTER ENGINE", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Text(text = "FL-Studio Pro Style", color = Color.Gray, fontSize = 10.sp)
+                        Text(text = "Pro Audio & Comping", color = Color.Gray, fontSize = 10.sp)
                     }
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Exportación profesional, Mastering asistido y Stems", color = Color.White, fontSize = 12.sp)
+                    Text(text = "Mastering, Comping de Tomas y Edición Avanzada", color = Color.White, fontSize = 12.sp)
                 }
             }
 
@@ -101,11 +103,9 @@ fun MasterScreen(
                                 val width = size.width
                                 val height = size.height
 
-                                // Cuadrícula de referencia central
                                 drawLine(Color(0xFF1F2937), Offset(0f, height / 2), Offset(width, height / 2), strokeWidth = 1f)
                                 drawLine(Color(0xFF1F2937), Offset(width / 2, 0f), Offset(width / 2, height), strokeWidth = 1f)
 
-                                // Onda simulada en tiempo real tipo Wave Candy
                                 val points = 80
                                 val stepX = width / points
                                 val pathPoints = mutableListOf<Offset>()
@@ -125,6 +125,82 @@ fun MasterScreen(
                                     )
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            // --- 🎙️ FUNCIONES AVANZADAS DE GRABACIÓN Y EDICIÓN (COMPING & TIME-SYNC) ---
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF161B22)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "🎙️ Comping & Edición de Tomas", color = Color(0xFFFFD700), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Switch(
+                            checked = advancedState.isCompingActive,
+                            onCheckedChange = { viewModel.toggleComping(it) },
+                            modifier = Modifier.scale(0.7f)
+                        )
+                    }
+
+                    Text(text = "Selección de Toma Activa (Comping):", color = Color.Gray, fontSize = 11.sp)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf(1, 2, 3).forEach { takeNum ->
+                            val isSelected = advancedState.selectedTake == takeNum
+                            Button(
+                                onClick = { viewModel.selectTake(takeNum) },
+                                colors = ButtonDefaults.buttonColors(containerColor = if (isSelected) Color(0xFFFFD700) else Color(0xFF2A2A3D)),
+                                modifier = Modifier.weight(1f).height(30.dp),
+                                shape = RoundedCornerShape(6.dp),
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Text(text = "Toma $takeNum", color = if (isSelected) Color.Black else Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(text = "Sincronización con Tempo (Time-Sync)", color = Color.White, fontSize = 11.sp)
+                            Text(text = "Alineación automática con el compás y la cuadrícula", color = Color.Gray, fontSize = 9.sp)
+                        }
+                        Switch(
+                            checked = advancedState.isTimeSyncEnabled,
+                            onCheckedChange = { viewModel.toggleTimeSync(it) },
+                            modifier = Modifier.scale(0.7f)
+                        )
+                    }
+
+                    Text(text = "Fundidos (Fade In / Out):", color = Color.Gray, fontSize = 11.sp)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Fade In: ${advancedState.fadeInSec}s", color = Color.LightGray, fontSize = 10.sp)
+                            Slider(
+                                value = advancedState.fadeInSec,
+                                onValueChange = { viewModel.updateFades(it, advancedState.fadeOutSec) },
+                                valueRange = 0.0f..2.0f,
+                                modifier = Modifier.height(16.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Fade Out: ${advancedState.fadeOutSec}s", color = Color.LightGray, fontSize = 10.sp)
+                            Slider(
+                                value = advancedState.fadeOutSec,
+                                onValueChange = { viewModel.updateFades(advancedState.fadeInSec, it) },
+                                valueRange = 0.0f..2.0f,
+                                modifier = Modifier.height(16.dp)
+                            )
                         }
                     }
                 }
@@ -248,7 +324,7 @@ fun MasterScreen(
                     Text(text = "📁 Playlist & Stems Activos", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     
                     val tracks = listOf(
-                        Pair("Moon Halo vocal", Color(0xFFE57373)),
+                        Pair("Moon Halo vocal (Toma ${advancedState.selectedTake})", Color(0xFFE57373)),
                         Pair("Piano & Strings Bus", Color(0xFF81C784)),
                         Pair("Guitar & Melody", Color(0xFFFFB74D)),
                         Pair("Bass & SubBass Bus", Color(0xFFBA68C8))
@@ -321,7 +397,6 @@ fun MasterScreen(
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = "🎚️ Parámetros de Renderizado", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold, fontSize = 13.sp)
 
-                    // Formato
                     Text(text = "Formato de Exportación:", color = Color.Gray, fontSize = 11.sp)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         ExportFormat.entries.forEach { fmt ->
@@ -338,7 +413,6 @@ fun MasterScreen(
                         }
                     }
 
-                    // Sample Rate
                     Text(text = "Frecuencia de Muestreo (Sample Rate):", color = Color.Gray, fontSize = 11.sp)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf(SampleRate.SR_44100, SampleRate.SR_48000, SampleRate.SR_96000).forEach { sr ->
@@ -355,7 +429,6 @@ fun MasterScreen(
                         }
                     }
 
-                    // Bit Depth
                     Text(text = "Profundidad de Bits (Bit Depth):", color = Color.Gray, fontSize = 11.sp)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf(BitDepth.BIT_16, BitDepth.BIT_24, BitDepth.BIT_32).forEach { bd ->
@@ -439,7 +512,7 @@ fun MasterScreen(
             Spacer(modifier = Modifier.height(48.dp))
         }
 
-        // --- DIÁLOGO DE NOMBRE DE EXPORTACIÓN ---
+        // --- DIÁLOGO DE EXPORTACIÓN ---
         if (showExportDialog) {
             AlertDialog(
                 onDismissRequest = { showExportDialog = false },
