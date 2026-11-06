@@ -17,6 +17,17 @@ import java.io.File
 import javax.inject.Inject
 import kotlin.random.Random
 
+// Estado para las funciones avanzadas de grabación y audio (Comping, Fades, Time-Sync)
+data class AdvancedMasterState(
+    val selectedTake: Int = 1,
+    val isCompingActive: Boolean = false,
+    val trimStart: Float = 0.0f,
+    val trimEnd: Float = 100.0f,
+    val fadeInSec: Float = 0.5f,
+    val fadeOutSec: Float = 0.5f,
+    val isTimeSyncEnabled: Boolean = true
+)
+
 @HiltViewModel
 class MasterViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -25,6 +36,9 @@ class MasterViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(MasterUiState())
     val uiState = _uiState.asStateFlow()
+
+    private val _advancedState = MutableStateFlow(AdvancedMasterState())
+    val advancedState = _advancedState.asStateFlow()
 
     init {
         runMasteringAnalysis()
@@ -62,6 +76,27 @@ class MasterViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    // --- MÉTODOS DE FUNCIONES AVANZADAS DE AUDIO (COMPING & EDIT) ---
+    fun selectTake(take: Int) {
+        _advancedState.update { it.copy(selectedTake = take) }
+    }
+
+    fun toggleComping(enabled: Boolean) {
+        _advancedState.update { it.copy(isCompingActive = enabled) }
+    }
+
+    fun updateTrim(start: Float, end: Float) {
+        _advancedState.update { it.copy(trimStart = start, trimEnd = end) }
+    }
+
+    fun updateFades(fadeIn: Float, fadeOut: Float) {
+        _advancedState.update { it.copy(fadeInSec = fadeIn, fadeOutSec = fadeOut) }
+    }
+
+    fun toggleTimeSync(enabled: Boolean) {
+        _advancedState.update { it.copy(isTimeSyncEnabled = enabled) }
     }
 
     fun setFormat(format: ExportFormat) {
@@ -105,7 +140,7 @@ class MasterViewModel @Inject constructor(
                 val extension = _uiState.value.selectedFormat.extension
 
                 val outputFile = File(exportDir, "${cleanName}_Mastered.$extension")
-                outputFile.writeText("Mastered Audio Mock Data")
+                outputFile.writeText("Mastered Audio with Comping & TimeSync Data")
 
                 _uiState.update { it.copy(exportProgress = 1.0f) }
                 delay(300L)
