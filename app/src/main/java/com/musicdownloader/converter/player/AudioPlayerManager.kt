@@ -271,25 +271,29 @@ class AudioPlayerManager @Inject constructor(
         return exoPlayer?.currentPosition ?: 0L
     }
 
-    // --- MOTOR 9: EXPANSIÓN COMPLETA DE DSPs PARA TODOS LOS CARRILES ---
+    // --- 🎚️ NUEVO: CONTROL DE GANANCIA Y VOLUMEN MAESTRO PARA EL MOTOR 10 ---
+    fun setMasterGain(gainLinear: Float) {
+        try {
+            exoPlayer?.volume = gainLinear.coerceIn(0.0f, 2.0f)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // --- MOTOR 9: EXPANSIÓN COMPLETA DE DSPS PARA TODOS LOS CARRILES ---
     fun applyAutomation(parameter: AutomationParameterType, value: Float) {
         try {
             val safeValue = value.coerceIn(0f, 1f)
             when (parameter) {
                 AutomationParameterType.VOLUME -> {
-                    // Modifica el volumen maestro del reproductor en tiempo real (0.0 a 1.0)
                     exoPlayer?.volume = safeValue
                 }
                 AutomationParameterType.PITCH -> {
-                    // Modifica la velocidad/pitch en tiempo real (0.5x a 2.0x)
                     val speed = 0.5f + (safeValue * 1.5f)
                     setPlaybackSpeed(speed)
                 }
-                AutomationParameterType.PAN -> {
-                    // Control de panorama estéreo (simulado mediante metadatos o balance de canales)
-                }
+                AutomationParameterType.PAN -> {}
                 AutomationParameterType.CUTOFF -> {
-                    // Filtro de corte de frecuencia usando la banda baja del ecualizador
                     equalizer?.let { eq ->
                         if (eq.numberOfBands > 0) {
                             val range = eq.bandLevelRange
@@ -299,7 +303,6 @@ class AudioPlayerManager @Inject constructor(
                     }
                 }
                 AutomationParameterType.RESONANCE -> {
-                    // Resonancia usando las bandas intermedias del ecualizador
                     equalizer?.let { eq ->
                         if (eq.numberOfBands > 1) {
                             val range = eq.bandLevelRange
@@ -309,14 +312,12 @@ class AudioPlayerManager @Inject constructor(
                     }
                 }
                 AutomationParameterType.REVERB -> {
-                    // Activa o descarta reverb según el umbral de la curva
                     val shouldEnable = safeValue > 0.5f
                     if (shouldEnable != _isReverbEnabled.value) {
                         toggleReverb()
                     }
                 }
                 AutomationParameterType.DELAY -> {
-                    // Modulación de delay/eco simulada mediante las bandas altas del ecualizador
                     equalizer?.let { eq ->
                         if (eq.numberOfBands > 2) {
                             val range = eq.bandLevelRange
@@ -326,7 +327,6 @@ class AudioPlayerManager @Inject constructor(
                     }
                 }
                 AutomationParameterType.SYNTH -> {
-                    // Modulación de parámetros de sintetizador en tiempo real
                     equalizer?.let { eq ->
                         if (eq.numberOfBands > 3) {
                             val range = eq.bandLevelRange
@@ -336,7 +336,6 @@ class AudioPlayerManager @Inject constructor(
                     }
                 }
                 AutomationParameterType.EFFECTS -> {
-                    // Control maestro de efectos dinámicos enlazado al BassBoost
                     bassBoost?.let { bb ->
                         if (bb.strengthSupported) {
                             val strength = (safeValue * 1000).toInt().toShort()
@@ -350,7 +349,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // --- NUEVO: EXPORTAR AUDIO ACTUAL A LA BIBLIOTECA ---
+    // --- EXPORTAR AUDIO ACTUAL A LA BIBLIOTECA ---
     fun exportCurrentAudioToLibrary(customTitle: String, onSaved: (File) -> Unit) {
         scope.launch(Dispatchers.IO) {
             try {
@@ -380,8 +379,6 @@ class AudioPlayerManager @Inject constructor(
             }
         }
     }
-
-    // -------------------------------------------------------------
 
     private fun startCrackle() {
         try {
