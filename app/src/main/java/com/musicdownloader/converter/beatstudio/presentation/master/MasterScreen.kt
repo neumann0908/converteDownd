@@ -62,10 +62,10 @@ fun MasterScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(text = "MOTOR 10: MASTER ENGINE", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Text(text = "Pro Audio & Comping", color = Color.Gray, fontSize = 10.sp)
+                        Text(text = "Pro Audio & Presets", color = Color.Gray, fontSize = 10.sp)
                     }
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Mastering, Comping de Tomas y Edición Avanzada", color = Color.White, fontSize = 12.sp)
+                    Text(text = "Mastering, Presets y Exportación por Regiones", color = Color.White, fontSize = 12.sp)
                 }
             }
 
@@ -124,6 +124,80 @@ fun MasterScreen(
                                         strokeWidth = 2.5f
                                     )
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- ⚡ NUEVO: PRESETS DE EXPORTACIÓN ---
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(text = "⚡ Presets de Exportación (Destino)", color = Color(0xFFFFD700), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    
+                    ExportPreset.entries.forEach { preset ->
+                        val isSelected = advancedState.selectedPreset == preset
+                        Button(
+                            onClick = { viewModel.applyExportPreset(preset) },
+                            colors = ButtonDefaults.buttonColors(containerColor = if (isSelected) Color(0xFFFFD700) else Color(0xFF2A2A3D)),
+                            modifier = Modifier.fillMaxWidth().height(36.dp),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = preset.displayName, color = if (isSelected) Color.Black else Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(text = if (isSelected) "ACTIVO" else "", color = Color.DarkGray, fontSize = 9.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- ✂️ NUEVO: EXPORTACIÓN POR REGIONES ---
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(text = "✂️ Exportación por Regiones", color = Color(0xFFFFD700), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Renderizar solo un rango de tiempo específico", color = Color.Gray, fontSize = 9.sp)
+                        }
+                        Switch(
+                            checked = advancedState.isRegionExportEnabled,
+                            onCheckedChange = { viewModel.toggleRegionExport(it) },
+                            modifier = Modifier.scale(0.7f)
+                        )
+                    }
+
+                    if (advancedState.isRegionExportEnabled) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = "Inicio: ${advancedState.regionStartSec.toInt()}s", color = Color.LightGray, fontSize = 10.sp)
+                                Slider(
+                                    value = advancedState.regionStartSec,
+                                    onValueChange = { viewModel.updateExportRegion(it, advancedState.regionEndSec) },
+                                    valueRange = 0f..100f,
+                                    modifier = Modifier.height(16.dp)
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = "Fin: ${advancedState.regionEndSec.toInt()}s", color = Color.LightGray, fontSize = 10.sp)
+                                Slider(
+                                    value = advancedState.regionEndSec,
+                                    onValueChange = { viewModel.updateExportRegion(advancedState.regionStartSec, it) },
+                                    valueRange = 0f..300f,
+                                    modifier = Modifier.height(16.dp)
+                                )
                             }
                         }
                     }
