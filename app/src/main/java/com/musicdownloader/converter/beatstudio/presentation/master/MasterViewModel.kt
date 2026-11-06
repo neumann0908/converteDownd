@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
+import kotlin.math.pow
 import kotlin.random.Random
 
 // --- PRESETS DE EXPORTACIÓN PROFESIONAL ---
@@ -24,7 +25,7 @@ enum class ExportPreset(val displayName: String, val description: String) {
     HI_RES("Hi-Res Studio Master", "Máxima calidad, 96 kHz / 32-bit Float")
 }
 
-// Estado extendido para funciones avanzadas, comping, presets y región
+// Estado extendido para funciones avanzadas, comping, presets, región y hardware
 data class AdvancedMasterState(
     val selectedTake: Int = 1,
     val isCompingActive: Boolean = false,
@@ -36,7 +37,9 @@ data class AdvancedMasterState(
     val selectedPreset: ExportPreset = ExportPreset.STREAMING,
     val isRegionExportEnabled: Boolean = false,
     val regionStartSec: Float = 0.0f,
-    val regionEndSec: Float = 120.0f
+    val regionEndSec: Float = 120.0f,
+    val inputDriveDb: Float = 0.0f,
+    val limiterCeilingDb: Float = -0.3f
 )
 
 @HiltViewModel
@@ -86,6 +89,20 @@ class MasterViewModel @Inject constructor(
                     )
                 )
             }
+        }
+    }
+
+    // --- 🎚️ CONTROL DE HARDWARE Y SLIDERS EN TIEMPO REAL ---
+    fun updateInputDrive(gainDb: Float) {
+        _advancedState.update { it.copy(inputDriveDb = gainDb) }
+        val linearGain = 10.0.pow((gainDb / 20.0).toDouble()).toFloat()
+        playerManager.setMasterGain(linearGain)
+    }
+
+    fun updateLimiterCeiling(ceilingDb: Float) {
+        _advancedState.update { it.copy(limiterCeilingDb = ceilingDb) }
+        if (ceilingDb < -1.5f) {
+            playerManager.setMasterGain(0.85f)
         }
     }
 
