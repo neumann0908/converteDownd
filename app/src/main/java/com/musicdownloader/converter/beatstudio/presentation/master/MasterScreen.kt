@@ -32,10 +32,6 @@ fun MasterScreen(
 
     var showExportDialog by remember { mutableStateOf(false) }
     var exportFileName by remember { mutableStateOf("MiPista_Master") }
-    
-    // Controles de hardware virtual (Sliders de consola)
-    var inputDrive by remember { mutableStateOf(0.0f) }
-    var limiterCeiling by remember { mutableStateOf(-0.3f) }
 
     Box(
         modifier = Modifier
@@ -65,7 +61,7 @@ fun MasterScreen(
                         Text(text = "Pro Audio & Presets", color = Color.Gray, fontSize = 10.sp)
                     }
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Mastering, Presets y Exportación por Regiones", color = Color.White, fontSize = 12.sp)
+                    Text(text = "Mastering en Tiempo Real y Control Total", color = Color.White, fontSize = 12.sp)
                 }
             }
 
@@ -130,7 +126,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- ⚡ NUEVO: PRESETS DE EXPORTACIÓN ---
+            // --- ⚡ PRESETS DE EXPORTACIÓN ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
                 shape = RoundedCornerShape(10.dp),
@@ -156,7 +152,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- ✂️ NUEVO: EXPORTACIÓN POR REGIONES ---
+            // --- ✂️ EXPORTACIÓN POR REGIONES ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
                 shape = RoundedCornerShape(10.dp),
@@ -280,7 +276,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- 🎚️ INTERFAZ DE HARDWARE: MEDIDORES LED ESTÉREO Y SLIDERS ---
+            // --- 🎚️ INTERFAZ DE HARDWARE: MEDIDORES LED Y SLIDERS ENLAZADOS AL VIEWMODEL ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF161B22)),
                 shape = RoundedCornerShape(10.dp),
@@ -360,10 +356,11 @@ fun MasterScreen(
 
                     Spacer(modifier = Modifier.height(4.dp))
                     
-                    Text(text = "Input Drive (Gain): ${String.format(java.util.Locale.US, "%.1f", inputDrive)} dB", color = Color.LightGray, fontSize = 11.sp)
+                    // 👈 Input Drive enlazado al ViewModel (Modifica volumen en tiempo real)
+                    Text(text = "Input Drive (Gain): ${String.format(java.util.Locale.US, "%.1f", advancedState.inputDriveDb)} dB", color = Color.LightGray, fontSize = 11.sp)
                     Slider(
-                        value = inputDrive,
-                        onValueChange = { inputDrive = it },
+                        value = advancedState.inputDriveDb,
+                        onValueChange = { viewModel.updateInputDrive(it) },
                         valueRange = -6.0f..12.0f,
                         colors = SliderDefaults.colors(
                             thumbColor = Color(0xFFFFD700),
@@ -373,10 +370,11 @@ fun MasterScreen(
                         modifier = Modifier.height(20.dp)
                     )
 
-                    Text(text = "Limiter Ceiling: ${String.format(java.util.Locale.US, "%.1f", limiterCeiling)} dB", color = Color.LightGray, fontSize = 11.sp)
+                    // 👈 Limiter Ceiling enlazado al ViewModel
+                    Text(text = "Limiter Ceiling: ${String.format(java.util.Locale.US, "%.1f", advancedState.limiterCeilingDb)} dB", color = Color.LightGray, fontSize = 11.sp)
                     Slider(
-                        value = limiterCeiling,
-                        onValueChange = { limiterCeiling = it },
+                        value = advancedState.limiterCeilingDb,
+                        onValueChange = { viewModel.updateLimiterCeiling(it) },
                         valueRange = -3.0f..0.0f,
                         colors = SliderDefaults.colors(
                             thumbColor = Color(0xFFFFD700),
