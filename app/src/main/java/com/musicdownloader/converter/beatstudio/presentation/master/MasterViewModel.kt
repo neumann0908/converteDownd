@@ -17,7 +17,14 @@ import java.io.File
 import javax.inject.Inject
 import kotlin.random.Random
 
-// Estado para las funciones avanzadas de grabación y audio (Comping, Fades, Time-Sync)
+// --- PRESETS DE EXPORTACIÓN PROFESIONAL ---
+enum class ExportPreset(val displayName: String, val description: String) {
+    STREAMING("Streaming (Spotify/Apple)", "Optimizado a -14 LUFS, 44.1kHz / 24-bit con limitador activo"),
+    CD_AUDIO("Audio CD Estándar", "WAV sin pérdidas, 16-bit / 44.1 kHz"),
+    HI_RES("Hi-Res Studio Master", "Máxima calidad, 96 kHz / 32-bit Float")
+}
+
+// Estado extendido para funciones avanzadas, comping, presets y región
 data class AdvancedMasterState(
     val selectedTake: Int = 1,
     val isCompingActive: Boolean = false,
@@ -25,7 +32,11 @@ data class AdvancedMasterState(
     val trimEnd: Float = 100.0f,
     val fadeInSec: Float = 0.5f,
     val fadeOutSec: Float = 0.5f,
-    val isTimeSyncEnabled: Boolean = true
+    val isTimeSyncEnabled: Boolean = true,
+    val selectedPreset: ExportPreset = ExportPreset.STREAMING,
+    val isRegionExportEnabled: Boolean = false,
+    val regionStartSec: Float = 0.0f,
+    val regionEndSec: Float = 120.0f
 )
 
 @HiltViewModel
@@ -76,6 +87,54 @@ class MasterViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    // --- MÉTODOS DE PRESETS Y REGIONES ---
+    fun applyExportPreset(preset: ExportPreset) {
+        _advancedState.update { it.copy(selectedPreset = preset) }
+        when (preset) {
+            ExportPreset.STREAMING -> {
+                _uiState.update { 
+                    it.copy(
+                        selectedFormat = ExportFormat.MP3, 
+                        selectedSampleRate = SampleRate.SR_44100, 
+                        selectedBitDepth = BitDepth.BIT_24, 
+                        isLimiterEnabled = true, 
+                        isNormalizationEnabled = true
+                    ) 
+                }
+            }
+            ExportPreset.CD_AUDIO -> {
+                _uiState.update { 
+                    it.copy(
+                        selectedFormat = ExportFormat.WAV, 
+                        selectedSampleRate = SampleRate.SR_44100, 
+                        selectedBitDepth = BitDepth.BIT_16, 
+                        isLimiterEnabled = false, 
+                        isNormalizationEnabled = false
+                    ) 
+                }
+            }
+            ExportPreset.HI_RES -> {
+                _uiState.update { 
+                    it.copy(
+                        selectedFormat = ExportFormat.FLAC, 
+                        selectedSampleRate = SampleRate.SR_96000, 
+                        selectedBitDepth = BitDepth.BIT_32, 
+                        isLimiterEnabled = true, 
+                        isNormalizationEnabled = true
+                    ) 
+                }
+            }
+        }
+    }
+
+    fun toggleRegionExport(enabled: Boolean) {
+        _advancedState.update { it.copy(isRegionExportEnabled = enabled) }
+    }
+
+    fun updateExportRegion(start: Float, end: Float) {
+        _advancedState.update { it.copy(regionStartSec = start, regionEndSec = end) }
     }
 
     // --- MÉTODOS DE FUNCIONES AVANZADAS DE AUDIO (COMPING & EDIT) ---
@@ -140,7 +199,7 @@ class MasterViewModel @Inject constructor(
                 val extension = _uiState.value.selectedFormat.extension
 
                 val outputFile = File(exportDir, "${cleanName}_Mastered.$extension")
-                outputFile.writeText("Mastered Audio with Comping & TimeSync Data")
+                outputFile.writeText("Mastered Audio with Presets & Region Export Data")
 
                 _uiState.update { it.copy(exportProgress = 1.0f) }
                 delay(300L)
