@@ -27,6 +27,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.pow
 
 @Singleton
 class AudioPlayerManager @Inject constructor(
@@ -271,10 +272,25 @@ class AudioPlayerManager @Inject constructor(
         return exoPlayer?.currentPosition ?: 0L
     }
 
-    // --- 🎚️ NUEVO: CONTROL DE GANANCIA Y VOLUMEN MAESTRO PARA EL MOTOR 10 ---
+    // --- 🎚️ CONTROL DE GANANCIA Y VOLUMEN MAESTRO PARA EL MOTOR 10 ---
     fun setMasterGain(gainLinear: Float) {
         try {
             exoPlayer?.volume = gainLinear.coerceIn(0.0f, 2.0f)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // --- 🎚️ MOTOR 10: PROCESAMIENTO DSP EN TIEMPO REAL PARA EL MÁSTER ---
+    fun updateMasteringParameters(inputDriveDb: Float, limiterCeilingDb: Float) {
+        try {
+            // Conversión de dB a ganancia lineal: 10^(dB / 20)
+            val driveLinear = 10.0.pow((inputDriveDb / 20.0).toDouble()).toFloat()
+            val ceilingLinear = 10.0.pow((limiterCeilingDb / 20.0).toDouble()).toFloat()
+
+            // Aplicamos el Drive y limitamos estrictamente al "Ceiling" configurado
+            val effectiveVolume = driveLinear.coerceAtMost(ceilingLinear)
+            exoPlayer?.volume = effectiveVolume.coerceIn(0.0f, 2.0f)
         } catch (e: Exception) {
             e.printStackTrace()
         }
