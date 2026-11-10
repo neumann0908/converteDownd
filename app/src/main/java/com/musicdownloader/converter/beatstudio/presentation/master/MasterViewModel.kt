@@ -15,7 +15,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
-import kotlin.math.pow
 import kotlin.random.Random
 
 // --- PRESETS DE EXPORTACIÓN PROFESIONAL ---
@@ -92,18 +91,15 @@ class MasterViewModel @Inject constructor(
         }
     }
 
-    // --- 🎚️ CONTROL DE HARDWARE Y SLIDERS EN TIEMPO REAL ---
+    // --- 🎚️ CONTROL DE HARDWARE Y SLIDERS EN TIEMPO REAL (ENLACE DSP UNIFICADO) ---
     fun updateInputDrive(gainDb: Float) {
         _advancedState.update { it.copy(inputDriveDb = gainDb) }
-        val linearGain = 10.0.pow((gainDb / 20.0).toDouble()).toFloat()
-        playerManager.setMasterGain(linearGain)
+        playerManager.updateMasteringParameters(gainDb, _advancedState.value.limiterCeilingDb)
     }
 
     fun updateLimiterCeiling(ceilingDb: Float) {
         _advancedState.update { it.copy(limiterCeilingDb = ceilingDb) }
-        if (ceilingDb < -1.5f) {
-            playerManager.setMasterGain(0.85f)
-        }
+        playerManager.updateMasteringParameters(_advancedState.value.inputDriveDb, ceilingDb)
     }
 
     // --- MÉTODOS DE PRESETS Y REGIONES ---
