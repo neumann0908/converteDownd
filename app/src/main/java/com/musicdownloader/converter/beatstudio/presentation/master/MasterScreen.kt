@@ -14,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -530,7 +529,7 @@ fun MasterScreen(
                     ) {
                         Text(text = "Renderizado de Pistas Individuales (Stems)", color = Color.White, fontSize = 12.sp)
                         Switch(
-                            checked = state.isStemExportEnabled,
+                            checked = advancedState.isStemExportEnabled, // 👈 Corregido apuntando a advancedState
                             onCheckedChange = { viewModel.toggleStemExport(it) }
                         )
                     }
