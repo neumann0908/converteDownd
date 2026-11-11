@@ -17,6 +17,14 @@ import java.io.File
 import javax.inject.Inject
 import kotlin.random.Random
 
+// --- MODELO PARA LOS STEMS REALES DEL MOTOR 10 ---
+data class MasterStemItem(
+    val name: String,
+    val path: String,
+    val sizeMb: String,
+    val isMuted: Boolean = false
+)
+
 // --- PRESETS DE EXPORTACIÓN PROFESIONAL ---
 enum class ExportPreset(val displayName: String, val description: String) {
     STREAMING("Streaming (Spotify/Apple)", "Optimizado a -14 LUFS, 44.1kHz / 24-bit con limitador activo"),
@@ -24,7 +32,7 @@ enum class ExportPreset(val displayName: String, val description: String) {
     HI_RES("Hi-Res Studio Master", "Máxima calidad, 96 kHz / 32-bit Float")
 }
 
-// Estado extendido para funciones avanzadas, comping, presets, región y hardware
+// Estado extendido para funciones avanzadas, comping, presets, región, hardware y stems reales
 data class AdvancedMasterState(
     val selectedTake: Int = 1,
     val isCompingActive: Boolean = false,
@@ -38,7 +46,8 @@ data class AdvancedMasterState(
     val regionStartSec: Float = 0.0f,
     val regionEndSec: Float = 120.0f,
     val inputDriveDb: Float = 0.0f,
-    val limiterCeilingDb: Float = -0.3f
+    val limiterCeilingDb: Float = -0.3f,
+    val activeStems: List<MasterStemItem> = emptyList()
 )
 
 @HiltViewModel
@@ -55,6 +64,53 @@ class MasterViewModel @Inject constructor(
 
     init {
         runMasteringAnalysis()
+        loadAvailableStems()
+    }
+
+    // --- ESCANEO DE AUDIOS DE LA BIBLIOTECA PARA EL MOTOR 10 ---
+    fun loadAvailableStems() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val stemList = mutableListOf<MasterStemItem>()
+
+            // 1. Escanear carpeta de descargas externas (MusicDownloads)
+            val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
+            if (downloadDir.exists() && downloadDir.isDirectory) {
+                downloadDir.listFiles { file ->
+                    file.isFile && (file.extension.equals("mp3", true) ||
+                            file.extension.equals("m4a", true) ||
+                            file.extension.equals("webm", true) ||
+                            file.extension.equals("wav", true))
+                }?.forEach { file ->
+                    val sizeMb = String.format(java.util.Locale.US, "%.2f MB", file.length().toDouble() / (1024 * 1024))
+                    stemList.add(MasterStemItem(name = file.name, path = file.absolutePath, sizeMb = sizeMb))
+                }
+            }
+
+            // 2. Escanear carpeta interna de Beats Exportados (Beat Studio Pro)
+            val exportDir = File(context.filesDir, "exports")
+            if (exportDir.exists() && exportDir.isDirectory) {
+                exportDir.listFiles { file ->
+                    file.isFile && file.extension.equals("wav", true)
+                }?.forEach { file ->
+                    val sizeMb = String.format(java.util.Locale.US, "%.2f MB", file.length().toDouble() / (1024 * 1024))
+                    stemList.add(MasterStemItem(name = file.name, path = file.absolutePath, sizeMb = sizeMb))
+                }
+            }
+
+            // 3. Escanear carpeta de Grabaciones del Motor 8
+            val recordingsDir = File(context.filesDir, "recordings")
+            if (recordingsDir.exists() && recordingsDir.isDirectory) {
+                recordingsDir.listFiles { file ->
+                    file.isFile && file.extension.equals("wav", true)
+                }?.forEach { file ->
+                    val sizeMb = String.format(java.util.Locale.US, "%.2f MB", file.length().toDouble() / (1024 * 1024))
+                    stemList.add(MasterStemItem(name = "🎙️ ${file.name}", path = file.absolutePath, sizeMb = sizeMb))
+                }
+            }
+
+            val sortedStems = stemList.sortedBy { it.name }
+            _advancedState.update { it.copy(activeStems = sortedStems) }
+        }
     }
 
     // --- ANÁLISIS DE AUDIO ASISTIDO ---
@@ -212,7 +268,7 @@ class MasterViewModel @Inject constructor(
                 val extension = _uiState.value.selectedFormat.extension
 
                 val outputFile = File(exportDir, "${cleanName}_Mastered.$extension")
-                outputFile.writeText("Mastered Audio with Presets & Region Export Data")
+                outputFile.writeText("Mastered Audio unifying active stems from library")
 
                 _uiState.update { it.copy(exportProgress = 1.0f) }
                 delay(300L)
