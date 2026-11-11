@@ -36,23 +36,16 @@ enum class ExportPreset(val displayName: String, val description: String) {
     HI_RES("Hi-Res Studio Master", "Máxima calidad, 96 kHz / 32-bit Float")
 }
 
-// Estado extendido para consola analógica, stems, comping, presets y región
+// Estado extendido para consola analógica, stems, presets y región
 data class AdvancedMasterState(
-    val selectedTake: Int = 1,
-    val isCompingActive: Boolean = false,
-    val trimStart: Float = 0.0f,
-    val trimEnd: Float = 100.0f,
-    val fadeInSec: Float = 0.5f,
-    val fadeOutSec: Float = 0.5f,
-    val isTimeSyncEnabled: Boolean = true,
+    val inputDriveDb: Float = 0.0f,
+    val limiterCeilingDb: Float = -0.3f,
     val selectedPreset: ExportPreset = ExportPreset.STREAMING,
     val isRegionExportEnabled: Boolean = false,
     val regionStartSec: Float = 0.0f,
     val regionEndSec: Float = 120.0f,
-    val inputDriveDb: Float = 0.0f,
-    val limiterCeilingDb: Float = -0.3f,
     val activeStems: List<MasterStemItem> = emptyList(),
-    val selectedStemId: String? = null // Canal actualmente enfocado en las perillas
+    val selectedStemId: String? = null // Canal actualmente enfocado en las perillas y reproduciéndose
 )
 
 @HiltViewModel
@@ -124,9 +117,17 @@ class MasterViewModel @Inject constructor(
         }
     }
 
-    // --- SELECCIÓN DE CANAL / STEM PARA LAS PERILLAS DE LA CONSOLA ---
-    fun selectStem(stemId: String) {
+    // --- SELECCIONAR Y REPRODUCIR EL STEM AL INSTANTE ---
+    fun selectAndPlayStem(stemId: String) {
         _advancedState.update { it.copy(selectedStemId = stemId) }
+        val stem = _advancedState.value.activeStems.find { it.id == stemId }
+        if (stem != null) {
+            try {
+                playerManager.playFile(stem.path, stem.name)[span_1](start_span)[span_1](end_span)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun updateSelectedStemVolume(volume: Float) {
@@ -248,27 +249,6 @@ class MasterViewModel @Inject constructor(
         _advancedState.update { it.copy(regionStartSec = start, regionEndSec = end) }
     }
 
-    // --- MÉTODOS DE FUNCIONES AVANZADAS DE AUDIO (COMPING & EDIT) ---
-    fun selectTake(take: Int) {
-        _advancedState.update { it.copy(selectedTake = take) }
-    }
-
-    fun toggleComping(enabled: Boolean) {
-        _advancedState.update { it.copy(isCompingActive = enabled) }
-    }
-
-    fun updateTrim(start: Float, end: Float) {
-        _advancedState.update { it.copy(trimStart = start, trimEnd = end) }
-    }
-
-    fun updateFades(fadeIn: Float, fadeOut: Float) {
-        _advancedState.update { it.copy(fadeInSec = fadeIn, fadeOutSec = fadeOut) }
-    }
-
-    fun toggleTimeSync(enabled: Boolean) {
-        _advancedState.update { it.copy(isTimeSyncEnabled = enabled) }
-    }
-
     fun setFormat(format: ExportFormat) {
         _uiState.update { it.copy(selectedFormat = format) }
     }
@@ -287,10 +267,6 @@ class MasterViewModel @Inject constructor(
 
     fun toggleLimiter(enabled: Boolean) {
         _uiState.update { it.copy(isLimiterEnabled = enabled) }
-    }
-
-    fun toggleStemExport(enabled: Boolean) {
-        _uiState.update { it.copy(isStemExportEnabled = enabled) }
     }
 
     // --- MOTOR DE EXPORTACIÓN OFFLINE ---
