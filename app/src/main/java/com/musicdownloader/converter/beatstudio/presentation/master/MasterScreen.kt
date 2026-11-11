@@ -34,7 +34,9 @@ fun MasterScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var showExportDialog by remember { mutableStateOf(false) }
+    var showSaveProjectDialog by remember { mutableStateOf(false) }
     var exportFileName by remember { mutableStateOf("MiPista_Master") }
+    var projectNameInput by remember { mutableStateOf("Sesion_Pro_1") }
 
     Box(
         modifier = Modifier
@@ -48,85 +50,60 @@ fun MasterScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // --- 1. TOP DASHBOARD (ESTILO RACK HARDWARE) ---
+            // --- 1. TOP DASHBOARD (ESTILO RACK HARDWARE & PROYECTOS) ---
             Surface(
                 color = Color(0xFF111722),
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, Color(0xFF1F2A3C)),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Box(modifier = Modifier.size(7.dp).background(Color(0xFFFFD700), RoundedCornerShape(2.dp)))
-                        Text(text = "DAW RACK // MOTOR 10 PRO", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Black)
-                    }
-                    Button(
-                        onClick = { viewModel.loadAvailableStems() },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A2332)),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        modifier = Modifier.height(26.dp),
-                        shape = RoundedCornerShape(4.dp)
+                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Escanear Stems 🔄", color = Color.Cyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-
-            // --- 2. RACK DE MONITOREO ANALÓGICO ("WAVE CANDY DOCK") ---
-            Surface(
-                color = Color(0xFF05070B),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color(0xFF17202F)),
-                modifier = Modifier.fillMaxWidth().height(105.dp)
-            ) {
-                Column(modifier = Modifier.padding(6.dp).fillMaxSize()) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "LIVE SPECTRUM ANALYZER (MASTER BUS)", color = Color(0xFF00FFCC), fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                        Text(text = "DSP: 44.1kHz / 24-BIT", color = Color.Gray, fontSize = 8.sp)
-                    }
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .background(Color(0xFF020305), RoundedCornerShape(4.dp))
-                            .padding(2.dp)
-                    ) {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val width = size.width
-                            val height = size.height
-                            drawLine(Color(0xFF0C131D), Offset(0f, height / 2), Offset(width, height / 2), strokeWidth = 1f)
-                            val points = 60
-                            val stepX = width / points
-                            for (i in 0 until points) {
-                                val x1 = i * stepX
-                                val y1 = (height / 2f) + kotlin.math.sin(i * 0.4f + System.currentTimeMillis() * 0.005f) * (height * 0.38f)
-                                val x2 = (i + 1) * stepX
-                                val y2 = (height / 2f) + kotlin.math.sin((i + 1) * 0.4f + System.currentTimeMillis() * 0.005f) * (height * 0.38f)
-                                drawLine(Color(0xFF00FFCC), Offset(x1, y1), Offset(x2, y2), strokeWidth = 1.5f)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Box(modifier = Modifier.size(7.dp).background(Color(0xFFFFD700), RoundedCornerShape(2.dp)))
+                            Text(text = "DAW RACK // MULTI-TRACK STUDIO", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Black)
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Button(
+                                onClick = { viewModel.loadAvailableStems() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A2332)),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                                modifier = Modifier.height(26.dp),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text("Escanear 🔄", color = Color.Cyan, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Button(
+                                onClick = { showSaveProjectDialog = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                                modifier = Modifier.height(26.dp),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text("💾 Guardar", color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
             }
 
-            // --- 3. BANDEJA DE CANALES HORIZONTAL (MIXER STRIPS) ---
+            // --- 2. BIBLIOTECA DE AUDIOS ESCANEADOS (SELECCIONAR PARA ABRIR CANAL) ---
             Surface(
-                color = Color(0xFF111722),
+                color = Color(0xFF0E131D),
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color(0xFF1F2A3C)),
+                border = BorderStroke(1.dp, Color(0xFF1A2332)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(text = "MIXER STRIPS (STEMS & LIBRARY)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "📁 BIBLIOTECA DE AUDIOS (Toca para abrir canal en sesión)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
 
-                    val activeStems = advancedState.activeStems
-                    if (activeStems.isEmpty()) {
-                        Text(text = "No hay pistas detectadas en el sistema.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
+                    val libraryStems = advancedState.availableLibraryStems
+                    if (libraryStems.isEmpty()) {
+                        Text(text = "Pulsa 'Escanear' arriba para buscar audios.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
                     } else {
                         Row(
                             modifier = Modifier
@@ -134,15 +111,77 @@ fun MasterScreen(
                                 .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            activeStems.forEach { stem ->
+                            libraryStems.forEach { stem ->
+                                Surface(
+                                    color = Color(0xFF161F2E),
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = BorderStroke(1.dp, Color(0xFF2B3A52)),
+                                    modifier = Modifier
+                                        .width(130.dp)
+                                        .height(65.dp)
+                                        .clickable { viewModel.addStemToSession(stem.id) }
+                                ) {
+                                    Column(modifier = Modifier.fillMaxSize().padding(6.dp), verticalArrangement = Arrangement.SpaceBetween) {
+                                        Text(text = stem.name, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                            Text(text = stem.sizeMb, color = Color.Gray, fontSize = 7.sp)
+                                            Text(text = "➕ Añadir", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- 3. BANDEJA DE CANALES ACTIVOS EN SESIÓN (MIXER MULTICANAL) ---
+            Surface(
+                color = Color(0xFF111722),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, Color(0xFF1F2A3C)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "🎚️ MIXER STRIPS (CANALES ACTIVOS)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        
+                        // Botón de Play / Stop Global Multicanal
+                        Button(
+                            onClick = { viewModel.togglePlayAllChannels() },
+                            colors = ButtonDefaults.buttonColors(containerColor = if (advancedState.isMultiPlayActive) Color(0xFFFF5252) else Color(0xFF00E676)),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.height(24.dp),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = if (advancedState.isMultiPlayActive) "⏹ Detener Todo" else "▶ Reproducir Sesión",
+                                color = Color.Black,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    val sessionStems = advancedState.activeSessionStems
+                    if (sessionStems.isEmpty()) {
+                        Text(text = "No hay canales en la sesión. Añade audios desde la biblioteca superior.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            sessionStems.forEach { stem ->
                                 val isSelected = stem.id == advancedState.selectedStemId
                                 Surface(
                                     color = if (isSelected) Color(0xFF1F2B3E) else Color(0xFF070B10),
                                     shape = RoundedCornerShape(6.dp),
                                     border = BorderStroke(1.5.dp, if (isSelected) Color(0xFFFFD700) else Color(0xFF1A2332)),
                                     modifier = Modifier
-                                        .width(125.dp)
-                                        .height(90.dp)
+                                        .width(135.dp)
+                                        .height(100.dp)
                                         .clickable { viewModel.selectAndPlayStem(stem.id) }
                                 ) {
                                     Column(
@@ -154,23 +193,32 @@ fun MasterScreen(
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Box(modifier = Modifier.size(5.dp).background(if (isSelected) Color(0xFFFFD700) else Color(0xFF00E676), RoundedCornerShape(2.dp)))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Box(modifier = Modifier.size(5.dp).background(if (isSelected) Color(0xFFFFD700) else Color(0xFF00E676), RoundedCornerShape(2.dp)))
+                                                IconButton(
+                                                    onClick = { viewModel.toggleStemMute(stem.id) },
+                                                    modifier = Modifier.size(18.dp)
+                                                ) {
+                                                    Text(
+                                                        text = if (stem.isMuted) "M" else "S",
+                                                        color = if (stem.isMuted) Color.Red else Color.Green,
+                                                        fontSize = 8.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            }
+                                            // Botón para expulsar canal de la sesión
                                             IconButton(
-                                                onClick = { viewModel.toggleStemMute(stem.id) },
-                                                modifier = Modifier.size(18.dp)
+                                                onClick = { viewModel.removeStemFromSession(stem.id) },
+                                                modifier = Modifier.size(16.dp)
                                             ) {
-                                                Text(
-                                                    text = if (stem.isMuted) "M" else "S",
-                                                    color = if (stem.isMuted) Color.Red else Color.Green,
-                                                    fontSize = 8.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
+                                                Text("❌", fontSize = 7.sp)
                                             }
                                         }
                                         Text(text = stem.name, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text(text = "${String.format(java.util.Locale.US, "%.1f", stem.volume)}x", color = Color.Cyan, fontSize = 8.sp)
-                                            Text(text = stem.sizeMb, color = Color.Gray, fontSize = 7.sp)
+                                            Text(text = "Vol: ${String.format(java.util.Locale.US, "%.1f", stem.volume)}x", color = Color.Cyan, fontSize = 8.sp)
+                                            Text(text = "Pan: ${String.format(java.util.Locale.US, "%.1f", stem.pan)}", color = Color.Gray, fontSize = 7.sp)
                                         }
                                     }
                                 }
@@ -180,8 +228,8 @@ fun MasterScreen(
                 }
             }
 
-            // --- 4. RACK DE PERILLAS VST / HARDWARE ANALÓGICO ---
-            val selectedStem = advancedState.activeStems.find { it.id == advancedState.selectedStemId }
+            // --- 4. RACK DE PERILLAS VST / HARDWARE ANALÓGICO (CANAL SELECCIONADO) ---
+            val selectedStem = advancedState.activeSessionStems.find { it.id == advancedState.selectedStemId }
             Surface(
                 color = Color(0xFF111722),
                 shape = RoundedCornerShape(8.dp),
@@ -191,7 +239,7 @@ fun MasterScreen(
                 Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "VIRTUAL RACK: ${selectedStem?.name ?: "Ningún canal seleccionado"}",
+                            text = "VIRTUAL RACK: ${selectedStem?.name ?: "Ningún canal enfocado"}",
                             color = Color(0xFFFFD700),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -236,7 +284,7 @@ fun MasterScreen(
                             )
                         }
                     } else {
-                        Text(text = "Selecciona un canal en el mixer superior para activar sus potenciómetros.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
+                        Text(text = "Selecciona un canal en el mixer activo para manipular sus potenciómetros.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
                     }
                 }
             }
@@ -375,6 +423,41 @@ fun MasterScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showExportDialog = false }) { Text("Cancelar", color = Color.Gray) }
+                },
+                containerColor = Color(0xFF111722)
+            )
+        }
+
+        // --- DIÁLOGO MODAL DE GUARDAR SESIÓN / PROYECTO ---
+        if (showSaveProjectDialog) {
+            AlertDialog(
+                onDismissRequest = { showSaveProjectDialog = false },
+                title = { Text(text = "Guardar Sesión de Ingeniería", color = Color.White, fontSize = 13.sp) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(text = "Nombre del proyecto DAW:", color = Color.Gray, fontSize = 10.sp)
+                        OutlinedTextField(
+                            value = projectNameInput,
+                            onValueChange = { projectNameInput = it },
+                            singleLine = true
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showSaveProjectDialog = false
+                        viewModel.saveStudioSessionProject(projectNameInput) { success ->
+                            coroutineScope.launch {
+                                val msg = if (success) "¡Sesión guardada en biblioteca!" else "Error al guardar sesión"
+                                snackbarHostState.showSnackbar(msg)
+                            }
+                        }
+                    }) {
+                        Text("Guardar", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSaveProjectDialog = false }) { Text("Cancelar", color = Color.Gray) }
                 },
                 containerColor = Color(0xFF111722)
             )
