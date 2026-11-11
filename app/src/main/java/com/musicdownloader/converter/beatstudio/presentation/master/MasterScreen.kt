@@ -61,7 +61,7 @@ fun MasterScreen(
                         Text(text = "Pro Audio & Presets", color = Color.Gray, fontSize = 10.sp)
                     }
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Mastering en Tiempo Real y Control Total", color = Color.White, fontSize = 12.sp)
+                    Text(text = "Mastering en Tiempo Real y Unificación de Stems", color = Color.White, fontSize = 12.sp)
                 }
             }
 
@@ -386,36 +386,57 @@ fun MasterScreen(
                 }
             }
 
-            // --- VISTA PREVIA DE MULTI-PISTAS (PLAYLIST / STEMS) ---
+            // --- 📁 PLAYLIST & STEMS ACTIVOS (CONECTADO A LA BIBLIOTECA REAL) ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(text = "📁 Playlist & Stems Activos", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    
-                    val tracks = listOf(
-                        Pair("Moon Halo vocal (Toma ${advancedState.selectedTake})", Color(0xFFE57373)),
-                        Pair("Piano & Strings Bus", Color(0xFF81C784)),
-                        Pair("Guitar & Melody", Color(0xFFFFB74D)),
-                        Pair("Bass & SubBass Bus", Color(0xFFBA68C8))
-                    )
-                    
-                    tracks.forEach { (trackName, color) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFF13131A), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Box(modifier = Modifier.size(8.dp).background(color, RoundedCornerShape(2.dp)))
-                                Text(text = trackName, color = Color.White, fontSize = 10.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "📁 Playlist & Stems Activos (Biblioteca)", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = { viewModel.loadAvailableStems() }) {
+                            Text("Actualizar 🔄", color = Color.Cyan, fontSize = 10.sp)
+                        }
+                    }
+
+                    val activeStems = advancedState.activeStems
+                    if (activeStems.isEmpty()) {
+                        Text(
+                            text = "No se encontraron audios o grabaciones en la biblioteca.",
+                            color = Color.Gray,
+                            fontSize = 10.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    } else {
+                        activeStems.forEach { stem ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFF13131A), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically, 
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(modifier = Modifier.size(8.dp).background(Color(0xFF00E676), RoundedCornerShape(2.dp)))
+                                    Text(
+                                        text = stem.name, 
+                                        color = Color.White, 
+                                        fontSize = 10.sp,
+                                        maxLines = 1
+                                    )
+                                }
+                                Text(text = "${stem.sizeMb} • WAV/MP3", color = Color.Gray, fontSize = 9.sp)
                             }
-                            Text(text = "Stereo • 24bit", color = Color.Gray, fontSize = 9.sp)
                         }
                     }
                 }
