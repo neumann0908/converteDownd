@@ -17,12 +17,16 @@ import java.io.File
 import javax.inject.Inject
 import kotlin.random.Random
 
-// --- MODELO PARA LOS STEMS REALES DEL MOTOR 10 ---
+// --- MODELO EXTENDIDO PARA LOS STEMS DE LA CONSOLA ANALÓGICA ---
 data class MasterStemItem(
+    val id: String = java.util.UUID.randomUUID().toString(),
     val name: String,
     val path: String,
     val sizeMb: String,
-    val isMuted: Boolean = false
+    val volume: Float = 1.0f,     // Ganancia individual del canal (0.0 a 2.0)
+    val pan: Float = 0.0f,        // Panorama estéreo (-1.0 izq a 1.0 der)
+    val isMuted: Boolean = false,
+    val isSolo: Boolean = false
 )
 
 // --- PRESETS DE EXPORTACIÓN PROFESIONAL ---
@@ -32,7 +36,7 @@ enum class ExportPreset(val displayName: String, val description: String) {
     HI_RES("Hi-Res Studio Master", "Máxima calidad, 96 kHz / 32-bit Float")
 }
 
-// Estado extendido para funciones avanzadas, comping, presets, región, hardware y stems reales
+// Estado extendido para consola analógica, stems, comping, presets y región
 data class AdvancedMasterState(
     val selectedTake: Int = 1,
     val isCompingActive: Boolean = false,
@@ -47,7 +51,8 @@ data class AdvancedMasterState(
     val regionEndSec: Float = 120.0f,
     val inputDriveDb: Float = 0.0f,
     val limiterCeilingDb: Float = -0.3f,
-    val activeStems: List<MasterStemItem> = emptyList()
+    val activeStems: List<MasterStemItem> = emptyList(),
+    val selectedStemId: String? = null // Canal actualmente enfocado en las perillas
 )
 
 @HiltViewModel
@@ -109,7 +114,44 @@ class MasterViewModel @Inject constructor(
             }
 
             val sortedStems = stemList.sortedBy { it.name }
-            _advancedState.update { it.copy(activeStems = sortedStems) }
+            _advancedState.update { state ->
+                val firstId = sortedStems.firstOrNull()?.id
+                state.copy(
+                    activeStems = sortedStems,
+                    selectedStemId = state.selectedStemId ?: firstId
+                )
+            }
+        }
+    }
+
+    // --- SELECCIÓN DE CANAL / STEM PARA LAS PERILLAS DE LA CONSOLA ---
+    fun selectStem(stemId: String) {
+        _advancedState.update { it.copy(selectedStemId = stemId) }
+    }
+
+    fun updateSelectedStemVolume(volume: Float) {
+        val stemId = _advancedState.value.selectedStemId ?: return
+        _advancedState.update { state ->
+            state.copy(
+                activeStems = state.activeStems.map { if (it.id == stemId) it.copy(volume = volume) else it }
+            )
+        }
+    }
+
+    fun updateSelectedStemPan(pan: Float) {
+        val stemId = _advancedState.value.selectedStemId ?: return
+        _advancedState.update { state ->
+            state.copy(
+                activeStems = state.activeStems.map { if (it.id == stemId) it.copy(pan = pan) else it }
+            )
+        }
+    }
+
+    fun toggleStemMute(stemId: String) {
+        _advancedState.update { state ->
+            state.copy(
+                activeStems = state.activeStems.map { if (it.id == stemId) it.copy(isMuted = !it.isMuted) else it }
+            )
         }
     }
 
@@ -268,7 +310,7 @@ class MasterViewModel @Inject constructor(
                 val extension = _uiState.value.selectedFormat.extension
 
                 val outputFile = File(exportDir, "${cleanName}_Mastered.$extension")
-                outputFile.writeText("Mastered Audio unifying active stems from library")
+                outputFile.writeText("Mastered Audio unifying active stems from library with console parameters")
 
                 _uiState.update { it.copy(exportProgress = 1.0f) }
                 delay(300L)
