@@ -38,7 +38,7 @@ fun MasterScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0D1117)) // Fondo DAW oscuro profesional estilo FL Studio
+            .background(Color(0xFF0D1117)) // Fondo DAW oscuro profesional estilo FL Studio / Bitwig
             .padding(12.dp)
     ) {
         Column(
@@ -47,7 +47,7 @@ fun MasterScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // --- CABEZAL DEL MOTOR 10 ---
+            // --- 1. CABEZAL DEL MOTOR 10 ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
                 shape = RoundedCornerShape(12.dp),
@@ -63,11 +63,11 @@ fun MasterScreen(
                         Text(text = "Analog Mixing & Stems", color = Color.Gray, fontSize = 10.sp)
                     }
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Toca cualquier canal de audio para controlarlo con las perillas", color = Color.White, fontSize = 11.sp)
+                    Text(text = "Toca cualquier canal para reproducirlo y controlarlo con las perillas", color = Color.White, fontSize = 11.sp)
                 }
             }
 
-            // --- VENTANA FLOTANTE OSCILOSCOPIO / "WAVE CANDY" GENERAL ---
+            // --- 2. VENTANA FLOTANTE OSCILOSCOPIO / "WAVE CANDY" GENERAL ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xEE161B22)),
                 shape = RoundedCornerShape(12.dp),
@@ -128,7 +128,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- 📁 LISTA APILADA DINÁMICAMENTE DE STEMS (MASTER OUTPUTS INDIVIDUALES) ---
+            // --- 3. 📁 LISTA APILADA DINÁMICAMENTE DE STEMS (CON REPRODUCCIÓN AL TOCAR) ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF161B22)),
                 shape = RoundedCornerShape(10.dp),
@@ -155,7 +155,6 @@ fun MasterScreen(
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     } else {
-                        // Se dibuja un Wave Candy individual apilado por cada audio inyectado
                         activeStems.forEach { stem ->
                             val isSelected = stem.id == advancedState.selectedStemId
                             Card(
@@ -163,7 +162,8 @@ fun MasterScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { viewModel.selectStem(stem.id) }
+                                    // 👈 AQUÍ CONECTAMOS LA REPRODUCCIÓN INSTANTÁNEA AL TOCAR CUALQUIER CANAL
+                                    .clickable { viewModel.selectAndPlayStem(stem.id) }
                                     .border(
                                         width = if (isSelected) 1.5.dp else 0.dp,
                                         color = if (isSelected) Color(0xFFFFD700) else Color.Transparent,
@@ -242,7 +242,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- 🎛️ SECCIÓN UNIFICADA DE CONSOLA ANALÓGICA CON PERILLAS ---
+            // --- 4. 🎛️ SECCIÓN UNIFICADA DE CONSOLA ANALÓGICA CON PERILLAS ---
             val selectedStem = advancedState.activeStems.find { it.id == advancedState.selectedStemId }
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
@@ -318,7 +318,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- ⚡ PRESETS DE EXPORTACIÓN ---
+            // --- 5. ⚡ PRESETS DE EXPORTACIÓN ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
                 shape = RoundedCornerShape(10.dp),
@@ -344,7 +344,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- ✂️ EXPORTACIÓN POR REGIONES ---
+            // --- 6. ✂️ EXPORTACIÓN POR REGIONES ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
                 shape = RoundedCornerShape(10.dp),
@@ -392,7 +392,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- PANEL DE DIAGNÓSTICO INTELIGENTE ---
+            // --- 7. PANEL DE DIAGNÓSTICO INTELIGENTE ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF181822)),
                 shape = RoundedCornerShape(10.dp),
@@ -431,7 +431,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- CONFIGURACIÓN DE FORMATO Y CALIDAD ---
+            // --- 8. CONFIGURACIÓN DE FORMATO Y CALIDAD ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
                 shape = RoundedCornerShape(10.dp),
@@ -490,7 +490,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- PROCESADORES DINÁMICOS Y STEMS ---
+            // --- 9. PROCESADORES DINÁMICOS Y STEMS ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
                 shape = RoundedCornerShape(10.dp),
@@ -537,7 +537,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- BOTÓN PRINCIPAL DE EXPORTACIÓN ---
+            // --- 10. BOTÓN PRINCIPAL DE EXPORTACIÓN ---
             Button(
                 onClick = { showExportDialog = true },
                 enabled = !state.isExporting,
