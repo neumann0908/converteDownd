@@ -2,6 +2,8 @@ package com.musicdownloader.converter.beatstudio.presentation.master
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -57,22 +59,22 @@ fun MasterScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "MOTOR 10: MASTER ENGINE", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Text(text = "Pro Audio & Presets", color = Color.Gray, fontSize = 10.sp)
+                        Text(text = "MOTOR 10: MASTER CONSOLE", color = Color(0xFFFFD700), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "Analog Mixing & Stems", color = Color.Gray, fontSize = 10.sp)
                     }
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Mastering en Tiempo Real y Unificación de Stems", color = Color.White, fontSize = 12.sp)
+                    Text(text = "Toca cualquier canal de audio para controlarlo con las perillas", color = Color.White, fontSize = 11.sp)
                 }
             }
 
-            // --- VENTANA FLOTANTE OSCILOSCOPIO / "WAVE CANDY" ---
+            // --- VENTANA FLOTANTE OSCILOSCOPIO / "WAVE CANDY" GENERAL ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xEE161B22)),
                 shape = RoundedCornerShape(12.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(150.dp)
+                    .height(130.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -84,7 +86,7 @@ fun MasterScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(text = "Wave Candy (Master Output)", color = Color.Cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Wave Candy (Master Output Bus)", color = Color.Cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             Text(text = "REAL-TIME DSP", color = Color.Gray, fontSize = 9.sp)
                         }
                         Spacer(modifier = Modifier.height(4.dp))
@@ -122,6 +124,196 @@ fun MasterScreen(
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            // --- 📁 LISTA APILADA DINÁMICAMENTE DE STEMS (MASTER OUTPUTS INDIVIDUALES) ---
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF161B22)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "📁 Canales Inyectados de la Biblioteca", color = Color(0xFFFFD700), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = { viewModel.loadAvailableStems() }) {
+                            Text("Escanear 🔄", color = Color.Cyan, fontSize = 10.sp)
+                        }
+                    }
+
+                    val activeStems = advancedState.activeStems
+                    if (activeStems.isEmpty()) {
+                        Text(
+                            text = "No se encontraron audios o grabaciones en la biblioteca.",
+                            color = Color.Gray,
+                            fontSize = 10.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    } else {
+                        // Se dibuja un Wave Candy individual apilado por cada audio inyectado
+                        activeStems.forEach { stem ->
+                            val isSelected = stem.id == advancedState.selectedStemId
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFF2A2A3D) else Color(0xFF0F141C)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.selectStem(stem.id) }
+                                    .border(
+                                        width = if (isSelected) 1.5.dp else 0.dp,
+                                        color = if (isSelected) Color(0xFFFFD700) else Color.Transparent,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically, 
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Box(modifier = Modifier.size(8.dp).background(if (isSelected) Color(0xFFFFD700) else Color(0xFF00E676), RoundedCornerShape(2.dp)))
+                                            Text(
+                                                text = stem.name, 
+                                                color = Color.White, 
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1
+                                            )
+                                        }
+                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            Text(text = "Vol: ${String.format(java.util.Locale.US, "%.1f", stem.volume)}x", color = Color.Cyan, fontSize = 9.sp)
+                                            IconButton(
+                                                onClick = { viewModel.toggleStemMute(stem.id) },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Text(
+                                                    text = if (stem.isMuted) "M" else "S",
+                                                    color = if (stem.isMuted) Color.Red else Color.Green,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    // Mini Wave Candy propio de este canal
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(34.dp)
+                                            .background(Color(0xFF06080C), RoundedCornerShape(4.dp))
+                                            .padding(2.dp)
+                                    ) {
+                                        Canvas(modifier = Modifier.fillMaxSize()) {
+                                            val width = size.width
+                                            val height = size.height
+                                            val points = 50
+                                            val stepX = width / points
+                                            val pathPoints = mutableListOf<Offset>()
+                                            for (i in 0..points) {
+                                                val x = i * stepX
+                                                val y = (height / 2f) + kotlin.math.sin(i * 0.3f + stem.hashCode() + System.currentTimeMillis() * 0.003f) * (height * 0.4f) * (if (stem.isMuted) 0.1f else stem.volume)
+                                                pathPoints.add(Offset(x, y))
+                                            }
+                                            for (i in 0 until pathPoints.size - 1) {
+                                                drawLine(
+                                                    color = if (stem.isMuted) Color.DarkGray else Color(0xFF00FFCC),
+                                                    start = pathPoints[i],
+                                                    end = pathPoints[i + 1],
+                                                    strokeWidth = 2f
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- 🎛️ SECCIÓN UNIFICADA DE CONSOLA ANALÓGICA CON PERILLAS ---
+            val selectedStem = advancedState.activeStems.find { it.id == advancedState.selectedStemId }
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🎛️ Consola de Canal: ${selectedStem?.name ?: "Ningún canal seleccionado"}", 
+                            color = Color(0xFFFFD700), 
+                            fontSize = 12.sp, 
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                        Text(text = "ANALOG KNOBS", color = Color.Gray, fontSize = 9.sp)
+                    }
+
+                    if (selectedStem != null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Perilla de Volumen / Ganancia del Stem seleccionado
+                            ConsoleKnob(
+                                label = "GAIN / VOL",
+                                value = selectedStem.volume,
+                                valueRange = 0.0f..2.0f,
+                                unit = "x",
+                                onValueChanged = { viewModel.updateSelectedStemVolume(it) }
+                            )
+
+                            // Perilla de Panorama (Pan L/R) del Stem seleccionado
+                            ConsoleKnob(
+                                label = "PAN",
+                                value = selectedStem.pan,
+                                valueRange = -1.0f..1.0f,
+                                unit = "",
+                                onValueChanged = { viewModel.updateSelectedStemPan(it) }
+                            )
+
+                            // Perilla Global de Input Drive
+                            ConsoleKnob(
+                                label = "DRIVE",
+                                value = advancedState.inputDriveDb,
+                                valueRange = -6.0f..12.0f,
+                                unit = "dB",
+                                onValueChanged = { viewModel.updateInputDrive(it) }
+                            )
+
+                            // Perilla Global de Limitador Ceiling
+                            ConsoleKnob(
+                                label = "CEILING",
+                                value = advancedState.limiterCeilingDb,
+                                valueRange = -3.0f..0.0f,
+                                unit = "dB",
+                                onValueChanged = { viewModel.updateLimiterCeiling(it) }
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "Selecciona un canal en la lista superior para ajustar sus perillas.",
+                            color = Color.Gray,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(8.dp)
+                        )
                     }
                 }
             }
@@ -194,248 +386,6 @@ fun MasterScreen(
                                     valueRange = 0f..300f,
                                     modifier = Modifier.height(16.dp)
                                 )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // --- 🎙️ FUNCIONES AVANZADAS DE GRABACIÓN Y EDICIÓN (COMPING & TIME-SYNC) ---
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF161B22)),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "🎙️ Comping & Edición de Tomas", color = Color(0xFFFFD700), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Switch(
-                            checked = advancedState.isCompingActive,
-                            onCheckedChange = { viewModel.toggleComping(it) },
-                            modifier = Modifier.scale(0.7f)
-                        )
-                    }
-
-                    Text(text = "Selección de Toma Activa (Comping):", color = Color.Gray, fontSize = 11.sp)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(1, 2, 3).forEach { takeNum ->
-                            val isSelected = advancedState.selectedTake == takeNum
-                            Button(
-                                onClick = { viewModel.selectTake(takeNum) },
-                                colors = ButtonDefaults.buttonColors(containerColor = if (isSelected) Color(0xFFFFD700) else Color(0xFF2A2A3D)),
-                                modifier = Modifier.weight(1f).height(30.dp),
-                                shape = RoundedCornerShape(6.dp),
-                                contentPadding = PaddingValues(0.dp)
-                            ) {
-                                Text(text = "Toma $takeNum", color = if (isSelected) Color.Black else Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(text = "Sincronización con Tempo (Time-Sync)", color = Color.White, fontSize = 11.sp)
-                            Text(text = "Alineación automática con el compás y la cuadrícula", color = Color.Gray, fontSize = 9.sp)
-                        }
-                        Switch(
-                            checked = advancedState.isTimeSyncEnabled,
-                            onCheckedChange = { viewModel.toggleTimeSync(it) },
-                            modifier = Modifier.scale(0.7f)
-                        )
-                    }
-
-                    Text(text = "Fundidos (Fade In / Out):", color = Color.Gray, fontSize = 11.sp)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Fade In: ${advancedState.fadeInSec}s", color = Color.LightGray, fontSize = 10.sp)
-                            Slider(
-                                value = advancedState.fadeInSec,
-                                onValueChange = { viewModel.updateFades(it, advancedState.fadeOutSec) },
-                                valueRange = 0.0f..2.0f,
-                                modifier = Modifier.height(16.dp)
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Fade Out: ${advancedState.fadeOutSec}s", color = Color.LightGray, fontSize = 10.sp)
-                            Slider(
-                                value = advancedState.fadeOutSec,
-                                onValueChange = { viewModel.updateFades(advancedState.fadeInSec, it) },
-                                valueRange = 0.0f..2.0f,
-                                modifier = Modifier.height(16.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // --- 🎚️ INTERFAZ DE HARDWARE: MEDIDORES LED Y SLIDERS ENLAZADOS AL VIEWMODEL ---
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF161B22)),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "🎚️ Master Output LED Meters", color = Color(0xFFFFD700), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text(text = "PEAK / RMS", color = Color.Gray, fontSize = 10.sp)
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Canal L
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(text = "CH L", color = Color.Gray, fontSize = 9.sp)
-                                Text(text = "${state.diagnostics.truePeakDb} dB", color = Color.Cyan, fontSize = 9.sp)
-                            }
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(10.dp)
-                                    .background(Color(0xFF0B0E14), RoundedCornerShape(3.dp))
-                                    .padding(2.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxHeight()
-                                        .fillMaxWidth(0.75f)
-                                        .background(
-                                            Brush.horizontalGradient(
-                                                listOf(Color(0xFF00E676), Color(0xFFFFEB3B), Color(0xFFFF5252))
-                                            ),
-                                            RoundedCornerShape(2.dp)
-                                        )
-                                )
-                            }
-                        }
-
-                        // Canal R
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(text = "CH R", color = Color.Gray, fontSize = 9.sp)
-                                Text(text = "${state.diagnostics.truePeakDb} dB", color = Color.Cyan, fontSize = 9.sp)
-                            }
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(10.dp)
-                                    .background(Color(0xFF0B0E14), RoundedCornerShape(3.dp))
-                                    .padding(2.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxHeight()
-                                        .fillMaxWidth(0.72f)
-                                        .background(
-                                            Brush.horizontalGradient(
-                                                listOf(Color(0xFF00E676), Color(0xFFFFEB3B), Color(0xFFFF5252))
-                                            ),
-                                            RoundedCornerShape(2.dp)
-                                        )
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-                    
-                    // 👈 Input Drive enlazado al ViewModel (Modifica volumen en tiempo real)
-                    Text(text = "Input Drive (Gain): ${String.format(java.util.Locale.US, "%.1f", advancedState.inputDriveDb)} dB", color = Color.LightGray, fontSize = 11.sp)
-                    Slider(
-                        value = advancedState.inputDriveDb,
-                        onValueChange = { viewModel.updateInputDrive(it) },
-                        valueRange = -6.0f..12.0f,
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFFFFD700),
-                            activeTrackColor = Color(0xFFFFD700),
-                            inactiveTrackColor = Color(0xFF2A2A3D)
-                        ),
-                        modifier = Modifier.height(20.dp)
-                    )
-
-                    // 👈 Limiter Ceiling enlazado al ViewModel
-                    Text(text = "Limiter Ceiling: ${String.format(java.util.Locale.US, "%.1f", advancedState.limiterCeilingDb)} dB", color = Color.LightGray, fontSize = 11.sp)
-                    Slider(
-                        value = advancedState.limiterCeilingDb,
-                        onValueChange = { viewModel.updateLimiterCeiling(it) },
-                        valueRange = -3.0f..0.0f,
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFFFFD700),
-                            activeTrackColor = Color(0xFFFFD700),
-                            inactiveTrackColor = Color(0xFF2A2A3D)
-                        ),
-                        modifier = Modifier.height(20.dp)
-                    )
-                }
-            }
-
-            // --- 📁 PLAYLIST & STEMS ACTIVOS (CONECTADO A LA BIBLIOTECA REAL) ---
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2C)),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "📁 Playlist & Stems Activos (Biblioteca)", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        TextButton(onClick = { viewModel.loadAvailableStems() }) {
-                            Text("Actualizar 🔄", color = Color.Cyan, fontSize = 10.sp)
-                        }
-                    }
-
-                    val activeStems = advancedState.activeStems
-                    if (activeStems.isEmpty()) {
-                        Text(
-                            text = "No se encontraron audios o grabaciones en la biblioteca.",
-                            color = Color.Gray,
-                            fontSize = 10.sp,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                    } else {
-                        activeStems.forEach { stem ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(0xFF13131A), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically, 
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Box(modifier = Modifier.size(8.dp).background(Color(0xFF00E676), RoundedCornerShape(2.dp)))
-                                    Text(
-                                        text = stem.name, 
-                                        color = Color.White, 
-                                        fontSize = 10.sp,
-                                        maxLines = 1
-                                    )
-                                }
-                                Text(text = "${stem.sizeMb} • WAV/MP3", color = Color.Gray, fontSize = 9.sp)
                             }
                         }
                     }
@@ -598,7 +548,7 @@ fun MasterScreen(
                 if (state.isExporting) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
                 } else {
-                    Text(text = "🚀 Renderizar y Exportar Master", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(text = "🚀 Renderizar y Exportar Master Unificado", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             }
 
