@@ -44,6 +44,7 @@ data class AdvancedMasterState(
     val isRegionExportEnabled: Boolean = false,
     val regionStartSec: Float = 0.0f,
     val regionEndSec: Float = 120.0f,
+    val isStemExportEnabled: Boolean = false,
     val activeStems: List<MasterStemItem> = emptyList(),
     val selectedStemId: String? = null // Canal actualmente enfocado en las perillas y reproduciéndose
 )
@@ -123,7 +124,7 @@ class MasterViewModel @Inject constructor(
         val stem = _advancedState.value.activeStems.find { it.id == stemId }
         if (stem != null) {
             try {
-                playerManager.playFile(stem.path, stem.name)[span_1](start_span)[span_1](end_span)
+                playerManager.playFile(stem.path, stem.name)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -154,6 +155,10 @@ class MasterViewModel @Inject constructor(
                 activeStems = state.activeStems.map { if (it.id == stemId) it.copy(isMuted = !it.isMuted) else it }
             )
         }
+    }
+
+    fun toggleStemExport(enabled: Boolean) {
+        _advancedState.update { it.copy(isStemExportEnabled = enabled) }
     }
 
     // --- ANÁLISIS DE AUDIO ASISTIDO ---
