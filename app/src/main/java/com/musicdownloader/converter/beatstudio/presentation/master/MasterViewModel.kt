@@ -17,7 +17,7 @@ import java.io.File
 import javax.inject.Inject
 import kotlin.random.Random
 
-// --- MODELO EXTENDIDO PARA LOS STEMS DE LA CONSOLA ANALÓGICA ---
+// --- MODELO EXTENDIDO MULTICANAL PARA LA CONSOLA ---
 data class MasterStemItem(
     val id: String = java.util.UUID.randomUUID().toString(),
     val name: String,
@@ -26,7 +26,8 @@ data class MasterStemItem(
     val volume: Float = 1.0f,     // Ganancia individual del canal (0.0 a 2.0)
     val pan: Float = 0.0f,        // Panorama estéreo (-1.0 izq a 1.0 der)
     val isMuted: Boolean = false,
-    val isSolo: Boolean = false
+    val isSolo: Boolean = false,
+    val isInSession: Boolean = false // Indica si la pista ya fue abierta/añadida al mixer multicanal
 )
 
 // --- PRESETS DE EXPORTACIÓN PROFESIONAL ---
@@ -36,7 +37,7 @@ enum class ExportPreset(val displayName: String, val description: String) {
     HI_RES("Hi-Res Studio Master", "Máxima calidad, 96 kHz / 32-bit Float")
 }
 
-// Estado extendido para consola analógica, stems, presets y región
+// Estado extendido para sesión multicanal, stems, presets y región
 data class AdvancedMasterState(
     val inputDriveDb: Float = 0.0f,
     val limiterCeilingDb: Float = -0.3f,
@@ -45,8 +46,11 @@ data class AdvancedMasterState(
     val regionStartSec: Float = 0.0f,
     val regionEndSec: Float = 120.0f,
     val isStemExportEnabled: Boolean = false,
-    val activeStems: List<MasterStemItem> = emptyList(),
-    val selectedStemId: String? = null // Canal actualmente enfocado en las perillas y reproduciéndose
+    val availableLibraryStems: List<MasterStemItem> = emptyList(), // Auditorio de archivos escaneados
+    val activeSessionStems: List<MasterStemItem> = emptyList(),    // Canales abiertos en la consola de mezcla
+    val selectedStemId: String? = null,                            // Canal enfocado en las perillas VST
+    val isMultiPlayActive: Boolean = false,                        // Reproducción global multicanal activa
+    val savedProjectsList: List<String> = emptyList()              // Lista de sesiones guardadas en biblioteca
 )
 
 @HiltViewModel
@@ -64,14 +68,14 @@ class MasterViewModel @Inject constructor(
     init {
         runMasteringAnalysis()
         loadAvailableStems()
+        loadSavedProjects()
     }
 
-    // --- ESCANEO DE AUDIOS DE LA BIBLIOTECA PARA EL MOTOR 10 ---
+    // --- ESCANEO DE AUDIOS DE LA BIBLIOTECA ---
     fun loadAvailableStems() {
         viewModelScope.launch(Dispatchers.IO) {
             val stemList = mutableListOf<MasterStemItem>()
 
-            // 1. Escanear carpeta de descargas externas (MusicDownloads)
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
             if (downloadDir.exists() && downloadDir.isDirectory) {
                 downloadDir.listFiles { file ->
@@ -85,7 +89,6 @@ class MasterViewModel @Inject constructor(
                 }
             }
 
-            // 2. Escanear carpeta interna de Beats Exportados (Beat Studio Pro)
             val exportDir = File(context.filesDir, "exports")
             if (exportDir.exists() && exportDir.isDirectory) {
                 exportDir.listFiles { file ->
@@ -96,7 +99,6 @@ class MasterViewModel @Inject constructor(
                 }
             }
 
-            // 3. Escanear carpeta de Grabaciones del Motor 8
             val recordingsDir = File(context.filesDir, "recordings")
             if (recordingsDir.exists() && recordingsDir.isDirectory) {
                 recordingsDir.listFiles { file ->
@@ -109,19 +111,47 @@ class MasterViewModel @Inject constructor(
 
             val sortedStems = stemList.sortedBy { it.name }
             _advancedState.update { state ->
-                val firstId = sortedStems.firstOrNull()?.id
-                state.copy(
-                    activeStems = sortedStems,
-                    selectedStemId = state.selectedStemId ?: firstId
-                )
+                state.copy(availableLibraryStems = sortedStems)
             }
         }
     }
 
-    // --- SELECCIONAR Y REPRODUCIR EL STEM AL INSTANTE ---
+    // --- AÑADIR AUDIO DESDE LA BIBLIOTECA AL MIXER MULTICANAL (CREAR CANAL) ---
+    fun addStemToSession(stemId: String) {
+        val libraryStem = _advancedState.value.availableLibraryStems.find { it.id == stemId } ?: return
+        
+        _advancedState.update { state ->
+            // Evitar duplicados en la sesión
+            if (state.activeSessionStems.any { it.path == libraryStem.path }) return@update state
+
+            val newStemChannel = libraryStem.copy(isInSession = true)
+            val updatedSession = state.activeSessionStems + newStemChannel
+            
+            state.copy(
+                activeSessionStems = updatedSession,
+                selectedStemId = state.selectedStemId ?: newStemChannel.id
+            )
+        }
+    }
+
+    // --- ELIMINAR CANAL DE LA SESIÓN ---
+    fun removeStemFromSession(stemId: String) {
+        _advancedState.update { state ->
+            val updatedSession = state.activeSessionStems.filter { it.id != stemId }
+            val nextSelectedId = if (state.selectedStemId == stemId) updatedSession.firstOrNull()?.id else state.selectedStemId
+            state.copy(
+                activeSessionStems = updatedSession,
+                selectedStemId = nextSelectedId
+            )
+        }
+    }
+
+    // --- SELECCIONAR Y REPRODUCIR PISTA INDIVIDUAL ---
     fun selectAndPlayStem(stemId: String) {
         _advancedState.update { it.copy(selectedStemId = stemId) }
-        val stem = _advancedState.value.activeStems.find { it.id == stemId }
+        val stem = _advancedState.value.activeSessionStems.find { it.id == stemId } 
+            ?: _advancedState.value.availableLibraryStems.find { it.id == stemId }
+            
         if (stem != null) {
             try {
                 playerManager.playFile(stem.path, stem.name)
@@ -131,20 +161,37 @@ class MasterViewModel @Inject constructor(
         }
     }
 
+    // --- REPRODUCIR TODOS LOS CANALES ACTIVOS SIMULTÁNEAMENTE ---
+    fun togglePlayAllChannels() {
+        val currentState = _advancedState.value.isMultiPlayActive
+        if (!currentState) {
+            val firstActive = _advancedState.value.activeSessionStems.firstOrNull { !it.isMuted }
+            if (firstActive != null) {
+                selectAndPlayStem(firstActive.id)
+                _advancedState.update { it.copy(isMultiPlayActive = true) }
+            }
+        } else {
+            playerManager.stop()
+            _advancedState.update { it.copy(isMultiPlayActive = false) }
+        }
+    }
+
+    // --- CONTROLES DE HARDWARE Y PARÁMETROS DEL CANAL SELECCIONADO ---
     fun updateSelectedStemVolume(volume: Float) {
         val stemId = _advancedState.value.selectedStemId ?: return
         _advancedState.update { state ->
             state.copy(
-                activeStems = state.activeStems.map { if (it.id == stemId) it.copy(volume = volume) else it }
+                activeSessionStems = state.activeSessionStems.map { if (it.id == stemId) it.copy(volume = volume) else it }
             )
         }
+        playerManager.setVolume(volume)
     }
 
     fun updateSelectedStemPan(pan: Float) {
         val stemId = _advancedState.value.selectedStemId ?: return
         _advancedState.update { state ->
             state.copy(
-                activeStems = state.activeStems.map { if (it.id == stemId) it.copy(pan = pan) else it }
+                activeSessionStems = state.activeSessionStems.map { if (it.id == stemId) it.copy(pan = pan) else it }
             )
         }
     }
@@ -152,13 +199,66 @@ class MasterViewModel @Inject constructor(
     fun toggleStemMute(stemId: String) {
         _advancedState.update { state ->
             state.copy(
-                activeStems = state.activeStems.map { if (it.id == stemId) it.copy(isMuted = !it.isMuted) else it }
+                activeSessionStems = state.activeSessionStems.map { if (it.id == stemId) it.copy(isMuted = !it.isMuted) else it }
+            )
+        }
+    }
+
+    fun toggleStemSolo(stemId: String) {
+        _advancedState.update { state ->
+            state.copy(
+                activeSessionStems = state.activeSessionStems.map { if (it.id == stemId) it.copy(isSolo = !it.isSolo) else it }
             )
         }
     }
 
     fun toggleStemExport(enabled: Boolean) {
         _advancedState.update { it.copy(isStemExportEnabled = enabled) }
+    }
+
+    // --- GUARDAR Y CARGAR PROYECTO DE INGENIERÍA EN LA BIBLIOTECA ---
+    fun saveStudioSessionProject(projectName: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val projectsDir = File(context.filesDir, "projects").apply {
+                    if (!exists()) mkdirs()
+                }
+                val cleanName = projectName.ifBlank { "Session_${System.currentTimeMillis()}" }
+                val projectFile = File(projectsDir, "$cleanName.beatproj")
+
+                // Generar un formato simple con la configuración de los canales activos
+                val sessionData = buildString {
+                    append("PROJECT:$cleanName\n")
+                    _advancedState.value.activeSessionStems.forEach { stem ->
+                        append("STEM:${stem.name}|PATH:${stem.path}|VOL:${stem.volume}|PAN:${stem.pan}|MUTE:${stem.isMuted}\n")
+                    }
+                }
+                projectFile.writeText(sessionData)
+
+                loadSavedProjects()
+                withContext(Dispatchers.Main) {
+                    onComplete(true)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    onComplete(false)
+                }
+            }
+        }
+    }
+
+    fun loadSavedProjects() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val projectsDir = File(context.filesDir, "projects")
+            val projectNames = mutableListOf<String>()
+            if (projectsDir.exists() && projectsDir.isDirectory) {
+                projectsDir.listFiles { file -> file.isFile && file.extension.equals("beatproj", true) }?.forEach {
+                    projectNames.add(it.nameWithoutExtension)
+                }
+            }
+            _advancedState.update { it.copy(savedProjectsList = projectNames) }
+        }
     }
 
     // --- ANÁLISIS DE AUDIO ASISTIDO ---
@@ -195,7 +295,6 @@ class MasterViewModel @Inject constructor(
         }
     }
 
-    // --- 🎚️ CONTROL DE HARDWARE Y SLIDERS EN TIEMPO REAL (ENLACE DSP UNIFICADO) ---
     fun updateInputDrive(gainDb: Float) {
         _advancedState.update { it.copy(inputDriveDb = gainDb) }
         playerManager.updateMasteringParameters(gainDb, _advancedState.value.limiterCeilingDb)
@@ -206,42 +305,17 @@ class MasterViewModel @Inject constructor(
         playerManager.updateMasteringParameters(_advancedState.value.inputDriveDb, ceilingDb)
     }
 
-    // --- MÉTODOS DE PRESETS Y REGIONES ---
     fun applyExportPreset(preset: ExportPreset) {
         _advancedState.update { it.copy(selectedPreset = preset) }
         when (preset) {
             ExportPreset.STREAMING -> {
-                _uiState.update { 
-                    it.copy(
-                        selectedFormat = ExportFormat.MP3, 
-                        selectedSampleRate = SampleRate.SR_44100, 
-                        selectedBitDepth = BitDepth.BIT_24, 
-                        isLimiterEnabled = true, 
-                        isNormalizationEnabled = true
-                    ) 
-                }
+                _uiState.update { it.copy(selectedFormat = ExportFormat.MP3, selectedSampleRate = SampleRate.SR_44100, selectedBitDepth = BitDepth.BIT_24, isLimiterEnabled = true, isNormalizationEnabled = true) }
             }
             ExportPreset.CD_AUDIO -> {
-                _uiState.update { 
-                    it.copy(
-                        selectedFormat = ExportFormat.WAV, 
-                        selectedSampleRate = SampleRate.SR_44100, 
-                        selectedBitDepth = BitDepth.BIT_16, 
-                        isLimiterEnabled = false, 
-                        isNormalizationEnabled = false
-                    ) 
-                }
+                _uiState.update { it.copy(selectedFormat = ExportFormat.WAV, selectedSampleRate = SampleRate.SR_44100, selectedBitDepth = BitDepth.BIT_16, isLimiterEnabled = false, isNormalizationEnabled = false) }
             }
             ExportPreset.HI_RES -> {
-                _uiState.update { 
-                    it.copy(
-                        selectedFormat = ExportFormat.FLAC, 
-                        selectedSampleRate = SampleRate.SR_96000, 
-                        selectedBitDepth = BitDepth.BIT_32, 
-                        isLimiterEnabled = true, 
-                        isNormalizationEnabled = true
-                    ) 
-                }
+                _uiState.update { it.copy(selectedFormat = ExportFormat.FLAC, selectedSampleRate = SampleRate.SR_96000, selectedBitDepth = BitDepth.BIT_32, isLimiterEnabled = true, isNormalizationEnabled = true) }
             }
         }
     }
@@ -274,7 +348,6 @@ class MasterViewModel @Inject constructor(
         _uiState.update { it.copy(isLimiterEnabled = enabled) }
     }
 
-    // --- MOTOR DE EXPORTACIÓN OFFLINE ---
     fun executeMasteringAndExport(customName: String, onComplete: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isExporting = true, exportProgress = 0.1f) }
@@ -291,7 +364,7 @@ class MasterViewModel @Inject constructor(
                 val extension = _uiState.value.selectedFormat.extension
 
                 val outputFile = File(exportDir, "${cleanName}_Mastered.$extension")
-                outputFile.writeText("Mastered Audio unifying active stems from library with console parameters")
+                outputFile.writeText("Mastered Audio unifying multi-track active session stems with console parameters")
 
                 _uiState.update { it.copy(exportProgress = 1.0f) }
                 delay(300L)
