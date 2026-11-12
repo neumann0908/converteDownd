@@ -1,7 +1,6 @@
 package com.musicdownloader.converter.beatstudio.presentation.master
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,6 +27,7 @@ fun MasterScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val advancedState by viewModel.advancedState.collectAsState()
+    val currentPosition by viewModel.playerManager.currentPosition.collectAsState()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -178,7 +177,8 @@ fun MasterScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(text = "0.0s (Inicio)", color = Color.Cyan, fontSize = 8.sp)
-                            Text(text = "Pos: ${(state.currentPosition / 1000f).let { String.format(java.util.Locale.US, "%.1fs", it) }}", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                            val formattedPos = String.format(java.util.Locale.US, "%.1fs", currentPosition / 1000f)
+                            Text(text = "Pos: $formattedPos", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
                             Text(text = "60.0s+", color = Color.Gray, fontSize = 8.sp)
                         }
                     }
@@ -187,7 +187,6 @@ fun MasterScreen(
                     if (sessionStems.isEmpty()) {
                         Text(text = "No hay pistas en el timeline. Añade audios desde la biblioteca superior.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
                     } else {
-                        // Apilado vertical de pistas (Vertical Multitrack Tracks)
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                             sessionStems.forEach { stem ->
                                 val isSelected = stem.id == advancedState.selectedStemId
@@ -203,7 +202,6 @@ fun MasterScreen(
                                         modifier = Modifier.fillMaxWidth().padding(8.dp),
                                         verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        // Cabecera de la pista
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -234,7 +232,6 @@ fun MasterScreen(
                                             }
                                         }
 
-                                        // Controles de volumen, panorama y desplazamiento temporal (Start Time)
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -245,7 +242,6 @@ fun MasterScreen(
                                             Text(text = "Inicio: ${(stem.startTimeMs / 1000f).let { String.format(java.util.Locale.US, "%.1fs", it) }}", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
                                         }
 
-                                        // Slider para posicionar el inicio del audio de forma milimétrica en el timeline (0s a 30s)
                                         Slider(
                                             value = stem.startTimeMs.toFloat(),
                                             onValueChange = { viewModel.updateStemStartTime(stem.id, it.toLong()) },
