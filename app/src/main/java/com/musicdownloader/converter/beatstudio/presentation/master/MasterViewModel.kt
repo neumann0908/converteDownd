@@ -18,7 +18,7 @@ import java.io.File
 import javax.inject.Inject
 import kotlin.random.Random
 
-// --- MODELO EXTENDIDO MULTICANAL PARA LA CONSOLA ---
+// --- MODELO EXTENDIDO MULTICANAL Y TEMPORAL PARA LA LÍNEA DE TIEMPO ---
 data class MasterStemItem(
     val id: String = java.util.UUID.randomUUID().toString(),
     val name: String,
@@ -28,7 +28,9 @@ data class MasterStemItem(
     val pan: Float = 0.0f,        // Panorama estéreo (-1.0 izq a 1.0 der)
     val isMuted: Boolean = false,
     val isSolo: Boolean = false,
-    val isInSession: Boolean = false // Indica si la pista ya fue abierta/añadida al mixer multicanal
+    val isInSession: Boolean = false, // Indica si la pista ya fue abierta/añadida al mixer multicanal
+    val startTimeMs: Long = 0L,       // Momento de inicio temporal en la línea de tiempo (ms)
+    val durationMs: Long = 0L         // Duración total del clip de audio (ms)
 )
 
 // --- PRESETS DE EXPORTACIÓN PROFESIONAL ---
@@ -38,7 +40,7 @@ enum class ExportPreset(val displayName: String, val description: String) {
     HI_RES("Hi-Res Studio Master", "Máxima calidad, 96 kHz / 32-bit Float")
 }
 
-// Estado extendido para sesión multicanal, stems, presets y región
+// Estado extendido para sesión multicanal, stems, presets, región y línea de tiempo
 data class AdvancedMasterState(
     val inputDriveDb: Float = 0.0f,
     val limiterCeilingDb: Float = -0.3f,
@@ -48,7 +50,7 @@ data class AdvancedMasterState(
     val regionEndSec: Float = 120.0f,
     val isStemExportEnabled: Boolean = false,
     val availableLibraryStems: List<MasterStemItem> = emptyList(), // Auditorio de archivos escaneados
-    val activeSessionStems: List<MasterStemItem> = emptyList(),    // Canales abiertos en la consola de mezcla
+    val activeSessionStems: List<MasterStemItem> = emptyList(),    // Canales abiertos en la consola de mezcla (Timeline)
     val selectedStemId: String? = null,                            // Canal enfocado en las perillas VST
     val isMultiPlayActive: Boolean = false,                        // Reproducción global multicanal activa
     val savedProjectsList: List<String> = emptyList()              // Lista de sesiones guardadas en biblioteca
@@ -86,7 +88,7 @@ class MasterViewModel @Inject constructor(
                             file.extension.equals("wav", true))
                 }?.forEach { file ->
                     val sizeMb = String.format(java.util.Locale.US, "%.2f MB", file.length().toDouble() / (1024 * 1024))
-                    stemList.add(MasterStemItem(name = file.name, path = file.absolutePath, sizeMb = sizeMb))
+                    stemList.add(MasterStemItem(name = file.name, path = file.absolutePath, sizeMb = sizeMb, durationMs = 5000L)) // Estimado por defecto o calculado
                 }
             }
 
@@ -96,7 +98,7 @@ class MasterViewModel @Inject constructor(
                     file.isFile && file.extension.equals("wav", true)
                 }?.forEach { file ->
                     val sizeMb = String.format(java.util.Locale.US, "%.2f MB", file.length().toDouble() / (1024 * 1024))
-                    stemList.add(MasterStemItem(name = file.name, path = file.absolutePath, sizeMb = sizeMb))
+                    stemList.add(MasterStemItem(name = file.name, path = file.absolutePath, sizeMb = sizeMb, durationMs = 5000L))
                 }
             }
 
@@ -106,7 +108,7 @@ class MasterViewModel @Inject constructor(
                     file.isFile && file.extension.equals("wav", true)
                 }?.forEach { file ->
                     val sizeMb = String.format(java.util.Locale.US, "%.2f MB", file.length().toDouble() / (1024 * 1024))
-                    stemList.add(MasterStemItem(name = "🎙️ ${file.name}", path = file.absolutePath, sizeMb = sizeMb))
+                    stemList.add(MasterStemItem(name = "🎙️ ${file.name}", path = file.absolutePath, sizeMb = sizeMb, durationMs = 5000L))
                 }
             }
 
@@ -124,7 +126,19 @@ class MasterViewModel @Inject constructor(
         _advancedState.update { state ->
             if (state.activeSessionStems.any { it.path == libraryStem.path }) return@update state
 
-            val newStemChannel = libraryStem.copy(isInSession = true)
+            // Asignar un tiempo de inicio escalonado si ya hay pistas en la sesión (ej. al final de la anterior)
+            const val defaultOffset = 0L
+            val calculatedStartTime = if (state.activeSessionStems.isNotEmpty()) {
+                state.activeSessionStems.maxOf { it.startTimeMs + it.durationMs }
+            } else {
+                defaultOffset
+            }
+
+            val newStemChannel = libraryStem.copy(
+                isInSession = true,
+                startTimeMs = calculatedStartTime,
+                durationMs = libraryStem.durationMs.ifZero { 5000L }
+            )
             val updatedSession = state.activeSessionStems + newStemChannel
             
             state.copy(
@@ -146,6 +160,17 @@ class MasterViewModel @Inject constructor(
         }
     }
 
+    // --- ACTUALIZAR POSICIÓN TEMPORAL DE UN STEM EN LA LÍNEA DE TIEMPO ---
+    fun updateStemStartTime(stemId: String, newStartTimeMs: Long) {
+        _advancedState.update { state ->
+            state.copy(
+                activeSessionStems = state.activeSessionStems.map { stem ->
+                    if (stem.id == stemId) stem.copy(startTimeMs = newStartTimeMs.coerceAtLeast(0L)) else stem
+                }
+            )
+        }
+    }
+
     // --- SELECCIONAR Y REPRODUCIR PISTA INDIVIDUAL ---
     fun selectAndPlayStem(stemId: String) {
         _advancedState.update { it.copy(selectedStemId = stemId) }
@@ -161,16 +186,17 @@ class MasterViewModel @Inject constructor(
         }
     }
 
-    // --- REPRODUCIR TODOS LOS CANALES ACTIVOS SIMULTÁNEAMENTE ---
+    // --- REPRODUCIR TODOS LOS CANALES ACTIVOS SIMULTÁNEAMENTE EN LA LÍNEA DE TIEMPO ---
     fun togglePlayAllChannels() {
         val currentState = _advancedState.value.isMultiPlayActive
         if (!currentState) {
-            val firstActive = _advancedState.value.activeSessionStems.firstOrNull { !it.isMuted }
-            if (firstActive != null) {
-                selectAndPlayStem(firstActive.id)
+            val activeStems = _advancedState.value.activeSessionStems
+            if (activeStems.isNotEmpty()) {
                 _advancedState.update { it.copy(isMultiPlayActive = true) }
+                playerManager.playMultiTrackSession(activeStems, playerManager.getCurrentPositionDirect())
             }
         } else {
+            playerManager.stop()
             _advancedState.update { it.copy(isMultiPlayActive = false) }
         }
     }
@@ -228,7 +254,7 @@ class MasterViewModel @Inject constructor(
                 val sessionData = buildString {
                     append("PROJECT:$cleanName\n")
                     _advancedState.value.activeSessionStems.forEach { stem ->
-                        append("STEM:${stem.name}|PATH:${stem.path}|VOL:${stem.volume}|PAN:${stem.pan}|MUTE:${stem.isMuted}\n")
+                        append("STEM:${stem.name}|PATH:${stem.path}|VOL:${stem.volume}|PAN:${stem.pan}|MUTE:${stem.isMuted}|START:${stem.startTimeMs}\n")
                     }
                 }
                 projectFile.writeText(sessionData)
@@ -362,7 +388,7 @@ class MasterViewModel @Inject constructor(
                 val extension = _uiState.value.selectedFormat.extension
 
                 val outputFile = File(exportDir, "${cleanName}_Mastered.$extension")
-                outputFile.writeText("Mastered Audio unifying multi-track active session stems with console parameters")
+                outputFile.writeText("Mastered Audio unifying multi-track active session stems with timeline layout parameters")
 
                 _uiState.update { it.copy(exportProgress = 1.0f) }
                 delay(300L)
@@ -381,3 +407,5 @@ class MasterViewModel @Inject constructor(
         }
     }
 }
+
+private inline fun Long.ifZero(block: () -> Long): Long = if (this == 0L) block() else this
