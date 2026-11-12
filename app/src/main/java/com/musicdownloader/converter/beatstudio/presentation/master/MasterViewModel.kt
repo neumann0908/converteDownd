@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.musicdownloader.converter.player.AudioPlayerManager
+import com.musicdownloader.converter.beatstudio.presentation.automation.AutomationParameterType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -121,7 +122,6 @@ class MasterViewModel @Inject constructor(
         val libraryStem = _advancedState.value.availableLibraryStems.find { it.id == stemId } ?: return
         
         _advancedState.update { state ->
-            // Evitar duplicados en la sesión
             if (state.activeSessionStems.any { it.path == libraryStem.path }) return@update state
 
             val newStemChannel = libraryStem.copy(isInSession = true)
@@ -171,7 +171,6 @@ class MasterViewModel @Inject constructor(
                 _advancedState.update { it.copy(isMultiPlayActive = true) }
             }
         } else {
-            playerManager.stop()
             _advancedState.update { it.copy(isMultiPlayActive = false) }
         }
     }
@@ -184,7 +183,7 @@ class MasterViewModel @Inject constructor(
                 activeSessionStems = state.activeSessionStems.map { if (it.id == stemId) it.copy(volume = volume) else it }
             )
         }
-        playerManager.setVolume(volume)
+        playerManager.applyAutomation(AutomationParameterType.VOLUME, volume)
     }
 
     fun updateSelectedStemPan(pan: Float) {
@@ -226,7 +225,6 @@ class MasterViewModel @Inject constructor(
                 val cleanName = projectName.ifBlank { "Session_${System.currentTimeMillis()}" }
                 val projectFile = File(projectsDir, "$cleanName.beatproj")
 
-                // Generar un formato simple con la configuración de los canales activos
                 val sessionData = buildString {
                     append("PROJECT:$cleanName\n")
                     _advancedState.value.activeSessionStems.forEach { stem ->
