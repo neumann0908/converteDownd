@@ -35,12 +35,12 @@ fun MasterScreen(
     var showExportDialog by remember { mutableStateOf(false) }
     var showSaveProjectDialog by remember { mutableStateOf(false) }
     var exportFileName by remember { mutableStateOf("MiPista_Master") }
-    var projectNameInput by remember { mutableStateOf("Sesion_Pro_1") }
+    var projectNameInput by remember { mutableStateOf("Sesion_FL_Pro") }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF090D14)) // Fondo DAW Obsidian de Élite
+            .background(Color(0xFF0C1017)) // Fondo DAW Pro Obsidian
             .padding(8.dp)
     ) {
         Column(
@@ -51,7 +51,7 @@ fun MasterScreen(
         ) {
             // --- 1. TOP DASHBOARD (ESTILO RACK HARDWARE & PROYECTOS) ---
             Surface(
-                color = Color(0xFF111722),
+                color = Color(0xFF131824),
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, Color(0xFF1F2A3C)),
                 modifier = Modifier.fillMaxWidth()
@@ -64,7 +64,7 @@ fun MasterScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Box(modifier = Modifier.size(7.dp).background(Color(0xFFFFD700), RoundedCornerShape(2.dp)))
-                            Text(text = "DAW RACK // ARRANGEMENT CANVAS", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Black)
+                            Text(text = "FL STUDIO // PLAYLIST & ARRANGEMENT GRID", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Black)
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Button(
@@ -90,7 +90,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- 2. BIBLIOTECA DE AUDIOS ESCANEADOS ---
+            // --- 2. AUDIODROP BIN / LIBRERÍA DE CLIPS ---
             Surface(
                 color = Color(0xFF0E131D),
                 shape = RoundedCornerShape(8.dp),
@@ -98,7 +98,7 @@ fun MasterScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(text = "📁 BIBLIOTECA DE AUDIOS (Toca para colocar en la pizarra)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "📁 LIBRERÍA DE CLIPS (Toca para enviar a la Playlist)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
 
                     val libraryStems = advancedState.availableLibraryStems
                     if (libraryStems.isEmpty()) {
@@ -112,11 +112,11 @@ fun MasterScreen(
                         ) {
                             libraryStems.forEach { stem ->
                                 Surface(
-                                    color = Color(0xFF161F2E),
+                                    color = Color(0xFF172030),
                                     shape = RoundedCornerShape(6.dp),
-                                    border = BorderStroke(1.dp, Color(0xFF2B3A52)),
+                                    border = BorderStroke(1.dp, Color(0xFF2E3F59)),
                                     modifier = Modifier
-                                        .width(130.dp)
+                                        .width(135.dp)
                                         .height(65.dp)
                                         .clickable { viewModel.addStemToSession(stem.id) }
                                 ) {
@@ -124,7 +124,7 @@ fun MasterScreen(
                                         Text(text = stem.name, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                             Text(text = stem.sizeMb, color = Color.Gray, fontSize = 7.sp)
-                                            Text(text = "➕ Colocar", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                            Text(text = "➕ Añadir Clip", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -134,9 +134,9 @@ fun MasterScreen(
                 }
             }
 
-            // --- 3. PIZARRA DE ARREGLO VISUAL (ARRANGEMENT CANVAS) ---
+            // --- 3. PLAYLIST & ARRANGEMENT GRID (ESTILO FL STUDIO) ---
             Surface(
-                color = Color(0xFF111722),
+                color = Color(0xFF131824),
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, Color(0xFF1F2A3C)),
                 modifier = Modifier.fillMaxWidth()
@@ -147,7 +147,7 @@ fun MasterScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "🎚️ PIZARRA DE ARREGLO (TIMELINE CLIPS)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "🎚️ PLAYLIST GRID (PATTERNS & AUDIO CLIPS)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         
                         Button(
                             onClick = { viewModel.togglePlayAllChannels() },
@@ -157,7 +157,7 @@ fun MasterScreen(
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
-                                text = if (advancedState.isMultiPlayActive) "⏹ Detener Sesión" else "▶ Reproducir Pizarra",
+                                text = if (advancedState.isMultiPlayActive) "⏹ Detener Playlist" else "▶ Reproducer Playlist",
                                 color = Color.Black,
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold
@@ -165,36 +165,39 @@ fun MasterScreen(
                         }
                     }
 
-                    // Regleta de Tiempo Superior con indicador de Playhead en tiempo real
+                    // Regleta de Tiempo / Timeline Ruler con Playhead en vivo
                     Surface(
-                        color = Color(0xFF070B10),
+                        color = Color(0xFF090E17),
                         shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.fillMaxWidth().height(26.dp)
+                        modifier = Modifier.fillMaxWidth().height(26.dp),
+                        border = BorderStroke(1.dp, Color(0xFF1B2433))
                     ) {
                         Row(
                             modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "⏱ 0.0s", color = Color.Cyan, fontSize = 8.sp)
-                            val formattedPos = String.format(java.util.Locale.US, "Playhead: %.1fs", currentPosition / 1000f)
+                            Text(text = "| 0.0s", color = Color.Cyan, fontSize = 8.sp)
+                            val formattedPos = String.format(java.util.Locale.US, "▶ Playhead: %.1fs", currentPosition / 1000f)
                             Text(text = formattedPos, color = Color(0xFFFFD700), fontSize = 9.sp, fontWeight = FontWeight.Black)
-                            Text(text = "30.0s+", color = Color.Gray, fontSize = 8.sp)
+                            Text(text = "30.0s |", color = Color.Gray, fontSize = 8.sp)
                         }
                     }
 
                     val sessionStems = advancedState.activeSessionStems
                     if (sessionStems.isEmpty()) {
-                        Text(text = "La pizarra está vacía. Añade audios desde la biblioteca superior.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
+                        Text(text = "Playlist vacía. Añade clips de audio desde la biblioteca superior.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
                     } else {
-                        // Bloques visuales interactivos en la pizarra
+                        // Carriles de Pistas (Track Lanes estilo FL Studio)
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            sessionStems.forEach { stem ->
+                            sessionStems.forEachIndexed { index, stem ->
                                 val isSelected = stem.id == advancedState.selectedStemId
+                                val trackNum = String.format(java.util.Locale.US, "TR %02d", index + 1)
+
                                 Surface(
-                                    color = if (isSelected) Color(0xFF1F2B3E) else Color(0xFF070B10),
+                                    color = if (isSelected) Color(0xFF1E2B42) else Color(0xFF0A0F18),
                                     shape = RoundedCornerShape(6.dp),
-                                    border = BorderStroke(1.5.dp, if (isSelected) Color(0xFFFFD700) else Color(0xFF1A2332)),
+                                    border = BorderStroke(1.5.dp, if (isSelected) Color(0xFFFFD700) else Color(0xFF1F2D44)),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { viewModel.selectAndPlayStem(stem.id) }
@@ -203,18 +206,29 @@ fun MasterScreen(
                                         modifier = Modifier.fillMaxWidth().padding(8.dp),
                                         verticalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
-                                        // Cabecera del bloque de audio
+                                        // Cabecera del Carril / Track Header
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                                Box(modifier = Modifier.size(6.dp).background(if (isSelected) Color(0xFFFFD700) else Color(0xFF00E676), RoundedCornerShape(2.dp)))
+                                                Surface(
+                                                    color = Color(0xFF25344F),
+                                                    shape = RoundedCornerShape(4.dp)
+                                                ) {
+                                                    Text(
+                                                        text = trackNum,
+                                                        color = Color(0xFFFFD700),
+                                                        fontSize = 8.sp,
+                                                        fontWeight = FontWeight.Black,
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                                    )
+                                                }
                                                 Text(text = stem.name, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                                             }
                                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                                // Botón Mute / Solo rápido
+                                                // Mute / Solo
                                                 IconButton(
                                                     onClick = { viewModel.toggleStemMute(stem.id) },
                                                     modifier = Modifier.size(20.dp)
@@ -226,7 +240,7 @@ fun MasterScreen(
                                                         fontWeight = FontWeight.Bold
                                                     )
                                                 }
-                                                // Botón Quitar de la pizarra
+                                                // Eliminar pista de la playlist
                                                 IconButton(
                                                     onClick = { viewModel.removeStemFromSession(stem.id) },
                                                     modifier = Modifier.size(18.dp)
@@ -236,7 +250,7 @@ fun MasterScreen(
                                             }
                                         }
 
-                                        // Estado de Volumen y Tiempo de Inicio visual
+                                        // Controles de Mezcla Rápida (Volumen, Pan, Posición Exacta)
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -244,10 +258,46 @@ fun MasterScreen(
                                         ) {
                                             Text(text = "Vol: ${String.format(java.util.Locale.US, "%.1f", stem.volume)}x", color = Color.Cyan, fontSize = 8.sp)
                                             Text(text = "Pan: ${String.format(java.util.Locale.US, "%.1f", stem.pan)}", color = Color.Gray, fontSize = 8.sp)
-                                            Text(text = "Entrada en Pizarra: ${(stem.startTimeMs / 1000f).let { String.format(java.util.Locale.US, "%.1fs", it) }}", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                            Text(text = "Inicio Clip: ${(stem.startTimeMs / 1000f).let { String.format(java.util.Locale.US, "%.2fs", it) }}", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
                                         }
 
-                                        // Slider optimizado para ubicar el bloque exactamente donde debe sonar
+                                        // Controles de precisión milimétrica tipo FL (Nudge Buttons + Slider deslizante)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            // Botones de ajuste rápido a potestad (-1s, -0.1s, +0.1s, +1s)
+                                            Button(
+                                                onClick = { viewModel.updateStemStartTime(stem.id, (stem.startTimeMs - 1000L).coerceAtLeast(0L)) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C2638)),
+                                                contentPadding = PaddingValues(2.dp),
+                                                modifier = Modifier.height(20.dp).weight(1f)
+                                            ) { Text("-1s", color = Color.Cyan, fontSize = 7.sp) }
+
+                                            Button(
+                                                onClick = { viewModel.updateStemStartTime(stem.id, (stem.startTimeMs - 100L).coerceAtLeast(0L)) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C2638)),
+                                                contentPadding = PaddingValues(2.dp),
+                                                modifier = Modifier.height(20.dp).weight(1f)
+                                            ) { Text("-0.1s", color = Color.Cyan, fontSize = 7.sp) }
+
+                                            Button(
+                                                onClick = { viewModel.updateStemStartTime(stem.id, (stem.startTimeMs + 100L)) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C2638)),
+                                                contentPadding = PaddingValues(2.dp),
+                                                modifier = Modifier.height(20.dp).weight(1f)
+                                            ) { Text("+0.1s", color = Color(0xFFFFD700), fontSize = 7.sp) }
+
+                                            Button(
+                                                onClick = { viewModel.updateStemStartTime(stem.id, (stem.startTimeMs + 1000L)) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C2638)),
+                                                contentPadding = PaddingValues(2.dp),
+                                                modifier = Modifier.height(20.dp).weight(1f)
+                                            ) { Text("+1s", color = Color(0xFFFFD700), fontSize = 7.sp) }
+                                        }
+
+                                        // Slider de desplazamiento continuo para la cuadrícula
                                         Slider(
                                             value = stem.startTimeMs.toFloat(),
                                             onValueChange = { viewModel.updateStemStartTime(stem.id, it.toLong()) },
@@ -257,7 +307,7 @@ fun MasterScreen(
                                                 activeTrackColor = Color(0xFFFFD700),
                                                 inactiveTrackColor = Color(0xFF1A2332)
                                             ),
-                                            modifier = Modifier.height(22.dp)
+                                            modifier = Modifier.height(20.dp)
                                         )
                                     }
                                 }
@@ -267,10 +317,10 @@ fun MasterScreen(
                 }
             }
 
-            // --- 4. RACK DE PERILLAS VST / HARDWARE ANALÓGICO (CANAL SELECCIONADO) ---
+            // --- 4. RACK DE PERILLAS VST / HARDWARE ANALÓGICO (CARRIL SELECCIONADO) ---
             val selectedStem = advancedState.activeSessionStems.find { it.id == advancedState.selectedStemId }
             Surface(
-                color = Color(0xFF111722),
+                color = Color(0xFF131824),
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, Color(0xFF1F2A3C)),
                 modifier = Modifier.fillMaxWidth()
@@ -278,7 +328,7 @@ fun MasterScreen(
                 Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "VIRTUAL RACK: ${selectedStem?.name ?: "Ningún bloque enfocado"}",
+                            text = "VIRTUAL RACK: ${selectedStem?.name ?: "Ningún canal enfocado"}",
                             color = Color(0xFFFFD700),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -323,7 +373,7 @@ fun MasterScreen(
                             )
                         }
                     } else {
-                        Text(text = "Toca un bloque en la pizarra para manipular sus potenciómetros VST.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
+                        Text(text = "Selecciona un carril en la Playlist para manipular sus potenciómetros VST.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
                     }
                 }
             }
@@ -331,7 +381,7 @@ fun MasterScreen(
             // --- 5. PRESETS Y FORMATOS EN BLOQUES COMPACTOS ---
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Surface(
-                    color = Color(0xFF111722),
+                    color = Color(0xFF131824),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, Color(0xFF1F2A3C)),
                     modifier = Modifier.weight(1f)
@@ -359,7 +409,7 @@ fun MasterScreen(
                 }
 
                 Surface(
-                    color = Color(0xFF111722),
+                    color = Color(0xFF131824),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, Color(0xFF1F2A3C)),
                     modifier = Modifier.weight(1f)
@@ -463,7 +513,7 @@ fun MasterScreen(
                 dismissButton = {
                     TextButton(onClick = { showExportDialog = false }) { Text("Cancelar", color = Color.Gray) }
                 },
-                containerColor = Color(0xFF111722)
+                containerColor = Color(0xFF131824)
             )
         }
 
@@ -498,7 +548,7 @@ fun MasterScreen(
                 dismissButton = {
                     TextButton(onClick = { showSaveProjectDialog = false }) { Text("Cancelar", color = Color.Gray) }
                 },
-                containerColor = Color(0xFF111722)
+                containerColor = Color(0xFF131824)
             )
         }
 
