@@ -15,6 +15,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.musicdownloader.converter.R 
 import com.musicdownloader.converter.beatstudio.presentation.automation.AutomationParameterType
+import com.musicdownloader.converter.beatstudio.presentation.master.MasterStemItem
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +37,10 @@ class AudioPlayerManager @Inject constructor(
     private var exoPlayer: ExoPlayer? = null
     private var cracklePlayer: ExoPlayer? = null 
     private var scratchPlayer: ExoPlayer? = null 
+    
+    // --- GESTOR DE REPRODUCTORES MULTITRACK PARA LA LÍNEA DE TIEMPO ---
+    private val stemPlayers = mutableMapOf<String, ExoPlayer>()
+
     private val scope = CoroutineScope(Dispatchers.Main)
     private var progressJob: Job? = null
     private var fadeJob: Job? = null 
@@ -269,10 +274,10 @@ class AudioPlayerManager @Inject constructor(
 
     // --- CONSULTA DIRECTA DE POSICIÓN EN TIEMPO REAL (ALTA FRECUENCIA PARA MOTOR 9) ---
     fun getCurrentPositionDirect(): Long {
-        return exoPlayer?.currentPosition ?: 0L
+        return exoPlayer?.currentPosition ?: _currentPosition.value
     }
 
-    // --- 🎚️ CONTROL DE GANANCIA Y VOLUMEN MAESTRO PARA EL MOTOR 10 ---
+    // --- 🎚️ CONTROL DE GANANCIA Y VOLUMEN MAESTRO PARA EL MÁSTER ---
     fun setMasterGain(gainLinear: Float) {
         try {
             exoPlayer?.volume = gainLinear.coerceIn(0.0f, 2.0f)
@@ -281,14 +286,12 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // --- 🎚️ MOTOR 10: PROCESAMIENTO DSP EN TIEMPO REAL PARA EL MÁSTER ---
+    // --- 🎚️ PROCESAMIENTO DSP EN TIEMPO REAL PARA EL MÁSTER ---
     fun updateMasteringParameters(inputDriveDb: Float, limiterCeilingDb: Float) {
         try {
-            // Conversión de dB a ganancia lineal: 10^(dB / 20)
             val driveLinear = 10.0.pow((inputDriveDb / 20.0).toDouble()).toFloat()
             val ceilingLinear = 10.0.pow((limiterCeilingDb / 20.0).toDouble()).toFloat()
 
-            // Aplicamos el Drive y limitamos estrictamente al "Ceiling" configurado
             val effectiveVolume = driveLinear.coerceAtMost(ceilingLinear)
             exoPlayer?.volume = effectiveVolume.coerceIn(0.0f, 2.0f)
         } catch (e: Exception) {
@@ -296,7 +299,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // --- MOTOR 9: EXPANSIÓN COMPLETA DE DSPS PARA TODOS LOS CARRILES ---
+    // --- EXPANSIÓN COMPLETA DE DSPS PARA TODOS LOS CARRILES ---
     fun applyAutomation(parameter: AutomationParameterType, value: Float) {
         try {
             val safeValue = value.coerceIn(0f, 1f)
@@ -365,6 +368,67 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
+    // --- REPRODUCCIÓN MULTITRACK SIMULTÁNEA PARA LA LÍNEA DE TIEMPO ---
+    fun playMultiTrackSession(activeStems: List<MasterStemItem>, playbackPositionMs: Long) {
+        try {
+            exoPlayer?.pause()
+
+            val activeIds = activeStems.map { it.id }.toSet()
+            stemPlayers.keys.toList().forEach { id ->
+                if (!activeIds.contains(id)) {
+                    stemPlayers[id]?.release()
+                    stemPlayers.remove(id)
+                }
+            }
+
+            activeStems.forEach { stem ->
+                if (stem.isMuted) {
+                    stemPlayers[stem.id]?.pause()
+                    return@forEach
+                }
+
+                val player = stemPlayers.getOrPut(stem.id) {
+                    ExoPlayer.Builder(context).build().apply {
+                        val mediaItem = MediaItem.fromUri(Uri.parse(stem.path))
+                        setMediaItem(mediaItem)
+                        prepare()
+                    }
+                }
+
+                player.volume = stem.volume.coerceIn(0.0f, 2.0f)
+                val targetPos = (playbackPositionMs - stem.startTimeMs).coerceAtLeast(0L)
+
+                if (playbackPositionMs >= stem.startTimeMs) {
+                    if (kotlin.math.abs(player.currentPosition - targetPos) > 500L) {
+                        player.seekTo(targetPos)
+                    }
+                    if (!player.isPlaying) {
+                        player.play()
+                    }
+                } else {
+                    player.pause()
+                    player.seekTo(0L)
+                }
+            }
+            _isPlaying.value = true
+            startProgressTracking()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun stopAllStems() {
+        try {
+            stemPlayers.values.forEach { player ->
+                player.stop()
+                player.release()
+            }
+            stemPlayers.clear()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     // --- EXPORTAR AUDIO ACTUAL A LA BIBLIOTECA ---
     fun exportCurrentAudioToLibrary(customTitle: String, onSaved: (File) -> Unit) {
         scope.launch(Dispatchers.IO) {
@@ -379,7 +443,7 @@ class AudioPlayerManager @Inject constructor(
                 if (sourceUri != null && sourceUri.scheme == "file") {
                     val sourceFile = File(sourceUri.path ?: "")
                     if (sourceFile.exists()) {
-                        val sanitizedTitle = customTitle.ifEmpty { "Motor9_Mix_${System.currentTimeMillis()}" }
+                        val sanitizedTitle = customTitle.ifEmpty { "Studio_Mix_${System.currentTimeMillis()}" }
                         val extension = sourceFile.extension.ifEmpty { "wav" }
                         val destinationFile = File(downloadDir, "$sanitizedTitle.$extension")
                         
@@ -471,7 +535,7 @@ class AudioPlayerManager @Inject constructor(
                 _sleepTimerRemaining.value = currentMs.coerceAtLeast(0L)
             }
             fadeOut {
-                exoPlayer?.pause()
+                stop()
                 _sleepTimerRemaining.value = null
             }
         }
@@ -486,6 +550,7 @@ class AudioPlayerManager @Inject constructor(
     fun setPlaybackSpeed(speed: Float) {
         _playbackSpeed.value = speed
         exoPlayer?.playbackParameters = PlaybackParameters(speed)
+        stemPlayers.values.forEach { it.playbackParameters = PlaybackParameters(speed) }
     }
 
     private fun fadeIn(durationMs: Long = 400L) {
@@ -553,7 +618,7 @@ class AudioPlayerManager @Inject constructor(
                     _currentPosition.value = player.currentPosition
                     _duration.value = player.duration.coerceAtLeast(0L)
                 }
-                delay(500L)
+                delay(33L) // Sincronización ultrafluida a ~30fps
             }
         }
     }
@@ -630,6 +695,7 @@ class AudioPlayerManager @Inject constructor(
 
     fun playFile(path: String, title: String) {
         try {
+            stopAllStems()
             val downloadDir = File(context.getExternalFilesDir(null), "MusicDownloads")
             val audioFiles = if (downloadDir.exists() && downloadDir.isDirectory) {
                 downloadDir.listFiles { file ->
@@ -671,6 +737,19 @@ class AudioPlayerManager @Inject constructor(
                     extractAlbumArt(path)
                 }
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // --- MÉTODO PÚBLICO STOP (REQUERIDO POR EL MIXER MULTITRACK) ---
+    fun stop() {
+        try {
+            exoPlayer?.stop()
+            stopAllStems()
+            stopCrackle()
+            _isPlaying.value = false
+            _currentPosition.value = 0L
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -735,22 +814,21 @@ class AudioPlayerManager @Inject constructor(
 
     fun seekTo(positionMs: Long) {
         exoPlayer?.seekTo(positionMs)
+        stemPlayers.values.forEach { it.seekTo(positionMs) }
         _currentPosition.value = positionMs
     }
 
     fun seekForward() {
         exoPlayer?.let {
             val newPos = (it.currentPosition + 10000).coerceAtMost(it.duration)
-            it.seekTo(newPos)
-            _currentPosition.value = newPos
+            seekTo(newPos)
         }
     }
 
     fun seekRewind() {
         exoPlayer?.let {
             val newPos = (it.currentPosition - 10000).coerceAtLeast(0L)
-            it.seekTo(newPos)
-            _currentPosition.value = newPos
+            seekTo(newPos)
         }
     }
 
@@ -758,6 +836,7 @@ class AudioPlayerManager @Inject constructor(
         stopProgressTracking()
         cancelSleepTimer()
         stopArtSlideshow()
+        stopAllStems()
         
         bassBoost?.release()
         bassBoost = null
