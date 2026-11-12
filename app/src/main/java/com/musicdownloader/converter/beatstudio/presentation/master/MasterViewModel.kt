@@ -332,13 +332,13 @@ class MasterViewModel @Inject constructor(
         _advancedState.update { it.copy(selectedPreset = preset) }
         when (preset) {
             ExportPreset.STREAMING -> {
-                _uiState.update { it.copy(selectedFormat = ExportFormat.MP3, selectedSampleRate = SampleRate.SR_44100, selectedBitDepth = BitDepth.BIT_24, isLimiterEnabled = true, isNormalizationEnabled = true) }
+                _uiState.update { it.copy(selectedFormat = ExportFormat.MP3, selectedSampleRate = SampleRate.SR_44100, selectedBitDepth = BitDepth.BIT_24) }
             }
             ExportPreset.CD_AUDIO -> {
-                _uiState.update { it.copy(selectedFormat = ExportFormat.WAV, selectedSampleRate = SampleRate.SR_44100, selectedBitDepth = BitDepth.BIT_16, isLimiterEnabled = false, isNormalizationEnabled = false) }
+                _uiState.update { it.copy(selectedFormat = ExportFormat.WAV, selectedSampleRate = SampleRate.SR_44100, selectedBitDepth = BitDepth.BIT_16) }
             }
             ExportPreset.HI_RES -> {
-                _uiState.update { it.copy(selectedFormat = ExportFormat.FLAC, selectedSampleRate = SampleRate.SR_96000, selectedBitDepth = BitDepth.BIT_32, isLimiterEnabled = true, isNormalizationEnabled = true) }
+                _uiState.update { it.copy(selectedFormat = ExportFormat.FLAC, selectedSampleRate = SampleRate.SR_96000, selectedBitDepth = BitDepth.BIT_32) }
             }
         }
     }
@@ -368,7 +368,7 @@ class MasterViewModel @Inject constructor(
     }
 
     fun toggleLimiter(enabled: Boolean) {
-        _advancedState.update { it.copy(isLimiterEnabled = enabled) }
+        _uiState.update { it.copy(isLimiterEnabled = enabled) }
     }
 
     fun executeMasteringAndExport(customName: String, onComplete: (String) -> Unit) {
