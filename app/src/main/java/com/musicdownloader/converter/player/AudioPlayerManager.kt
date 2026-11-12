@@ -40,6 +40,7 @@ class AudioPlayerManager @Inject constructor(
     
     // --- GESTOR DE REPRODUCTORES MULTITRACK PARA LA LÍNEA DE TIEMPO ---
     private val stemPlayers = mutableMapOf<String, ExoPlayer>()
+    private var multiTrackJob: Job? = null
 
     private val scope = CoroutineScope(Dispatchers.Main)
     private var progressJob: Job? = null
@@ -368,10 +369,11 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // --- REPRODUCCIÓN MULTITRACK SIMULTÁNEA PARA LA PLAYLIST ---
+    // --- REPRODUCCIÓN MULTITRACK SIMULTÁNEA Y SINCRONIZADA PARA LA PLAYLIST ---
     fun playMultiTrackSession(activeStems: List<MasterStemItem>, playbackPositionMs: Long) {
         try {
             exoPlayer?.pause()
+            multiTrackJob?.cancel()
 
             val activeIds = activeStems.map { it.id }.toSet()
             stemPlayers.keys.toList().forEach { id ->
@@ -383,34 +385,63 @@ class AudioPlayerManager @Inject constructor(
             }
 
             activeStems.forEach { stem ->
-                val player = stemPlayers.getOrPut(stem.id) {
+                stemPlayers.getOrPut(stem.id) {
                     ExoPlayer.Builder(context).build().apply {
                         val mediaItem = MediaItem.fromUri(Uri.parse(stem.path))
                         setMediaItem(mediaItem)
                         prepare()
                     }
                 }
+            }
 
-                if (stem.isMuted) {
-                    player.pause()
-                } else {
+            var currentGlobalPos = playbackPositionMs
+            _currentPosition.value = currentGlobalPos
+            _isPlaying.value = true
+
+            multiTrackJob = scope.launch {
+                // Sincronización inicial al arrancar la reproducción
+                activeStems.forEach { stem ->
+                    val player = stemPlayers[stem.id] ?: return@forEach
                     player.volume = stem.volume.coerceIn(0.0f, 2.0f)
-                    val targetPos = (playbackPositionMs - stem.startTimeMs).coerceAtLeast(0L)
 
-                    if (playbackPositionMs >= stem.startTimeMs) {
-                        if (kotlin.math.abs(player.currentPosition - targetPos) > 500L) {
-                            player.seekTo(targetPos)
-                        }
-                        if (!player.isPlaying) {
-                            player.play()
-                        }
+                    if (stem.isMuted) {
+                        player.pause()
+                    } else if (currentGlobalPos >= stem.startTimeMs) {
+                        val targetPos = currentGlobalPos - stem.startTimeMs
+                        player.seekTo(targetPos)
+                        player.play()
                     } else {
                         player.pause()
                         player.seekTo(0L)
                     }
                 }
+
+                // Bucle continuo en tiempo real: integra y solapa las pistas a medida que el cabezal avanza
+                while (_isPlaying.value) {
+                    delay(33L)
+                    currentGlobalPos += 33L
+                    _currentPosition.value = currentGlobalPos
+
+                    activeStems.forEach { stem ->
+                        val player = stemPlayers[stem.id] ?: return@forEach
+                        player.volume = stem.volume.coerceIn(0.0f, 2.0f)
+
+                        if (stem.isMuted) {
+                            if (player.isPlaying) player.pause()
+                        } else {
+                            if (currentGlobalPos >= stem.startTimeMs) {
+                                if (!player.isPlaying) {
+                                    val targetPos = currentGlobalPos - stem.startTimeMs
+                                    player.seekTo(targetPos)
+                                    player.play()
+                                }
+                            } else {
+                                if (player.isPlaying) player.pause()
+                            }
+                        }
+                    }
+                }
             }
-            _isPlaying.value = true
             startProgressTracking()
         } catch (e: Exception) {
             e.printStackTrace()
@@ -419,6 +450,8 @@ class AudioPlayerManager @Inject constructor(
 
     fun stopAllStems() {
         try {
+            multiTrackJob?.cancel()
+            multiTrackJob = null
             stemPlayers.values.forEach { player ->
                 player.stop()
                 player.release()
@@ -618,9 +651,6 @@ class AudioPlayerManager @Inject constructor(
                     _currentPosition.value = player.currentPosition
                     _duration.value = player.duration.coerceAtLeast(0L)
                 }
-                stemPlayers.values.firstOrNull { it.isPlaying }?.let { activeStemPlayer ->
-                    _currentPosition.value = activeStemPlayer.currentPosition
-                }
                 delay(33L) // Sincronización ultrafluida a ~30fps
             }
         }
@@ -745,9 +775,11 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // --- MÉTODO PÚBLICO STOP (REQUERIDO POR EL MIXER MULTITRACK) ---
+    // --- MÉTODO PÚBLICO STOP ---
     fun stop() {
         try {
+            multiTrackJob?.cancel()
+            multiTrackJob = null
             exoPlayer?.stop()
             stopAllStems()
             stopCrackle()
@@ -836,6 +868,8 @@ class AudioPlayerManager @Inject constructor(
     }
 
     fun release() {
+        multiTrackJob?.cancel()
+        multiTrackJob = null
         stopProgressTracking()
         cancelSleepTimer()
         stopArtSlideshow()
