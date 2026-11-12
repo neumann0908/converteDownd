@@ -64,7 +64,7 @@ fun MasterScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Box(modifier = Modifier.size(7.dp).background(Color(0xFFFFD700), RoundedCornerShape(2.dp)))
-                            Text(text = "DAW RACK // ARRANGEMENT VIEW", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Black)
+                            Text(text = "DAW RACK // ARRANGEMENT CANVAS", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Black)
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Button(
@@ -98,7 +98,7 @@ fun MasterScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(text = "📁 BIBLIOTECA DE AUDIOS (Toca para añadir pista al timeline)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "📁 BIBLIOTECA DE AUDIOS (Toca para colocar en la pizarra)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
 
                     val libraryStems = advancedState.availableLibraryStems
                     if (libraryStems.isEmpty()) {
@@ -124,7 +124,7 @@ fun MasterScreen(
                                         Text(text = stem.name, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                             Text(text = stem.sizeMb, color = Color.Gray, fontSize = 7.sp)
-                                            Text(text = "➕ Añadir", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                            Text(text = "➕ Colocar", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -134,7 +134,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- 3. EDITOR DE LÍNEA DE TIEMPO MULTITRACK VERTICAL (ARRANGEMENT VIEW) ---
+            // --- 3. PIZARRA DE ARREGLO VISUAL (ARRANGEMENT CANVAS) ---
             Surface(
                 color = Color(0xFF111722),
                 shape = RoundedCornerShape(8.dp),
@@ -147,7 +147,7 @@ fun MasterScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "🎚️ LÍNEA DE TIEMPO (PISTAS VERTICALES)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "🎚️ PIZARRA DE ARREGLO (TIMELINE CLIPS)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         
                         Button(
                             onClick = { viewModel.togglePlayAllChannels() },
@@ -157,7 +157,7 @@ fun MasterScreen(
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
-                                text = if (advancedState.isMultiPlayActive) "⏹ Detener Sesión" else "▶ Reproducir Timeline",
+                                text = if (advancedState.isMultiPlayActive) "⏹ Detener Sesión" else "▶ Reproducir Pizarra",
                                 color = Color.Black,
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold
@@ -165,29 +165,30 @@ fun MasterScreen(
                         }
                     }
 
-                    // Regleta de Tiempo Superior (Timeline Ruler)
+                    // Regleta de Tiempo Superior con indicador de Playhead en tiempo real
                     Surface(
                         color = Color(0xFF070B10),
                         shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.fillMaxWidth().height(24.dp)
+                        modifier = Modifier.fillMaxWidth().height(26.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "0.0s (Inicio)", color = Color.Cyan, fontSize = 8.sp)
-                            val formattedPos = String.format(java.util.Locale.US, "%.1fs", currentPosition / 1000f)
-                            Text(text = "Pos: $formattedPos", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                            Text(text = "60.0s+", color = Color.Gray, fontSize = 8.sp)
+                            Text(text = "⏱ 0.0s", color = Color.Cyan, fontSize = 8.sp)
+                            val formattedPos = String.format(java.util.Locale.US, "Playhead: %.1fs", currentPosition / 1000f)
+                            Text(text = formattedPos, color = Color(0xFFFFD700), fontSize = 9.sp, fontWeight = FontWeight.Black)
+                            Text(text = "30.0s+", color = Color.Gray, fontSize = 8.sp)
                         }
                     }
 
                     val sessionStems = advancedState.activeSessionStems
                     if (sessionStems.isEmpty()) {
-                        Text(text = "No hay pistas en el timeline. Añade audios desde la biblioteca superior.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
+                        Text(text = "La pizarra está vacía. Añade audios desde la biblioteca superior.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
                     } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                        // Bloques visuales interactivos en la pizarra
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             sessionStems.forEach { stem ->
                                 val isSelected = stem.id == advancedState.selectedStemId
                                 Surface(
@@ -200,8 +201,9 @@ fun MasterScreen(
                                 ) {
                                     Column(
                                         modifier = Modifier.fillMaxWidth().padding(8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
+                                        // Cabecera del bloque de audio
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -212,6 +214,7 @@ fun MasterScreen(
                                                 Text(text = stem.name, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                                             }
                                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                // Botón Mute / Solo rápido
                                                 IconButton(
                                                     onClick = { viewModel.toggleStemMute(stem.id) },
                                                     modifier = Modifier.size(20.dp)
@@ -223,6 +226,7 @@ fun MasterScreen(
                                                         fontWeight = FontWeight.Bold
                                                     )
                                                 }
+                                                // Botón Quitar de la pizarra
                                                 IconButton(
                                                     onClick = { viewModel.removeStemFromSession(stem.id) },
                                                     modifier = Modifier.size(18.dp)
@@ -232,6 +236,7 @@ fun MasterScreen(
                                             }
                                         }
 
+                                        // Estado de Volumen y Tiempo de Inicio visual
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -239,9 +244,10 @@ fun MasterScreen(
                                         ) {
                                             Text(text = "Vol: ${String.format(java.util.Locale.US, "%.1f", stem.volume)}x", color = Color.Cyan, fontSize = 8.sp)
                                             Text(text = "Pan: ${String.format(java.util.Locale.US, "%.1f", stem.pan)}", color = Color.Gray, fontSize = 8.sp)
-                                            Text(text = "Inicio: ${(stem.startTimeMs / 1000f).let { String.format(java.util.Locale.US, "%.1fs", it) }}", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                            Text(text = "Entrada en Pizarra: ${(stem.startTimeMs / 1000f).let { String.format(java.util.Locale.US, "%.1fs", it) }}", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
                                         }
 
+                                        // Slider optimizado para ubicar el bloque exactamente donde debe sonar
                                         Slider(
                                             value = stem.startTimeMs.toFloat(),
                                             onValueChange = { viewModel.updateStemStartTime(stem.id, it.toLong()) },
@@ -251,7 +257,7 @@ fun MasterScreen(
                                                 activeTrackColor = Color(0xFFFFD700),
                                                 inactiveTrackColor = Color(0xFF1A2332)
                                             ),
-                                            modifier = Modifier.height(20.dp)
+                                            modifier = Modifier.height(22.dp)
                                         )
                                     }
                                 }
@@ -272,7 +278,7 @@ fun MasterScreen(
                 Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "VIRTUAL RACK: ${selectedStem?.name ?: "Ningún canal enfocado"}",
+                            text = "VIRTUAL RACK: ${selectedStem?.name ?: "Ningún bloque enfocado"}",
                             color = Color(0xFFFFD700),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -317,7 +323,7 @@ fun MasterScreen(
                             )
                         }
                     } else {
-                        Text(text = "Selecciona una pista vertical para manipular sus potenciómetros VST.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
+                        Text(text = "Toca un bloque en la pizarra para manipular sus potenciómetros VST.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
                     }
                 }
             }
