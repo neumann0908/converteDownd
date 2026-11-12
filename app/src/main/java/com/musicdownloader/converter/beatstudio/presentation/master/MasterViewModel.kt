@@ -88,7 +88,7 @@ class MasterViewModel @Inject constructor(
                             file.extension.equals("wav", true))
                 }?.forEach { file ->
                     val sizeMb = String.format(java.util.Locale.US, "%.2f MB", file.length().toDouble() / (1024 * 1024))
-                    stemList.add(MasterStemItem(name = file.name, path = file.absolutePath, sizeMb = sizeMb, durationMs = 5000L)) // Estimado por defecto o calculado
+                    stemList.add(MasterStemItem(name = file.name, path = file.absolutePath, sizeMb = sizeMb, durationMs = 5000L))
                 }
             }
 
@@ -126,8 +126,7 @@ class MasterViewModel @Inject constructor(
         _advancedState.update { state ->
             if (state.activeSessionStems.any { it.path == libraryStem.path }) return@update state
 
-            // Asignar un tiempo de inicio escalonado si ya hay pistas en la sesión (ej. al final de la anterior)
-            const val defaultOffset = 0L
+            val defaultOffset = 0L
             val calculatedStartTime = if (state.activeSessionStems.isNotEmpty()) {
                 state.activeSessionStems.maxOf { it.startTimeMs + it.durationMs }
             } else {
@@ -369,7 +368,7 @@ class MasterViewModel @Inject constructor(
     }
 
     fun toggleLimiter(enabled: Boolean) {
-        _uiState.update { it.copy(isLimiterEnabled = enabled) }
+        _advancedState.update { it.copy(isLimiterEnabled = enabled) }
     }
 
     fun executeMasteringAndExport(customName: String, onComplete: (String) -> Unit) {
