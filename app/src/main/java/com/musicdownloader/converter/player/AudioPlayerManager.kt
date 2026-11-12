@@ -368,7 +368,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // --- REPRODUCCIÓN MULTITRACK SIMULTÁNEA PARA LA LÍNEA DE TIEMPO ---
+    // --- REPRODUCCIÓN MULTITRACK SIMULTÁNEA PARA LA PLAYLIST ---
     fun playMultiTrackSession(activeStems: List<MasterStemItem>, playbackPositionMs: Long) {
         try {
             exoPlayer?.pause()
@@ -376,17 +376,13 @@ class AudioPlayerManager @Inject constructor(
             val activeIds = activeStems.map { it.id }.toSet()
             stemPlayers.keys.toList().forEach { id ->
                 if (!activeIds.contains(id)) {
+                    stemPlayers[id]?.stop()
                     stemPlayers[id]?.release()
                     stemPlayers.remove(id)
                 }
             }
 
             activeStems.forEach { stem ->
-                if (stem.isMuted) {
-                    stemPlayers[stem.id]?.pause()
-                    return@forEach
-                }
-
                 val player = stemPlayers.getOrPut(stem.id) {
                     ExoPlayer.Builder(context).build().apply {
                         val mediaItem = MediaItem.fromUri(Uri.parse(stem.path))
@@ -395,19 +391,23 @@ class AudioPlayerManager @Inject constructor(
                     }
                 }
 
-                player.volume = stem.volume.coerceIn(0.0f, 2.0f)
-                val targetPos = (playbackPositionMs - stem.startTimeMs).coerceAtLeast(0L)
-
-                if (playbackPositionMs >= stem.startTimeMs) {
-                    if (kotlin.math.abs(player.currentPosition - targetPos) > 500L) {
-                        player.seekTo(targetPos)
-                    }
-                    if (!player.isPlaying) {
-                        player.play()
-                    }
-                } else {
+                if (stem.isMuted) {
                     player.pause()
-                    player.seekTo(0L)
+                } else {
+                    player.volume = stem.volume.coerceIn(0.0f, 2.0f)
+                    val targetPos = (playbackPositionMs - stem.startTimeMs).coerceAtLeast(0L)
+
+                    if (playbackPositionMs >= stem.startTimeMs) {
+                        if (kotlin.math.abs(player.currentPosition - targetPos) > 500L) {
+                            player.seekTo(targetPos)
+                        }
+                        if (!player.isPlaying) {
+                            player.play()
+                        }
+                    } else {
+                        player.pause()
+                        player.seekTo(0L)
+                    }
                 }
             }
             _isPlaying.value = true
@@ -617,6 +617,9 @@ class AudioPlayerManager @Inject constructor(
                 exoPlayer?.let { player ->
                     _currentPosition.value = player.currentPosition
                     _duration.value = player.duration.coerceAtLeast(0L)
+                }
+                stemPlayers.values.firstOrNull { it.isPlaying }?.let { activeStemPlayer ->
+                    _currentPosition.value = activeStemPlayer.currentPosition
                 }
                 delay(33L) // Sincronización ultrafluida a ~30fps
             }
