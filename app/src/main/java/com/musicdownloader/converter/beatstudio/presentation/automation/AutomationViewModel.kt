@@ -247,7 +247,7 @@ class AutomationViewModel @Inject constructor(
         }
     }
 
-    // --- NUEVO: SISTEMA DE PRESETS JSON ---
+    // --- SISTEMA DE PRESETS JSON ---
 
     // Guardar el estado actual de los carriles en un archivo JSON interno
     fun savePreset(presetName: String, onComplete: (Boolean) -> Unit) {
