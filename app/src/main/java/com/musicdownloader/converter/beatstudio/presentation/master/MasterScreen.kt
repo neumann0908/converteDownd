@@ -65,7 +65,7 @@ fun MasterScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Box(modifier = Modifier.size(7.dp).background(Color(0xFFFFD700), RoundedCornerShape(2.dp)))
-                            Text(text = "DAW RACK // MULTI-TRACK STUDIO", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Black)
+                            Text(text = "DAW RACK // ARRANGEMENT VIEW", color = Color(0xFFFFD700), fontSize = 11.sp, fontWeight = FontWeight.Black)
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Button(
@@ -91,7 +91,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- 2. BIBLIOTECA DE AUDIOS ESCANEADOS (SELECCIONAR PARA ABRIR CANAL) ---
+            // --- 2. BIBLIOTECA DE AUDIOS ESCANEADOS ---
             Surface(
                 color = Color(0xFF0E131D),
                 shape = RoundedCornerShape(8.dp),
@@ -99,7 +99,7 @@ fun MasterScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(text = "📁 BIBLIOTECA DE AUDIOS (Toca para abrir canal en sesión)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "📁 BIBLIOTECA DE AUDIOS (Toca para añadir pista al timeline)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
 
                     val libraryStems = advancedState.availableLibraryStems
                     if (libraryStems.isEmpty()) {
@@ -135,7 +135,7 @@ fun MasterScreen(
                 }
             }
 
-            // --- 3. BANDEJA DE CANALES ACTIVOS EN SESIÓN (MIXER MULTICANAL) ---
+            // --- 3. EDITOR DE LÍNEA DE TIEMPO MULTITRACK VERTICAL (ARRANGEMENT VIEW) ---
             Surface(
                 color = Color(0xFF111722),
                 shape = RoundedCornerShape(8.dp),
@@ -143,10 +143,13 @@ fun MasterScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "🎚️ MIXER STRIPS (CANALES ACTIVOS)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "🎚️ LÍNEA DE TIEMPO (PISTAS VERTICALES)", color = Color(0xFFFFD700), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         
-                        // Botón de Play / Stop Global Multicanal
                         Button(
                             onClick = { viewModel.togglePlayAllChannels() },
                             colors = ButtonDefaults.buttonColors(containerColor = if (advancedState.isMultiPlayActive) Color(0xFFFF5252) else Color(0xFF00E676)),
@@ -155,7 +158,7 @@ fun MasterScreen(
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
-                                text = if (advancedState.isMultiPlayActive) "⏹ Detener Todo" else "▶ Reproducir Sesión",
+                                text = if (advancedState.isMultiPlayActive) "⏹ Detener Sesión" else "▶ Reproducir Timeline",
                                 color = Color.Black,
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold
@@ -163,16 +166,29 @@ fun MasterScreen(
                         }
                     }
 
+                    // Regleta de Tiempo Superior (Timeline Ruler)
+                    Surface(
+                        color = Color(0xFF070B10),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.fillMaxWidth().height(24.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "0.0s (Inicio)", color = Color.Cyan, fontSize = 8.sp)
+                            Text(text = "Pos: ${(state.currentPosition / 1000f).let { String.format(java.util.Locale.US, "%.1fs", it) }}", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "60.0s+", color = Color.Gray, fontSize = 8.sp)
+                        }
+                    }
+
                     val sessionStems = advancedState.activeSessionStems
                     if (sessionStems.isEmpty()) {
-                        Text(text = "No hay canales en la sesión. Añade audios desde la biblioteca superior.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
+                        Text(text = "No hay pistas en el timeline. Añade audios desde la biblioteca superior.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
                     } else {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
+                        // Apilado vertical de pistas (Vertical Multitrack Tracks)
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                             sessionStems.forEach { stem ->
                                 val isSelected = stem.id == advancedState.selectedStemId
                                 Surface(
@@ -180,46 +196,67 @@ fun MasterScreen(
                                     shape = RoundedCornerShape(6.dp),
                                     border = BorderStroke(1.5.dp, if (isSelected) Color(0xFFFFD700) else Color(0xFF1A2332)),
                                     modifier = Modifier
-                                        .width(135.dp)
-                                        .height(100.dp)
+                                        .fillMaxWidth()
                                         .clickable { viewModel.selectAndPlayStem(stem.id) }
                                 ) {
                                     Column(
-                                        modifier = Modifier.fillMaxSize().padding(6.dp),
-                                        verticalArrangement = Arrangement.SpaceBetween
+                                        modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
+                                        // Cabecera de la pista
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
+                                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Box(modifier = Modifier.size(6.dp).background(if (isSelected) Color(0xFFFFD700) else Color(0xFF00E676), RoundedCornerShape(2.dp)))
+                                                Text(text = stem.name, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                            }
                                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                                Box(modifier = Modifier.size(5.dp).background(if (isSelected) Color(0xFFFFD700) else Color(0xFF00E676), RoundedCornerShape(2.dp)))
                                                 IconButton(
                                                     onClick = { viewModel.toggleStemMute(stem.id) },
-                                                    modifier = Modifier.size(18.dp)
+                                                    modifier = Modifier.size(20.dp)
                                                 ) {
                                                     Text(
                                                         text = if (stem.isMuted) "M" else "S",
                                                         color = if (stem.isMuted) Color.Red else Color.Green,
-                                                        fontSize = 8.sp,
+                                                        fontSize = 9.sp,
                                                         fontWeight = FontWeight.Bold
                                                     )
                                                 }
-                                            }
-                                            // Botón para expulsar canal de la sesión
-                                            IconButton(
-                                                onClick = { viewModel.removeStemFromSession(stem.id) },
-                                                modifier = Modifier.size(16.dp)
-                                            ) {
-                                                Text("❌", fontSize = 7.sp)
+                                                IconButton(
+                                                    onClick = { viewModel.removeStemFromSession(stem.id) },
+                                                    modifier = Modifier.size(18.dp)
+                                                ) {
+                                                    Text("❌", fontSize = 8.sp)
+                                                }
                                             }
                                         }
-                                        Text(text = stem.name, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+
+                                        // Controles de volumen, panorama y desplazamiento temporal (Start Time)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
                                             Text(text = "Vol: ${String.format(java.util.Locale.US, "%.1f", stem.volume)}x", color = Color.Cyan, fontSize = 8.sp)
-                                            Text(text = "Pan: ${String.format(java.util.Locale.US, "%.1f", stem.pan)}", color = Color.Gray, fontSize = 7.sp)
+                                            Text(text = "Pan: ${String.format(java.util.Locale.US, "%.1f", stem.pan)}", color = Color.Gray, fontSize = 8.sp)
+                                            Text(text = "Inicio: ${(stem.startTimeMs / 1000f).let { String.format(java.util.Locale.US, "%.1fs", it) }}", color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
                                         }
+
+                                        // Slider para posicionar el inicio del audio de forma milimétrica en el timeline (0s a 30s)
+                                        Slider(
+                                            value = stem.startTimeMs.toFloat(),
+                                            onValueChange = { viewModel.updateStemStartTime(stem.id, it.toLong()) },
+                                            valueRange = 0f..30000f,
+                                            colors = SliderDefaults.colors(
+                                                thumbColor = Color(0xFFFFD700),
+                                                activeTrackColor = Color(0xFFFFD700),
+                                                inactiveTrackColor = Color(0xFF1A2332)
+                                            ),
+                                            modifier = Modifier.height(20.dp)
+                                        )
                                     }
                                 }
                             }
@@ -284,7 +321,7 @@ fun MasterScreen(
                             )
                         }
                     } else {
-                        Text(text = "Selecciona un canal en el mixer activo para manipular sus potenciómetros.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
+                        Text(text = "Selecciona una pista vertical para manipular sus potenciómetros VST.", color = Color.Gray, fontSize = 9.sp, modifier = Modifier.padding(4.dp))
                     }
                 }
             }
