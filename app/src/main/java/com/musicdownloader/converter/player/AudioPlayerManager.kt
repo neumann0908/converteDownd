@@ -411,7 +411,9 @@ class AudioPlayerManager @Inject constructor(
             multiTrackJob?.cancel()
 
             currentActiveStems = activeStems
-            val activeIds = activeStems.map { id -> id }.toSet()
+            // Tipado explícito de los IDs para evitar problemas de inferencia del compilador
+            val activeIds: Set<String> = activeStems.map { it.id }.toSet()
+            
             stemPlayers.keys.toList().forEach { id ->
                 if (!activeIds.contains(id)) {
                     stemPlayers[id]?.stop()
