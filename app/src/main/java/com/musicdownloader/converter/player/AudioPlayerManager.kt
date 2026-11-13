@@ -651,10 +651,8 @@ class AudioPlayerManager @Inject constructor(
         progressJob = scope.launch {
             while (true) {
                 exoPlayer?.let { player ->
-                    if (multiTrackJob == null) {
-                        _currentPosition.value = player.currentPosition
-                        _duration.value = player.duration.coerceAtLeast(0L)
-                    }
+                    _currentPosition.value = player.currentPosition
+                    _duration.value = player.duration.coerceAtLeast(0L)
                 }
                 delay(33L)
             }
@@ -856,13 +854,6 @@ class AudioPlayerManager @Inject constructor(
         exoPlayer?.seekTo(positionMs)
         stemPlayers.values.forEach { it.seekTo(positionMs) }
         _currentPosition.value = positionMs
-    }
-
-    fun seekForward() {
-        exoPlayer?.let {
-            val newPos = (it.currentPosition + 10000).coerceAtMost(it.duration)
-            seekTo(newPos)
-        }
     }
 
     fun seekForward() {
