@@ -452,7 +452,7 @@ class AudioPlayerManager @Inject constructor(
                     }
                 }
 
-                // Bucle continuo en tiempo real (mantiene start/pause por tiempo, sin sobrescribir volumen en tiempo real)
+                // Bucle continuo en tiempo real
                 while (_isPlaying.value) {
                     delay(33L)
                     currentGlobalPos += 33L
@@ -884,7 +884,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    fn seekTo(positionMs: Long) {
+    fun seekTo(positionMs: Long) {
         exoPlayer?.seekTo(positionMs)
         stemPlayers.values.forEach { it.seekTo(positionMs) }
         _currentPosition.value = positionMs
