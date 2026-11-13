@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,8 +14,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -267,7 +270,6 @@ fun MasterScreen(
                                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            // Botones de ajuste rápido a potestad (-1s, -0.1s, +0.1s, +1s)
                                             Button(
                                                 onClick = { viewModel.updateStemStartTime(stem.id, (stem.startTimeMs - 1000L).coerceAtLeast(0L)) },
                                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C2638)),
@@ -553,5 +555,65 @@ fun MasterScreen(
         }
 
         SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+// --- COMPONENTE DE PERILLA / KNOB INTERACTIVO PARA EL VIRTUAL RACK ---
+@Composable
+fun ConsoleKnob(
+    label: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    unit: String,
+    onValueChanged: (Float) -> Unit
+) {
+    val coercedValue = value.coerceIn(valueRange.start, valueRange.endInclusive)
+    val fraction = (coercedValue - valueRange.start) / (valueRange.endInclusive - valueRange.start)
+    val angle = -135f + (fraction * 270f)
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier
+            .pointerInput(Unit) {
+                detectVerticalDragGestures { _, dragAmount ->
+                    val sensitivity = 150f
+                    val rangeSpan = valueRange.endInclusive - valueRange.start
+                    val delta = (-dragAmount / sensitivity) * rangeSpan
+                    val newValue = (value + delta).coerceIn(valueRange.start, valueRange.endInclusive)
+                    onValueChanged(newValue)
+                }
+            }
+            .padding(4.dp)
+    ) {
+        Text(text = label, color = Color.Gray, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+        
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .background(Color(0xFF1B2433), RoundedCornerShape(21.dp))
+                .border(1.5.dp, Color(0xFFFFD700), RoundedCornerShape(21.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .rotate(angle),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(3.dp, 12.dp)
+                        .background(Color(0xFFFFD700), RoundedCornerShape(1.5.dp))
+                )
+            }
+        }
+
+        val displayValueStr = if (unit == "x") {
+            String.format(java.util.Locale.US, "%.2f%s", coercedValue, unit)
+        } else {
+            String.format(java.util.Locale.US, "%.1f%s", coercedValue, unit)
+        }
+        Text(text = displayValueStr, color = Color(0xFFFFD700), fontSize = 8.sp, fontWeight = FontWeight.Bold)
     }
 }
