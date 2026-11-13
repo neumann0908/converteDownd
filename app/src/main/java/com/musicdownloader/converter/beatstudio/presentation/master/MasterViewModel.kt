@@ -211,6 +211,10 @@ class MasterViewModel @Inject constructor(
         playerManager.setStemGain(stemId, volume)
     }
 
+    fun updateSelectedStemGain(gainValue: Float) {
+        updateSelectedStemVolume(gainValue)
+    }
+
     fun updateSelectedStemPan(pan: Float) {
         val stemId = _advancedState.value.selectedStemId ?: return
         _advancedState.update { state ->
