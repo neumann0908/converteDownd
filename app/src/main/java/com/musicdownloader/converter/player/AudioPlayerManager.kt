@@ -40,6 +40,7 @@ class AudioPlayerManager @Inject constructor(
     
     // --- GESTOR DE REPRODUCTORES MULTITRACK PARA LA PLAYLIST (AISLADO) ---
     private val stemPlayers = mutableMapOf<String, ExoPlayer>()
+    private var currentActiveStems: List<MasterStemItem> = emptyList()
     private var multiTrackJob: Job? = null
 
     private val scope = CoroutineScope(Dispatchers.Main)
@@ -297,6 +298,9 @@ class AudioPlayerManager @Inject constructor(
         try {
             val safeVolume = gainLinear.coerceIn(0.0f, 2.0f)
             stemPlayers[stemId]?.volume = safeVolume
+            currentActiveStems = currentActiveStems.map { 
+                if (it.id == stemId) it.copy(volume = safeVolume) else it 
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -321,7 +325,11 @@ class AudioPlayerManager @Inject constructor(
             val driveLinear = 10.0.pow((inputDriveDb / 20.0).toDouble()).toFloat()
             val ceilingLinear = 10.0.pow((limiterCeilingDb / 20.0).toDouble()).toFloat()
             val effectiveVolume = driveLinear.coerceAtMost(ceilingLinear).coerceIn(0.0f, 2.0f)
+            
             stemPlayers[stemId]?.volume = effectiveVolume
+            currentActiveStems = currentActiveStems.map { 
+                if (it.id == stemId) it.copy(volume = effectiveVolume) else it 
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -402,7 +410,8 @@ class AudioPlayerManager @Inject constructor(
             exoPlayer?.pause()
             multiTrackJob?.cancel()
 
-            val activeIds = activeStems.map { it.id }.toSet()
+            currentActiveStems = activeStems
+            val activeIds = activeStems.map { id -> id }.toSet()
             stemPlayers.keys.toList().forEach { id ->
                 if (!activeIds.contains(id)) {
                     stemPlayers[id]?.stop()
@@ -426,8 +435,8 @@ class AudioPlayerManager @Inject constructor(
             _isPlaying.value = true
 
             multiTrackJob = scope.launch {
-                // Sincronización inicial
-                activeStems.forEach { stem ->
+                // Sincronización inicial de volúmenes y tiempos
+                currentActiveStems.forEach { stem ->
                     val player = stemPlayers[stem.id] ?: return@forEach
                     player.volume = stem.volume.coerceIn(0.0f, 2.0f)
 
@@ -443,15 +452,14 @@ class AudioPlayerManager @Inject constructor(
                     }
                 }
 
-                // Bucle continuo en tiempo real para activar pistas según su startTimeMs
+                // Bucle continuo en tiempo real (mantiene start/pause por tiempo, sin sobrescribir volumen en tiempo real)
                 while (_isPlaying.value) {
                     delay(33L)
                     currentGlobalPos += 33L
                     _currentPosition.value = currentGlobalPos
 
-                    activeStems.forEach { stem ->
+                    currentActiveStems.forEach { stem ->
                         val player = stemPlayers[stem.id] ?: return@forEach
-                        player.volume = stem.volume.coerceIn(0.0f, 2.0f)
 
                         if (stem.isMuted) {
                             if (player.isPlaying) player.pause()
@@ -483,6 +491,7 @@ class AudioPlayerManager @Inject constructor(
                 player.release()
             }
             stemPlayers.clear()
+            currentActiveStems = emptyList()
             _isPlaying.value = false
         } catch (e: Exception) {
             e.printStackTrace()
@@ -875,7 +884,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    fun seekTo(positionMs: Long) {
+    fn seekTo(positionMs: Long) {
         exoPlayer?.seekTo(positionMs)
         stemPlayers.values.forEach { it.seekTo(positionMs) }
         _currentPosition.value = positionMs
