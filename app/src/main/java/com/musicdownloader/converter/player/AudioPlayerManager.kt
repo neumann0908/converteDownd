@@ -38,7 +38,7 @@ class AudioPlayerManager @Inject constructor(
     private var cracklePlayer: ExoPlayer? = null 
     private var scratchPlayer: ExoPlayer? = null 
     
-    // --- GESTOR DE REPRODUCTORES MULTITRACK PARA LA LÍNEA DE TIEMPO ---
+    // --- GESTOR DE REPRODUCTORES MULTITRACK PARA LA PLAYLIST (AISLADO) ---
     private val stemPlayers = mutableMapOf<String, ExoPlayer>()
     private var multiTrackJob: Job? = null
 
@@ -103,7 +103,9 @@ class AudioPlayerManager @Inject constructor(
         exoPlayer = ExoPlayer.Builder(context).build().apply {
             addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(playing: Boolean) {
-                    _isPlaying.value = playing
+                    if (multiTrackJob == null) {
+                        _isPlaying.value = playing
+                    }
                     if (playing) {
                         startProgressTracking()
                         startCrackle()
@@ -113,7 +115,9 @@ class AudioPlayerManager @Inject constructor(
                             setupAudioEffects(audioSessionId)
                         }
                     } else {
-                        stopProgressTracking()
+                        if (multiTrackJob == null) {
+                            stopProgressTracking()
+                        }
                         stopCrackle()
                         stopArtSlideshow()  
                     }
@@ -156,7 +160,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // --- CONFIGURACIÓN DE EFECTOS DE AUDIO (BASS BOOST, REVERB & EQUALIZER) ---
+    // --- CONFIGURACIÓN DE EFECTOS DE AUDIO ---
 
     private fun setupAudioEffects(audioSessionId: Int) {
         try {
@@ -273,40 +277,38 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // --- CONSULTA DIRECTA DE POSICIÓN EN TIEMPO REAL (ALTA FRECUENCIA PARA MOTOR 9) ---
     fun getCurrentPositionDirect(): Long {
         return exoPlayer?.currentPosition ?: _currentPosition.value
     }
 
-    // --- 🎚️ CONTROL DE GANANCIA Y VOLUMEN MAESTRO PARA EL MÁSTER ---
     fun setMasterGain(gainLinear: Float) {
         try {
             exoPlayer?.volume = gainLinear.coerceIn(0.0f, 2.0f)
+            stemPlayers.values.forEach { it.volume = gainLinear.coerceIn(0.0f, 2.0f) }
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    // --- 🎚️ PROCESAMIENTO DSP EN TIEMPO REAL PARA EL MÁSTER ---
     fun updateMasteringParameters(inputDriveDb: Float, limiterCeilingDb: Float) {
         try {
             val driveLinear = 10.0.pow((inputDriveDb / 20.0).toDouble()).toFloat()
             val ceilingLinear = 10.0.pow((limiterCeilingDb / 20.0).toDouble()).toFloat()
-
-            val effectiveVolume = driveLinear.coerceAtMost(ceilingLinear)
-            exoPlayer?.volume = effectiveVolume.coerceIn(0.0f, 2.0f)
+            val effectiveVolume = driveLinear.coerceAtMost(ceilingLinear).coerceIn(0.0f, 2.0f)
+            exoPlayer?.volume = effectiveVolume
+            stemPlayers.values.forEach { it.volume = effectiveVolume }
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    // --- EXPANSIÓN COMPLETA DE DSPS PARA TODOS LOS CARRILES ---
     fun applyAutomation(parameter: AutomationParameterType, value: Float) {
         try {
             val safeValue = value.coerceIn(0f, 1f)
             when (parameter) {
                 AutomationParameterType.VOLUME -> {
                     exoPlayer?.volume = safeValue
+                    stemPlayers.values.forEach { it.volume = safeValue }
                 }
                 AutomationParameterType.PITCH -> {
                     val speed = 0.5f + (safeValue * 1.5f)
@@ -369,7 +371,7 @@ class AudioPlayerManager @Inject constructor(
         }
     }
 
-    // --- REPRODUCCIÓN MULTITRACK SIMULTÁNEA Y SINCRONIZADA PARA LA PLAYLIST ---
+    // --- MOTOR MULTITRACK INDEPENDIENTE PARA LA PLAYLIST ---
     fun playMultiTrackSession(activeStems: List<MasterStemItem>, playbackPositionMs: Long) {
         try {
             exoPlayer?.pause()
@@ -399,7 +401,7 @@ class AudioPlayerManager @Inject constructor(
             _isPlaying.value = true
 
             multiTrackJob = scope.launch {
-                // Sincronización inicial al arrancar la reproducción
+                // Sincronización inicial
                 activeStems.forEach { stem ->
                     val player = stemPlayers[stem.id] ?: return@forEach
                     player.volume = stem.volume.coerceIn(0.0f, 2.0f)
@@ -416,7 +418,7 @@ class AudioPlayerManager @Inject constructor(
                     }
                 }
 
-                // Bucle continuo en tiempo real: integra y solapa las pistas a medida que el cabezal avanza
+                // Bucle continuo en tiempo real para activar pistas según su startTimeMs
                 while (_isPlaying.value) {
                     delay(33L)
                     currentGlobalPos += 33L
@@ -442,7 +444,6 @@ class AudioPlayerManager @Inject constructor(
                     }
                 }
             }
-            startProgressTracking()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -457,12 +458,13 @@ class AudioPlayerManager @Inject constructor(
                 player.release()
             }
             stemPlayers.clear()
+            _isPlaying.value = false
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    // --- EXPORTAR AUDIO ACTUAL A LA BIBLIOTECA ---
+    // --- EXPORTAR MÁSTER A LA BIBLIOTECA PARA EL REPRODUCTOR PRINCIPAL ---
     fun exportCurrentAudioToLibrary(customTitle: String, onSaved: (File) -> Unit) {
         scope.launch(Dispatchers.IO) {
             try {
@@ -630,6 +632,7 @@ class AudioPlayerManager @Inject constructor(
             val speed = (1.0f + (dragDeltaX / 15f)).coerceIn(0.1f, 2.5f)
             player.playbackParameters = PlaybackParameters(speed)
         }
+        stemPlayers.values.forEach { it.seekTo(positionMs) }
     }
 
     fun endScratch() {
@@ -648,10 +651,12 @@ class AudioPlayerManager @Inject constructor(
         progressJob = scope.launch {
             while (true) {
                 exoPlayer?.let { player ->
-                    _currentPosition.value = player.currentPosition
-                    _duration.value = player.duration.coerceAtLeast(0L)
+                    if (multiTrackJob == null) {
+                        _currentPosition.value = player.currentPosition
+                        _duration.value = player.duration.coerceAtLeast(0L)
+                    }
                 }
-                delay(33L) // Sincronización ultrafluida a ~30fps
+                delay(33L)
             }
         }
     }
@@ -851,6 +856,13 @@ class AudioPlayerManager @Inject constructor(
         exoPlayer?.seekTo(positionMs)
         stemPlayers.values.forEach { it.seekTo(positionMs) }
         _currentPosition.value = positionMs
+    }
+
+    fun seekForward() {
+        exoPlayer?.let {
+            val newPos = (it.currentPosition + 10000).coerceAtMost(it.duration)
+            seekTo(newPos)
+        }
     }
 
     fun seekForward() {
