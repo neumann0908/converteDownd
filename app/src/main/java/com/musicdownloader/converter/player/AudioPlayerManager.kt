@@ -281,15 +281,28 @@ class AudioPlayerManager @Inject constructor(
         return exoPlayer?.currentPosition ?: _currentPosition.value
     }
 
+    // --- CONTROL DE GANANCIA MAESTRO ---
     fun setMasterGain(gainLinear: Float) {
         try {
-            exoPlayer?.volume = gainLinear.coerceIn(0.0f, 2.0f)
-            stemPlayers.values.forEach { it.volume = gainLinear.coerceIn(0.0f, 2.0f) }
+            val safeVolume = gainLinear.coerceIn(0.0f, 2.0f)
+            exoPlayer?.volume = safeVolume
+            stemPlayers.values.forEach { it.volume = safeVolume }
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
+    // --- CONTROL DE GANANCIA INDIVIDUAL POR PISTA (PARA EL VIRTUAL RACK) ---
+    fun setStemGain(stemId: String, gainLinear: Float) {
+        try {
+            val safeVolume = gainLinear.coerceIn(0.0f, 2.0f)
+            stemPlayers[stemId]?.volume = safeVolume
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // --- PARÁMETROS DE MASTERING GENERALES ---
     fun updateMasteringParameters(inputDriveDb: Float, limiterCeilingDb: Float) {
         try {
             val driveLinear = 10.0.pow((inputDriveDb / 20.0).toDouble()).toFloat()
@@ -297,6 +310,18 @@ class AudioPlayerManager @Inject constructor(
             val effectiveVolume = driveLinear.coerceAtMost(ceilingLinear).coerceIn(0.0f, 2.0f)
             exoPlayer?.volume = effectiveVolume
             stemPlayers.values.forEach { it.volume = effectiveVolume }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // --- PARÁMETROS DE MASTERING INDIVIDUALES POR PISTA (PARA EL VIRTUAL RACK) ---
+    fun updateStemMasteringParameters(stemId: String, inputDriveDb: Float, limiterCeilingDb: Float) {
+        try {
+            val driveLinear = 10.0.pow((inputDriveDb / 20.0).toDouble()).toFloat()
+            val ceilingLinear = 10.0.pow((limiterCeilingDb / 20.0).toDouble()).toFloat()
+            val effectiveVolume = driveLinear.coerceAtMost(ceilingLinear).coerceIn(0.0f, 2.0f)
+            stemPlayers[stemId]?.volume = effectiveVolume
         } catch (e: Exception) {
             e.printStackTrace()
         }
