@@ -200,7 +200,7 @@ class MasterViewModel @Inject constructor(
         }
     }
 
-    // --- CONTROLES DE HARDWARE Y PARÁMETROS DEL CANAL SELECCIONADO ---
+    // --- CONTROLES DE HARDWARE Y PARÁMETROS DEL CANAL SELECCIONADO (VIRTUAL RACK) ---
     fun updateSelectedStemVolume(volume: Float) {
         val stemId = _advancedState.value.selectedStemId ?: return
         _advancedState.update { state ->
@@ -208,7 +208,7 @@ class MasterViewModel @Inject constructor(
                 activeSessionStems = state.activeSessionStems.map { if (it.id == stemId) it.copy(volume = volume) else it }
             )
         }
-        playerManager.applyAutomation(AutomationParameterType.VOLUME, volume)
+        playerManager.setStemGain(stemId, volume)
     }
 
     fun updateSelectedStemPan(pan: Float) {
@@ -320,12 +320,22 @@ class MasterViewModel @Inject constructor(
 
     fun updateInputDrive(gainDb: Float) {
         _advancedState.update { it.copy(inputDriveDb = gainDb) }
-        playerManager.updateMasteringParameters(gainDb, _advancedState.value.limiterCeilingDb)
+        val stemId = _advancedState.value.selectedStemId
+        if (stemId != null) {
+            playerManager.updateStemMasteringParameters(stemId, gainDb, _advancedState.value.limiterCeilingDb)
+        } else {
+            playerManager.updateMasteringParameters(gainDb, _advancedState.value.limiterCeilingDb)
+        }
     }
 
     fun updateLimiterCeiling(ceilingDb: Float) {
         _advancedState.update { it.copy(limiterCeilingDb = ceilingDb) }
-        playerManager.updateMasteringParameters(_advancedState.value.inputDriveDb, ceilingDb)
+        val stemId = _advancedState.value.selectedStemId
+        if (stemId != null) {
+            playerManager.updateStemMasteringParameters(stemId, _advancedState.value.inputDriveDb, ceilingDb)
+        } else {
+            playerManager.updateMasteringParameters(_advancedState.value.inputDriveDb, ceilingDb)
+        }
     }
 
     fun applyExportPreset(preset: ExportPreset) {
